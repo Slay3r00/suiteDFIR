@@ -61,3 +61,6 @@ htmlcov/
 
 # pyenv
 .python-version
+
+# Forensic Tools
+forensic-tools/leapp-tools/iLEAPP/*
