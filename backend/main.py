@@ -287,6 +287,25 @@ async def start_processing(request: ProcessRequest):
         elif request.input_path.endswith('.zip'):
             file_type = 'zip'
 
+        # Create temporary profile file
+        import tempfile
+        
+        # Filter out disabled modules if any
+        modules_to_run = request.selected_modules
+        
+        profile_data = {
+            "leapp": "ileapp",
+            "format_version": 1,
+            "plugins": modules_to_run
+        }
+        
+        # Create a temporary file for the profile
+        # We use delete=False so we can pass the path to the subprocess
+        # It should be cleaned up after the process finishes
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.ilprofile', delete=False) as tmp_profile:
+            json.dump(profile_data, tmp_profile)
+            tmp_profile_path = tmp_profile.name
+
         # Build iLEAPP command
         ileapp_script = os.path.join(ILEAPP_PATH, "ileapp.py")
         cmd = [
@@ -294,13 +313,15 @@ async def start_processing(request: ProcessRequest):
             "-t", file_type,
             "-i", request.input_path,
             "-o", output_folder,
+            "-m", tmp_profile_path,
             "-tz", request.timezone_offset if request.timezone_offset else 'UTC'
         ]
 
         # Initialize task
         tasks[task_id] = {
             "queue": asyncio.Queue(),
-            "status": "processing"
+            "status": "processing",
+            "profile_path": tmp_profile_path  # Store path for cleanup
         }
 
         # Run iLEAPP as background task
@@ -320,11 +341,22 @@ async def start_processing(request: ProcessRequest):
                 await tasks[task_id]["queue"].put(f"Starting iLEAPP forensic analysis...")
                 await tasks[task_id]["queue"].put(f"Processing: {os.path.basename(request.input_path)}")
                 await tasks[task_id]["queue"].put(f"Output folder: {output_folder}")
+                await tasks[task_id]["queue"].put(f"Selected modules: {len(modules_to_run)}")
 
                 # Stream output directly to queue
                 async for line in process.stdout:
                     line_text = line.decode().strip()
                     if line_text:
+                        # Filter out banner lines
+                        if any(x in line_text for x in [
+                            "iLEAPP v",
+                            "Objective: Triage iOS Full File System",
+                            "By: Alexis Brignoni",
+                            "By: Yogesh Khatri",
+                            "--------------------------------------------------------------------------------------"
+                        ]):
+                            continue
+                        
                         await tasks[task_id]["queue"].put(line_text)
 
                 # Wait for completion
@@ -337,6 +369,14 @@ async def start_processing(request: ProcessRequest):
                 await tasks[task_id]["queue"].put(error_msg)
                 tasks[task_id]["status"] = "error"
                 print(f"iLEAPP processing error: {e}")
+            
+            finally:
+                # Cleanup temporary profile file
+                if os.path.exists(tmp_profile_path):
+                    try:
+                        os.unlink(tmp_profile_path)
+                    except Exception as e:
+                        print(f"Failed to delete temp profile: {e}")
 
         asyncio.create_task(run_task())
 

@@ -1,37 +1,21 @@
-interface InputProps {
-  value: string;
-  onChange: (value: string) => void;
-  disabled?: boolean;
-  placeholder?: string;
-  className?: string;
-  style?: React.CSSProperties;
-}
+import * as React from "react"
 
-export default function Input({
-  value,
-  onChange,
-  disabled = false,
-  placeholder = '',
-  className = '',
-  style
-}: InputProps) {
-  const defaultStyle = {
-    backgroundColor: '#171717',
-    borderColor: '#f2f2f2',
-    borderWidth: '0.5px'
-  };
+import { cn } from "../../lib/utils"
 
-  const defaultClassName = 'px-3 py-2 rounded-lg placeholder-gray-500 focus:outline-none focus:border-white focus:ring-1 focus:ring-white text-white border border-gray-800 text-sm';
-
+function Input({ className, type, ...props }: React.ComponentProps<"input">) {
   return (
     <input
-      type="text"
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      disabled={disabled}
-      placeholder={placeholder}
-      className={`${defaultClassName} ${className}`}
-      style={style || defaultStyle}
+      type={type}
+      data-slot="input"
+      className={cn(
+        "file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border-input h-9 w-full min-w-0 rounded-md border bg-transparent px-3 py-1 text-base shadow-xs transition-[color,box-shadow] outline-none file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-sm file:font-medium disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
+        "focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]",
+        "aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive",
+        className
+      )}
+      {...props}
     />
-  );
+  )
 }
+
+export { Input }

@@ -5,19 +5,18 @@ import { useModules } from '../../hooks/useModules';
 interface ProcessControlsProps {
   inputFile: string;
   outputFolder: string;
-  onLog?: (message: string) => void;
 }
 
-export default function ProcessControls({ inputFile, outputFolder, onLog }: ProcessControlsProps) {
+export default function ProcessControls({ inputFile, outputFolder }: ProcessControlsProps) {
   const { selectedModules } = useModules();
-  const { isProcessing, startProcessing, stopProcessing } = useProcessing();
+  const { isProcessing, startProcessing, stopProcessing, appendLog } = useProcessing();
 
   const handleStart = async () => {
     try {
-      await startProcessing(inputFile, outputFolder, selectedModules, onLog);
+      await startProcessing(inputFile, outputFolder, selectedModules);
     } catch (error) {
       if (error instanceof Error) {
-        onLog?.(error.message);
+        appendLog(error.message);
       }
     }
   };
@@ -27,12 +26,13 @@ export default function ProcessControls({ inputFile, outputFolder, onLog }: Proc
   };
 
   const canStart = inputFile && selectedModules.size > 0 && outputFolder && !isProcessing;
+  const canStop = isProcessing;
 
   return (
     <div className="space-y-3">
       <Button
         onClick={isProcessing ? handleStop : handleStart}
-        disabled={!canStart}
+        disabled={isProcessing ? !canStop : !canStart}
         className="w-full"
         variant="secondary"
       >

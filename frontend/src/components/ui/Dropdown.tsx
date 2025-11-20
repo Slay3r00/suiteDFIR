@@ -45,11 +45,10 @@ export default function Dropdown({ isOpen, onClose, children, align = 'right', b
   return (
     <div
       ref={dropdownRef}
-      className={`absolute top-full mt-2 z-50 w-fit ${
-        align === 'left' ? 'left-0' : 'right-0'
-      }`}
+      className={`absolute top-full mt-2 z-50 w-fit ${align === 'left' ? 'left-0' : 'right-0'
+        }`}
     >
-      <div className="bg-[#30444f] rounded-lg shadow-xl overflow-hidden">
+      <div className="bg-[#262626] rounded-lg shadow-xl overflow-hidden">
         {children}
       </div>
     </div>

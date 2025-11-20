@@ -48,14 +48,14 @@ export default function FileSelector({
     <div className="flex gap-3">
       <Input
         value={value}
-        onChange={onChange}
+        onChange={(e) => onChange(e.target.value)}
         disabled={disabled}
         placeholder={placeholder}
         className="flex-1"
       />
       <div className="relative">
         <Button
-          ref={fileDropdown.buttonRef}
+          ref={fileDropdown.buttonRef as React.RefObject<HTMLButtonElement>}
           onClick={fileDropdown.handleClick}
           disabled={disabled}
           variant="secondary"
@@ -63,18 +63,18 @@ export default function FileSelector({
           Browse
         </Button>
 
-        <Dropdown isOpen={fileDropdown.isOpen} onClose={fileDropdown.close} buttonRef={fileDropdown.buttonRef}>
+        <Dropdown isOpen={fileDropdown.isOpen} onClose={fileDropdown.close} buttonRef={fileDropdown.buttonRef as React.RefObject<HTMLButtonElement>}>
           {showFolderOption && (
             <div
               onClick={handleBrowseFiles}
-              className="whitespace-nowrap px-4 py-3 text-right text-sm font-medium text-white hover:bg-[#3a5464] transition-colors cursor-pointer border-b border-gray-700 last:border-b-0"
+              className="whitespace-nowrap px-4 py-3 text-right text-sm font-medium text-white hover:bg-[#3f3f3f] transition-colors cursor-pointer border-b border-[#404040] last:border-b-0"
             >
               Choose File
             </div>
           )}
           <div
             onClick={handleBrowseFolders}
-            className="whitespace-nowrap px-4 py-3 text-right text-sm font-medium text-white hover:bg-[#3a5464] transition-colors cursor-pointer last:border-b-0"
+            className="whitespace-nowrap px-4 py-3 text-right text-sm font-medium text-white hover:bg-[#3f3f3f] transition-colors cursor-pointer last:border-b-0"
           >
             Choose Folder
           </div>

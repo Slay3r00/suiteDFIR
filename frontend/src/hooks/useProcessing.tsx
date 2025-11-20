@@ -1,14 +1,37 @@
-import { useState } from 'react';
+import { useState, createContext, useContext, ReactNode } from 'react';
 import { ileappApi } from '../services/ileappApi';
 import { Status } from '../app/ileapp/types';
 
-export function useProcessing() {
+interface ProcessingContextType {
+  status: Status;
+  taskId: string;
+  logs: string[];
+  isProcessing: boolean;
+  startProcessing: (
+    inputFile: string,
+    outputFolder: string,
+    selectedModules: Set<string>,
+    onLog?: (log: string) => void
+  ) => Promise<string>;
+  stopProcessing: () => Promise<void>;
+  reset: () => void;
+  appendLog: (msg: string) => void;
+  clearLogs: () => void;
+}
+
+const ProcessingContext = createContext<ProcessingContextType | undefined>(undefined);
+
+export function ProcessingProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<Status>('idle');
   const [taskId, setTaskId] = useState<string>('');
   const [logs, setLogs] = useState<string[]>([]);
 
   const appendLog = (msg: string) => {
     setLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] ${msg}`]);
+  };
+
+  const clearLogs = () => {
+    setLogs([]);
   };
 
   const startProcessing = async (
@@ -22,7 +45,7 @@ export function useProcessing() {
     }
 
     setStatus('processing');
-    setLogs([]);
+    setLogs([]); // Clear logs at start
     appendLog('Starting iLEAPP...');
 
     try {
@@ -84,14 +107,27 @@ export function useProcessing() {
     setLogs([]);
   };
 
-  return {
-    status,
-    taskId,
-    logs,
-    isProcessing: status === 'processing',
-    startProcessing,
-    stopProcessing,
-    reset,
-    appendLog,
-  };
+  return (
+    <ProcessingContext.Provider value={{
+      status,
+      taskId,
+      logs,
+      isProcessing: status === 'processing',
+      startProcessing,
+      stopProcessing,
+      reset,
+      appendLog,
+      clearLogs,
+    }}>
+      {children}
+    </ProcessingContext.Provider>
+  );
+}
+
+export function useProcessing() {
+  const context = useContext(ProcessingContext);
+  if (context === undefined) {
+    throw new Error('useProcessing must be used within a ProcessingProvider');
+  }
+  return context;
 }

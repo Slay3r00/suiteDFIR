@@ -1,8 +1,20 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
 import { ileappApi } from '../services/ileappApi';
 import { Module } from '../app/ileapp/types';
 
-export function useModules() {
+interface ModulesContextType {
+  modules: Module[];
+  selectedModules: Set<string>;
+  isLoading: boolean;
+  fetchModules: () => Promise<void>;
+  toggleModule: (name: string, selected: boolean) => Promise<void>;
+  selectAll: () => Promise<void>;
+  selectNone: () => Promise<void>;
+}
+
+const ModulesContext = createContext<ModulesContextType | undefined>(undefined);
+
+export function ModulesProvider({ children }: { children: ReactNode }) {
   const [modules, setModules] = useState<Module[]>([]);
   const [selectedModules, setSelectedModules] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(false);
@@ -75,13 +87,25 @@ export function useModules() {
     fetchModules();
   }, []);
 
-  return {
-    modules,
-    selectedModules,
-    isLoading,
-    fetchModules,
-    toggleModule,
-    selectAll,
-    selectNone,
-  };
+  return (
+    <ModulesContext.Provider value={{
+      modules,
+      selectedModules,
+      isLoading,
+      fetchModules,
+      toggleModule,
+      selectAll,
+      selectNone,
+    }}>
+      {children}
+    </ModulesContext.Provider>
+  );
+}
+
+export function useModules() {
+  const context = useContext(ModulesContext);
+  if (context === undefined) {
+    throw new Error('useModules must be used within a ModulesProvider');
+  }
+  return context;
 }
