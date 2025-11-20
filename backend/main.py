@@ -10,9 +10,29 @@ import sys
 import asyncio
 import subprocess
 import platform
+import sqlite3
+import json
+from datetime import datetime
 
 # Add iLEAPP to Python path
 ILEAPP_PATH = os.path.join(os.path.dirname(__file__), "forensic-tools", "leapp-tools", "iLEAPP")
+DB_PATH = os.path.join(os.path.dirname(__file__), "profiles.db")
+
+def init_database():
+    """Initialize SQLite database for profiles"""
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS profiles (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT UNIQUE NOT NULL,
+            modules_json TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    conn.commit()
+    conn.close()
+
 if os.path.exists(ILEAPP_PATH):
     sys.path.insert(0, ILEAPP_PATH)
     # Set up iLEAPP environment
@@ -23,6 +43,10 @@ async def lifespan(app: FastAPI):
     """Initialize iLEAPP plugins on startup"""
     global plugin_loader, available_modules
     try:
+        # Initialize database first
+        init_database()
+        print("Database initialized")
+
         # Import iLEAPP modules
         import scripts.plugin_loader as plugin_loader_module
         import scripts.ilapfuncs as ilapfuncs
@@ -88,6 +112,16 @@ class ProcessRequest(BaseModel):
     output_folder: str
     selected_modules: List[str]
     timezone_offset: str = "UTC"
+
+class Profile(BaseModel):
+    id: int
+    name: str
+    modules: List[str]
+    created_at: str
+
+class ProfileCreate(BaseModel):
+    name: str
+    modules: List[str]
 
 
 # Unified task management
@@ -176,13 +210,13 @@ async def browse_files():
 
         # Handle all error cases
         if result.returncode == 1 and "-128" in result.stderr:
-            return FilePathResponse("", False, "User cancelled file selection")
-        return FilePathResponse("", False, f"File dialog error: {result.stderr}")
+            return FilePathResponse(file_path="", success=False, message="User cancelled file selection")
+        return FilePathResponse(file_path="", success=False, message=f"File dialog error: {result.stderr}")
 
     except subprocess.TimeoutExpired:
-        return FilePathResponse("", False, "File dialog timed out")
+        return FilePathResponse(file_path="", success=False, message="File dialog timed out")
     except Exception as e:
-        return FilePathResponse("", False, f"Failed to open file dialog: {str(e)}")
+        return FilePathResponse(file_path="", success=False, message=f"Failed to open file dialog: {str(e)}")
 
 @app.post("/api/browse-folders", response_model=FilePathResponse)
 async def browse_folders():
@@ -223,13 +257,13 @@ async def browse_folders():
 
         # Handle all error cases
         if result.returncode == 1 and "-128" in result.stderr:
-            return FilePathResponse("", False, "User cancelled folder selection")
-        return FilePathResponse("", False, f"Folder dialog error: {result.stderr}")
+            return FilePathResponse(file_path="", success=False, message="User cancelled folder selection")
+        return FilePathResponse(file_path="", success=False, message=f"Folder dialog error: {result.stderr}")
 
     except subprocess.TimeoutExpired:
-        return FilePathResponse("", False, "Folder dialog timed out")
+        return FilePathResponse(file_path="", success=False, message="Folder dialog timed out")
     except Exception as e:
-        return FilePathResponse("", False, f"Failed to open folder dialog: {str(e)}")
+        return FilePathResponse(file_path="", success=False, message=f"Failed to open folder dialog: {str(e)}")
 
 @app.post("/api/process")
 async def start_processing(request: ProcessRequest):
@@ -380,6 +414,110 @@ async def stream_processing_logs(task_id: str):
             "Access-Control-Allow-Headers": "*",
         }
     )
+
+# Profile Management Endpoints
+
+@app.get("/api/profiles", response_model=List[Profile])
+async def get_profiles():
+    """Get list of all saved profiles"""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute('SELECT id, name, modules_json, created_at FROM profiles ORDER BY created_at DESC')
+        rows = cursor.fetchall()
+        conn.close()
+
+        profiles = []
+        for row in rows:
+            profiles.append(Profile(
+                id=row[0],
+                name=row[1],
+                modules=json.loads(row[2]),
+                created_at=row[3]
+            ))
+
+        return profiles
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch profiles: {str(e)}")
+
+@app.post("/api/profiles", response_model=Profile)
+async def create_profile(profile: ProfileCreate):
+    """Create a new profile"""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        modules_json = json.dumps(profile.modules)
+
+        cursor.execute(
+            'INSERT INTO profiles (name, modules_json) VALUES (?, ?)',
+            (profile.name, modules_json)
+        )
+        profile_id = cursor.lastrowid
+        conn.commit()
+        conn.close()
+
+        return Profile(
+            id=profile_id,
+            name=profile.name,
+            modules=profile.modules,
+            created_at=datetime.now().isoformat()
+        )
+    except sqlite3.IntegrityError:
+        raise HTTPException(status_code=400, detail="Profile with this name already exists")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to create profile: {str(e)}")
+
+@app.post("/api/profiles/{profile_id}/load")
+async def load_profile(profile_id: int):
+    """Load a profile's module selection"""
+    global available_modules
+
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute('SELECT name, modules_json FROM profiles WHERE id = ?', (profile_id,))
+        row = cursor.fetchone()
+        conn.close()
+
+        if not row:
+            raise HTTPException(status_code=404, detail="Profile not found")
+
+        profile_name, modules_json = row
+        selected_modules = json.loads(modules_json)
+
+        # Update global available_modules with profile selection
+        for module_name in available_modules:
+            available_modules[module_name]['selected'] = module_name in selected_modules
+
+        return {
+            "message": f"Loaded profile: {profile_name}",
+            "profile_id": profile_id,
+            "selected_count": len(selected_modules)
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to load profile: {str(e)}")
+
+@app.delete("/api/profiles/{profile_id}")
+async def delete_profile(profile_id: int):
+    """Delete a profile"""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute('DELETE FROM profiles WHERE id = ?', (profile_id,))
+        conn.commit()
+        rows_affected = cursor.rowcount
+        conn.close()
+
+        if rows_affected == 0:
+            raise HTTPException(status_code=404, detail="Profile not found")
+
+        return {"message": "Profile deleted successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to delete profile: {str(e)}")
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
