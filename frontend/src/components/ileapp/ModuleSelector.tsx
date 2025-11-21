@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Button, Input, Dropdown } from '../ui';
 import { useModules, useProfiles, useDropdown, useProcessing } from '../../hooks';
 import { Module } from '../../app/ileapp/types';
@@ -37,49 +37,46 @@ interface ModuleSelectorProps {
 export default function ModuleSelector({ isProcessing = false }: ModuleSelectorProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [profileNameInput, setProfileNameInput] = useState('');
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const loadProfileDropdown = useDropdown();
   const saveProfileDropdown = useDropdown();
 
-  const { modules, selectedModules, toggleModule, selectAll, selectNone, fetchModules } = useModules();
-  const { profiles, loadProfile, saveProfile, deleteProfile } = useProfiles();
-  const { appendLog } = useProcessing();
+  const { modules, selectedModules, toggleModule, selectAll, selectNone, fetchModules, tool } = useModules();
+  const { profiles, loadProfile, saveProfile, deleteProfile } = useProfiles(tool);
 
   const handleLoadProfile = async (profileId: number) => {
     try {
       const message = await loadProfile(profileId);
       // Refresh modules to get updated selection state
       await fetchModules();
-      appendLog(message);
+      // Profile loaded successfully
       loadProfileDropdown.close();
     } catch (error) {
-      appendLog('Failed to load profile');
+      console.error('Failed to load profile:', error);
     }
   };
 
   const handleSaveProfile = async () => {
     const trimmedName = profileNameInput.trim();
     if (!trimmedName) {
-      appendLog('Please enter a profile name');
+      console.warn('Please enter a profile name');
       return;
     }
 
     try {
-      appendLog(`Attempting to save profile with name: "${trimmedName}"`);
       const name = await saveProfile(trimmedName, Array.from(selectedModules));
-      appendLog(`Profile "${name}" saved successfully`);
       setProfileNameInput('');
       saveProfileDropdown.close();
     } catch (error) {
-      appendLog('Failed to save profile');
+      console.error('Failed to save profile:', error);
     }
   };
 
   const handleDeleteProfile = async (profileId: number) => {
     try {
-      const message = await deleteProfile(profileId);
-      appendLog(message);
+      await deleteProfile(profileId);
     } catch (error) {
-      appendLog('Failed to delete profile');
+      console.error('Failed to delete profile:', error);
     }
   };
 
@@ -229,15 +226,15 @@ export default function ModuleSelector({ isProcessing = false }: ModuleSelectorP
       <div className="flex-1 overflow-y-auto rounded-lg p-3 border border-gray-800"
         style={{ backgroundColor: '#171717', borderColor: '#f2f2f2', borderWidth: '0.5px' }}>
         {Object.entries(modulesByCategory).map(([category, categoryModules]) => (
-          <div key={category} className="mb-4">
-            <div className="text-xs font-medium text-gray-400 mb-2">
+          <div key={category} className="mb-2">
+            <div className="text-xs font-medium text-gray-400 mb-1">
               {category}
             </div>
-            <div className="space-y-1">
+            <div className="space-y-0.5">
               {categoryModules.map((module) => (
                 <label
                   key={module.name}
-                  className="flex items-center space-x-3 p-2 rounded hover:bg-[#262626] cursor-pointer transition-colors"
+                  className="flex items-center space-x-2 px-2 py-0.5 rounded hover:bg-[#262626] cursor-pointer transition-colors"
                 >
                   <div className="relative">
                     <input
@@ -245,19 +242,19 @@ export default function ModuleSelector({ isProcessing = false }: ModuleSelectorP
                       checked={selectedModules.has(module.name)}
                       onChange={() => toggleModule(module.name, !selectedModules.has(module.name))}
                       disabled={isProcessing}
-                      className="w-4 h-4 rounded border border-white focus:ring-2 focus:ring-gray-600 appearance-none"
+                      className="w-3.5 h-3.5 rounded border border-white focus:ring-1 focus:ring-gray-600 appearance-none"
                       style={{ borderWidth: '0.5px', backgroundColor: selectedModules.has(module.name) ? '#262626' : 'transparent' }}
                     />
                     {selectedModules.has(module.name) && (
-                      <svg className="absolute w-3 h-3 text-white pointer-events-none" style={{ top: '3.5px', left: '2px' }} viewBox="0 0 20 20" fill="currentColor">
+                      <svg className="absolute w-2.5 h-2.5 text-white pointer-events-none" style={{ top: '5.5px', left: '2px' }} viewBox="0 0 20 20" fill="currentColor">
                         <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                       </svg>
                     )}
                   </div>
-                  <span className="text-sm flex-1 text-white">{module.display_name}</span>
+                  <span className="text-xs flex-1 text-white">{module.display_name}</span>
                   {slowModules.has(module.module_name) && (
                     <span
-                      className="text-xs font-medium px-2 py-0.5 rounded border border-white"
+                      className="text-[10px] font-medium px-1.5 py-0 rounded border border-white"
                       style={{ borderWidth: '0.5px', backgroundColor: '#262626', color: 'white' }}
                     >
                       Slow

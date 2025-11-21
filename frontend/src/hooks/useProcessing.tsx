@@ -1,124 +1,106 @@
 import { useState, createContext, useContext, ReactNode } from 'react';
-import { ileappApi } from '../services/ileappApi';
-import { Status } from '../app/ileapp/types';
+import { createLeappApi } from '../services/leappApi';
 
 interface ProcessingContextType {
-  status: Status;
-  taskId: string;
   logs: string[];
   isProcessing: boolean;
-  startProcessing: (
-    inputFile: string,
-    outputFolder: string,
-    selectedModules: Set<string>,
-    onLog?: (log: string) => void
-  ) => Promise<string>;
+  progress: { current: number; total: number };
+  taskId: string | null;
+  startProcessing: (inputFile: string, outputFolder: string, selectedModules: string[]) => Promise<void>;
   stopProcessing: () => Promise<void>;
-  reset: () => void;
-  appendLog: (msg: string) => void;
   clearLogs: () => void;
+  tool: string;
 }
 
 const ProcessingContext = createContext<ProcessingContextType | undefined>(undefined);
 
-export function ProcessingProvider({ children }: { children: ReactNode }) {
-  const [status, setStatus] = useState<Status>('idle');
-  const [taskId, setTaskId] = useState<string>('');
+export function ProcessingProvider({ children, tool }: { children: ReactNode; tool: string }) {
   const [logs, setLogs] = useState<string[]>([]);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [taskId, setTaskId] = useState<string | null>(null);
+  const [progress, setProgress] = useState({ current: 0, total: 0 });
 
-  const appendLog = (msg: string) => {
-    setLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] ${msg}`]);
-  };
-
-  const clearLogs = () => {
-    setLogs([]);
-  };
+  const api = createLeappApi(tool);
 
   const startProcessing = async (
     inputFile: string,
     outputFolder: string,
-    selectedModules: Set<string>,
-    onLog?: (log: string) => void
+    selectedModules: string[]
   ) => {
-    if (!inputFile || selectedModules.size === 0 || !outputFolder) {
-      throw new Error('Select file, output folder, and modules');
-    }
-
-    setStatus('processing');
-    setLogs([]); // Clear logs at start
-    appendLog('Starting iLEAPP...');
+    // Clear logs and progress at the start
+    setLogs([]);
+    setProgress({ current: 0, total: 0 });
+    setIsProcessing(true);
 
     try {
-      const data = await ileappApi.processing.start(
-        inputFile,
-        outputFolder,
-        Array.from(selectedModules)
-      );
+      const response = await api.processing.start(inputFile, outputFolder, selectedModules);
+      setTaskId(response.task_id);
 
-      const newTaskId = data.task_id;
-      setTaskId(newTaskId);
-      appendLog(`Task: ${newTaskId}`);
+      // Set up EventSource for streaming logs
+      const eventSource = api.processing.createEventSource(response.task_id);
 
-      const eventSource = ileappApi.processing.createEventSource(newTaskId);
+      eventSource.onmessage = (event: MessageEvent) => {
+        const message = event.data;
+        if (message && message !== 'Stream ended') {
+          setLogs((prev) => [...prev, message]);
 
-      eventSource.onmessage = (e) => {
-        const msg = e.data;
-        appendLog(msg);
-        onLog?.(msg);
-
-        if (msg.includes('Processing completed')) {
-          setStatus('completed');
-          eventSource.close();
-        } else if (msg.includes('Processing stopped')) {
-          setStatus('stopped');
-          eventSource.close();
+          // Parse progress from log message: [x/y]
+          const match = message.match(/\[(\d+)\/(\d+)\]/);
+          if (match) {
+            setProgress({
+              current: parseInt(match[1], 10),
+              total: parseInt(match[2], 10)
+            });
+          }
         }
       };
 
-      eventSource.onerror = () => {
-        appendLog('Stream error');
-        onLog?.('Stream error');
-      };
+      eventSource.addEventListener('close', () => {
+        eventSource.close();
+        setIsProcessing(false);
+      });
 
-      return newTaskId;
+      eventSource.onerror = () => {
+        eventSource.close();
+        setIsProcessing(false);
+        setLogs((prev) => [...prev, 'Error: Connection to server lost']);
+      };
     } catch (error) {
-      setStatus('error');
-      appendLog('Processing failed');
-      onLog?.('Processing failed');
-      throw error;
+      setIsProcessing(false);
+      setLogs((prev) => [...prev, `Error: ${error instanceof Error ? error.message : 'Unknown error'}`]);
     }
+  };
+
+  const clearLogs = () => {
+    setLogs([]);
+    setProgress({ current: 0, total: 0 });
   };
 
   const stopProcessing = async () => {
     if (!taskId) return;
 
     try {
-      await ileappApi.processing.stop(taskId);
-      setStatus('stopped');
-      appendLog('Processing stopped');
+      await api.processing.stop(taskId);
+      setIsProcessing(false);
+      setLogs((prev) => [...prev, 'Processing stopped by user']);
     } catch (error) {
-      appendLog('Stop failed');
+      console.error('Failed to stop processing:', error);
     }
   };
 
-  const reset = () => {
-    setStatus('idle');
-    setTaskId('');
-    setLogs([]);
-  };
-
   return (
-    <ProcessingContext.Provider value={{
-      status,
-      taskId,
-      logs,
-      isProcessing: status === 'processing',
-      startProcessing,
-      stopProcessing,
-      reset,
-      appendLog,
-      clearLogs,
-    }}>
+    <ProcessingContext.Provider
+      value={{
+        logs,
+        isProcessing,
+        progress,
+        taskId,
+        startProcessing,
+        stopProcessing,
+        clearLogs,
+        tool,
+      }}
+    >
       {children}
     </ProcessingContext.Provider>
   );

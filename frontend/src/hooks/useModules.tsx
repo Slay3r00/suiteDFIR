@@ -1,5 +1,5 @@
 import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
-import { ileappApi } from '../services/ileappApi';
+import { createLeappApi } from '../services/leappApi';
 import { Module } from '../app/ileapp/types';
 
 interface ModulesContextType {
@@ -10,19 +10,22 @@ interface ModulesContextType {
   toggleModule: (name: string, selected: boolean) => Promise<void>;
   selectAll: () => Promise<void>;
   selectNone: () => Promise<void>;
+  tool: string;
 }
 
 const ModulesContext = createContext<ModulesContextType | undefined>(undefined);
 
-export function ModulesProvider({ children }: { children: ReactNode }) {
+export function ModulesProvider({ children, tool }: { children: ReactNode; tool: string }) {
   const [modules, setModules] = useState<Module[]>([]);
   const [selectedModules, setSelectedModules] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(false);
 
+  const api = createLeappApi(tool);
+
   const fetchModules = async () => {
     setIsLoading(true);
     try {
-      const data = await ileappApi.modules.getAll();
+      const data = await api.modules.getAll();
       setModules(data.modules);
       const initiallySelected = new Set<string>(
         data.modules.filter((m: Module) => m.selected).map((m: Module) => m.name)
@@ -45,7 +48,7 @@ export function ModulesProvider({ children }: { children: ReactNode }) {
     setSelectedModules(newSelected);
 
     try {
-      await ileappApi.modules.select({ [name]: selected });
+      await api.modules.select({ [name]: selected });
     } catch (error) {
       console.error('Failed to update module:', error);
     }
@@ -62,7 +65,7 @@ export function ModulesProvider({ children }: { children: ReactNode }) {
     });
 
     try {
-      await ileappApi.modules.select(selectionUpdates);
+      await api.modules.select(selectionUpdates);
     } catch (error) {
       console.error('Failed to update modules:', error);
     }
@@ -77,15 +80,20 @@ export function ModulesProvider({ children }: { children: ReactNode }) {
     });
 
     try {
-      await ileappApi.modules.select(selectionUpdates);
+      await api.modules.select(selectionUpdates);
     } catch (error) {
       console.error('Failed to update modules:', error);
     }
   };
 
   useEffect(() => {
+    // Clear state when tool changes to prevent cross-contamination
+    setModules([]);
+    setSelectedModules(new Set());
+    setIsLoading(true);
+
     fetchModules();
-  }, []);
+  }, [tool]); // Refetch when tool changes
 
   return (
     <ModulesContext.Provider value={{
@@ -96,6 +104,7 @@ export function ModulesProvider({ children }: { children: ReactNode }) {
       toggleModule,
       selectAll,
       selectNone,
+      tool,
     }}>
       {children}
     </ModulesContext.Provider>

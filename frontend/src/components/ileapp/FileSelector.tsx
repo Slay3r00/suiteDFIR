@@ -1,7 +1,11 @@
-import { useState } from 'react';
-import { Button, Input, Dropdown } from '../ui';
+import { useState, useRef, useEffect } from 'react';
+import Dropdown from '../ui/Dropdown';
+import { Input, Button } from '../ui';
 import { useDropdown } from '../../hooks/useDropdown';
-import { ileappApi } from '../../services/ileappApi';
+import { createLeappApi } from '../../services/leappApi';
+
+// Browser endpoints are tool-agnostic, so we can use any tool
+const api = createLeappApi('ileapp');
 
 interface FileSelectorProps {
   value: string;
@@ -22,7 +26,7 @@ export default function FileSelector({
 
   const handleBrowseFiles = async () => {
     try {
-      const data = await ileappApi.browser.browseFiles();
+      const data = await api.browser.browseFiles();
       if (data.success && data.file_path) {
         onChange(data.file_path);
         fileDropdown.close();
@@ -34,7 +38,7 @@ export default function FileSelector({
 
   const handleBrowseFolders = async () => {
     try {
-      const data = await ileappApi.browser.browseFolders();
+      const data = await api.browser.browseFolders();
       if (data.success && data.file_path) {
         onChange(data.file_path);
         fileDropdown.close();

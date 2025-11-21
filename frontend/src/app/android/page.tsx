@@ -1,7 +1,11 @@
-export default function Android() {
+import LeappPage from '../../components/leapp/LeappPage';
+
+export default function ALEAPP() {
     return (
-        <div className="h-full w-full flex items-center justify-center text-muted-foreground">
-            Android Page
-        </div>
+        <LeappPage
+            tool="aleapp"
+            logoPath="/aLEAPP-logo.png"
+            toolName="aLEAPP"
+        />
     );
 }

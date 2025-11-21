@@ -1,15 +1,17 @@
 import { useState, useEffect } from 'react';
-import { ileappApi } from '../services/ileappApi';
+import { createLeappApi } from '../services/leappApi';
 import { Profile } from '../app/ileapp/types';
 
-export function useProfiles() {
+export function useProfiles(tool: string) {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+
+  const api = createLeappApi(tool);
 
   const fetchProfiles = async () => {
     setIsLoading(true);
     try {
-      const data = await ileappApi.profiles.getAll();
+      const data = await api.profiles.getAll();
       setProfiles(data);
     } catch (error) {
       console.error('Failed to load profiles:', error);
@@ -20,7 +22,7 @@ export function useProfiles() {
 
   const loadProfile = async (profileId: number) => {
     try {
-      const data = await ileappApi.profiles.load(profileId);
+      const data = await api.profiles.load(profileId);
       await fetchProfiles();
       return data.message;
     } catch (error) {
@@ -31,7 +33,7 @@ export function useProfiles() {
 
   const saveProfile = async (name: string, modules: string[]) => {
     try {
-      const data = await ileappApi.profiles.save(name, modules);
+      const data = await api.profiles.save(name, modules);
       await fetchProfiles();
       return data.name;
     } catch (error) {
@@ -42,7 +44,7 @@ export function useProfiles() {
 
   const deleteProfile = async (profileId: number) => {
     try {
-      const data = await ileappApi.profiles.delete(profileId);
+      const data = await api.profiles.delete(profileId);
       await fetchProfiles();
       return data.message;
     } catch (error) {
@@ -53,7 +55,7 @@ export function useProfiles() {
 
   useEffect(() => {
     fetchProfiles();
-  }, []);
+  }, [tool]); // Refetch when tool changes
 
   return {
     profiles,
