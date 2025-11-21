@@ -82,9 +82,12 @@ export default function Reports() {
     };
 
     const getReportUrl = (report: Report) => {
-        const folder = report.name;
+        // Extract directory name from path since report.name is now the custom display name
+        // report.path is absolute path, e.g. /.../ileapp-reports/iLEAPP_Reports_...
+        const pathParts = report.path.split(/[/\\]/);
+        const folderName = pathParts[pathParts.length - 1] || pathParts[pathParts.length - 2];
         const tool = report.tool;
-        return `http://localhost:8000/reports/${tool}/${folder}/index.html`;
+        return `http://localhost:8000/reports/${tool}-reports/${folderName}/index.html`;
     };
 
     const filteredReports = reports

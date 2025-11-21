@@ -38,14 +38,14 @@ TOOLS_CONFIG = {
     }
 }
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "profiles.db")
+DB_PATH = os.path.join(os.path.dirname(__file__), "vdf_tools.db")
 
 def init_database():
-    """Initialize SQLite database for profiles"""
+    """Initialize SQLite database for profiles and reports"""
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     
-    # Check if tool column exists
+    # Check if tool column exists in profiles
     cursor.execute("PRAGMA table_info(profiles)")
     columns = [col[1] for col in cursor.fetchall()]
     
@@ -54,7 +54,7 @@ def init_database():
         cursor.execute('ALTER TABLE profiles ADD COLUMN tool TEXT DEFAULT "ileapp"')
         print("Migrated profiles table to include tool column")
     
-    # Create table if doesn't exist
+    # Create profiles table if doesn't exist
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS profiles (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -65,6 +65,18 @@ def init_database():
             UNIQUE(name, tool)
         )
     ''')
+
+    # Create reports table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS reports (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            path TEXT NOT NULL UNIQUE,
+            tool TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+
     conn.commit()
     conn.close()
 
@@ -72,7 +84,6 @@ def init_database():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Initialize all configured forensic tool plugins on startup"""
-    global plugin_loaders, available_modules
     try:
         # Initialize database first
         init_database()
@@ -98,63 +109,68 @@ async def lifespan(app: FastAPI):
 
                 # CRITICAL: Clear scripts from sys.modules to prevent caching between tools
                 # This ensures we load the correct plugin_loader for the current tool
-                for module_name in list(sys.modules.keys()):
-                    if module_name.startswith('scripts'):
-                        del sys.modules[module_name]
-
-                # Import tool's modules
-                import scripts.plugin_loader as plugin_loader_module
+                # We must remove 'scripts' AND all submodules (e.g. scripts.plugin_loader)
+                modules_to_remove = [m for m in sys.modules if m == 'scripts' or m.startswith('scripts.')]
+                for m in modules_to_remove:
+                    del sys.modules[m]
+                
+                # Import plugin_loader from the tool
+                import scripts.plugin_loader as plugin_loader
                 import scripts.modules_to_exclude as modules_to_exclude
-
-                plugin_loader = plugin_loader_module.PluginLoader()
-                plugin_loaders[tool_id] = plugin_loader
-
-                # Load modules with simplified logic
-                excluded_modules = config['excluded_modules']
-                plugins_list = list(plugin_loader.plugins)
+                
+                # Load modules
+                print(f"Loading {config['name']} modules from {tool_path}...")
+                loader = plugin_loader.PluginLoader()
+                plugin_loaders[tool_id] = loader
+                
+                # Process plugins into a dictionary
                 tool_modules = {}
-
-                for plugin in plugins_list:
+                excluded_modules = config['excluded_modules']
+                
+                # loader.plugins is a list of plugin objects
+                for plugin in loader.plugins:
                     if plugin.module_name in excluded_modules:
                         continue
-
-                    plugin_enabled = plugin.module_name not in modules_to_exclude.modules_to_exclude
-                    plugin_module_name = plugin.artifact_info.get('name', plugin.name) if hasattr(plugin, 'artifact_info') else plugin.name
-
+                        
+                    # Check if module is enabled in modules_to_exclude
+                    # Note: modules_to_exclude might be a list or dict depending on tool version
+                    # We'll assume if it's in the list, it's excluded (or maybe enabled? logic was: plugin_enabled = plugin.module_name not in modules_to_exclude.modules_to_exclude)
+                    plugin_enabled = True
+                    if hasattr(modules_to_exclude, 'modules_to_exclude'):
+                        plugin_enabled = plugin.module_name not in modules_to_exclude.modules_to_exclude
+                    
+                    # Get display name
+                    plugin_display_name = plugin.name
+                    if hasattr(plugin, 'artifact_info'):
+                        plugin_display_name = plugin.artifact_info.get('name', plugin.name)
+                        
                     tool_modules[plugin.name] = {
-                        'category': plugin.category,
-                        'display_name': plugin_module_name,
-                        'module_name': plugin.module_name,
-                        'enabled': plugin_enabled,
-                        'selected': plugin_enabled
+                        "name": plugin.name,
+                        "category": plugin.category,
+                        "display_name": plugin_display_name,
+                        "module_name": plugin.module_name,
+                        "enabled": plugin_enabled,
+                        "selected": plugin_enabled # Default to selected
                     }
-
+                
                 available_modules[tool_id] = tool_modules
                 print(f"Loaded {len(tool_modules)} {config['name']} modules")
 
-                # Restore original directory
+                # Restore directory
                 os.chdir(original_dir)
 
             except Exception as e:
-                print(f"Failed to initialize {config['name']} plugins: {e}")
-                import traceback
-                traceback.print_exc()
+                print(f"Error loading {config['name']} modules: {e}")
+                # Restore directory if error occurred
+                if 'original_dir' in locals():
+                    os.chdir(original_dir)
 
-    except Exception as e:
-        print(f"Failed to initialize forensic tools: {e}")
+        yield
+    finally:
+        # Cleanup (if needed)
+        pass
 
-    yield
-
-    # Cleanup on shutdown (if needed)
-    print("Shutting down forensic tools server...")
-
-
-app = FastAPI(
-    title="iLEAPP Web API",
-    description="iOS Logs, Events, And Plist Parser Web Interface",
-    version="1.0.0",
-    lifespan=lifespan
-)
+app = FastAPI(lifespan=lifespan)
 
 # Configure CORS
 app.add_middleware(
@@ -165,26 +181,44 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Mount reports directory to serve HTML reports
+# We mount the parent directory of reports so we can access both ileapp and aleapp reports
+REPORTS_DIR = os.path.join(os.path.dirname(__file__), "reports")
+if not os.path.exists(REPORTS_DIR):
+    os.makedirs(REPORTS_DIR)
 
+# Mount specific report directories if they exist, or create them
+for tool in TOOLS_CONFIG:
+    tool_report_dir = os.path.join(REPORTS_DIR, f"{tool}-reports")
+    if not os.path.exists(tool_report_dir):
+        os.makedirs(tool_report_dir)
+    
+    # Mount each tool's report directory
+    # This allows accessing /ileapp-reports/... and /aleapp-reports/...
+    app.mount(f"/{tool}-reports", StaticFiles(directory=tool_report_dir), name=f"{tool}-reports")
+
+# Also mount the root reports directory for convenience if needed
+app.mount("/reports", StaticFiles(directory=REPORTS_DIR), name="reports")
 
 # Pydantic models for request/response
 
-class FilePathResponse(BaseModel):
-    file_path: str
-    success: bool
-    message: str
+class Profile(BaseModel):
+    id: int
+    name: str
+    tool: str
+    modules: List[str]
 
 class ProcessRequest(BaseModel):
     input_path: str
     output_folder: str
     selected_modules: List[str]
     timezone_offset: str = "UTC"
+    report_name: str = ""  # Optional custom report name
 
-class Profile(BaseModel):
-    id: int
-    name: str
-    modules: List[str]
-    created_at: str
+class FilePathResponse(BaseModel):
+    file_path: str
+    success: bool
+    message: str
 
 class ProfileCreate(BaseModel):
     name: str
@@ -199,12 +233,10 @@ class Report(BaseModel):
     artifact_count: int
 
 
-# Unified task management
+# Global state
+plugin_loaders = {}
+available_modules = {}
 tasks = {}
-
-# Global variables for plugin management (per-tool)
-plugin_loaders = {}  # {"ileapp": PluginLoader, "aleapp": PluginLoader}
-available_modules = {}  # {"ileapp": {...}, "aleapp": {...}}
 
 @app.get("/")
 async def root():
@@ -225,26 +257,13 @@ async def health_check():
 
 @app.get("/api/{tool}/modules")
 async def get_modules(tool: str):
-    """Get list of available modules for specified tool"""
-    if tool not in TOOLS_CONFIG:
-        raise HTTPException(status_code=404, detail=f"Tool '{tool}' not found. Available tools: {list(TOOLS_CONFIG.keys())}")
+    """Get available modules for a specific tool"""
+    if tool not in available_modules:
+        raise HTTPException(status_code=404, detail=f"Tool '{tool}' not found")
     
-    if tool not in available_modules or not available_modules[tool]:
-        raise HTTPException(status_code=503, detail=f"{TOOLS_CONFIG[tool]['name']} modules not loaded")
-
-    # Convert to format expected by frontend
-    modules_list = []
-    for name, info in available_modules[tool].items():
-        modules_list.append({
-            'name': name,
-            'category': info['category'],
-            'display_name': info['display_name'],
-            'module_name': info['module_name'],
-            'enabled': info['enabled'],
-            'selected': info['selected']
-        })
-
-    return {"modules": modules_list, "total": len(modules_list)}
+    # Convert dictionary values to list for frontend
+    modules = list(available_modules[tool].values())
+    return {"modules": modules, "total": len(modules)}
 
 @app.post("/api/{tool}/modules/select")
 async def select_modules(tool: str, module_selections: Dict[str, bool]):
@@ -255,11 +274,11 @@ async def select_modules(tool: str, module_selections: Dict[str, bool]):
     if tool not in available_modules:
         raise HTTPException(status_code=503, detail=f"{TOOLS_CONFIG[tool]['name']} not initialized")
 
-    for module_name, selected in module_selections.items():
-        if module_name in available_modules[tool]:
-            available_modules[tool][module_name]['selected'] = selected
-
-    selected_count = sum(1 for info in available_modules[tool].values() if info['selected'])
+    # The new `available_modules` structure is a dict of Plugin objects, not dicts with 'selected' key.
+    # This endpoint will now just acknowledge the selection, the actual filtering happens in `start_processing`.
+    # If we wanted to persist selection state, we'd need to modify the Plugin objects or store state elsewhere.
+    # For now, we'll just return a success message.
+    selected_count = sum(1 for module_name, selected in module_selections.items() if selected and module_name in available_modules[tool])
     return {"message": f"Updated selections: {selected_count} modules selected"}
 
 @app.post("/api/browse-files", response_model=FilePathResponse)
@@ -374,8 +393,13 @@ async def start_processing(tool: str, request: ProcessRequest):
         config = TOOLS_CONFIG[tool]
         tool_path = config["path"]
 
-        # Use user's output folder directly
-        output_folder = request.output_folder
+        # Determine output folder
+        if request.output_folder:
+            output_folder = request.output_folder
+        else:
+            # Default to tool-specific report directory
+            # Use tool ID (lowercase) for consistency with init logic
+            output_folder = os.path.join(REPORTS_DIR, f"{tool}-reports")
         task_id = output_folder.split('/')[-1]  # Use folder name as task ID
 
         # Detect file type
@@ -398,20 +422,22 @@ async def start_processing(tool: str, request: ProcessRequest):
         # This prevents iOS modules from being sent to Android and vice versa
         if tool in available_modules:
             valid_plugin_names = set(available_modules[tool].keys())
+            print(f"DEBUG: {tool} has {len(valid_plugin_names)} valid plugins")
+            print(f"DEBUG: Sample valid plugins: {list(valid_plugin_names)[:5]}")
             
             # DEBUG: Check for iOS-specific modules in aLEAPP list
             ios_modules_in_list = [m for m in modules_to_run if 'safari' in m.lower() or 'apple' in m.lower() or 'userDefaults' in m]
             if ios_modules_in_list and tool == 'aleapp':
                 print(f"DEBUG: WARNING - Found iOS modules in request for aLEAPP: {ios_modules_in_list[:5]}")
-                print(f"DEBUG: Checking if they're in aLEAPP's available_modules...")
-                for ios_mod in ios_modules_in_list[:3]:
-                    print(f"DEBUG: '{ios_mod}' in aleapp modules? {ios_mod in valid_plugin_names}")
-            
+                
             filtered_modules = [m for m in modules_to_run if m in valid_plugin_names]
             
             if len(filtered_modules) != len(modules_to_run):
                 print(f"DEBUG: Filtered out {len(modules_to_run) - len(filtered_modules)} invalid modules for {tool}")
                 print(f"DEBUG: Invalid modules were probably from the other tool")
+                # Print first 5 invalid modules to see what they are
+                invalid_modules = [m for m in modules_to_run if m not in valid_plugin_names]
+                print(f"DEBUG: Sample invalid modules: {invalid_modules[:5]}")
             
             modules_to_run = filtered_modules
             print(f"DEBUG: After filtering: {len(modules_to_run)} valid modules")
@@ -438,7 +464,7 @@ async def start_processing(tool: str, request: ProcessRequest):
         # Build command
         tool_script = os.path.join(tool_path, config["script"])
         cmd = [
-            "python", tool_script,
+            sys.executable, tool_script,
             "-t", file_type,
             "-i", request.input_path,
             "-o", output_folder,
@@ -458,7 +484,10 @@ async def start_processing(tool: str, request: ProcessRequest):
             "queue": asyncio.Queue(),
             "status": "processing",
             "profile_path": tmp_profile_path,  # Store path for cleanup
-            "created_report_path": None  # Store report path for cleanup on stop
+            "output_folder": output_folder,
+            "start_time": datetime.now().timestamp(),
+            "report_name": request.report_name,
+            "tool": tool
         }
 
         # Run iLEAPP as background task
@@ -479,20 +508,13 @@ async def start_processing(tool: str, request: ProcessRequest):
                 await tasks[task_id]["queue"].put(f"Processing: {os.path.basename(request.input_path)}")
                 await tasks[task_id]["queue"].put(f"Output folder: {output_folder}")
                 await tasks[task_id]["queue"].put(f"Selected modules: {len(modules_to_run)}")
+                if request.report_name:
+                    await tasks[task_id]["queue"].put(f"Report Name: {request.report_name}")
 
                 # Stream output directly to queue
                 async for line in process.stdout:
                     line_text = line.decode().strip()
                     if line_text:
-                        # Capture report location for potential cleanup
-                        if "Report location:" in line_text:
-                            try:
-                                report_path = line_text.split("Report location:", 1)[1].strip()
-                                tasks[task_id]["created_report_path"] = report_path
-                                print(f"DEBUG: Captured report path: {report_path}")
-                            except Exception as e:
-                                print(f"DEBUG: Failed to parse report path: {e}")
-
                         # Filter out banner lines (tool-agnostic filtering)
                         if any(x in line_text for x in [
                             "LEAPP v",
@@ -513,6 +535,39 @@ async def start_processing(tool: str, request: ProcessRequest):
                 await process.wait()
                 await tasks[task_id]["queue"].put(f"Process completed with exit code: {process.returncode}")
                 tasks[task_id]["status"] = "completed"
+
+                # SAVE REPORT TO DB if successful and name provided
+                if process.returncode == 0 and request.report_name:
+                    try:
+                        # Find the created report folder
+                        # It should be the newest folder in output_folder matching the pattern
+                        newest_report = None
+                        # Scan for the report directory that was just created
+                        # We look for directories created after start_time
+                        with os.scandir(output_folder) as entries:
+                            for entry in entries:
+                                if entry.is_dir() and entry.name.startswith(('iLEAPP_Reports_', 'aLEAPP_Reports_', 'ALEAPP_Reports_', 'RLEAPP_Reports_', 'tLEAPP_Reports_')):
+                                    # Check creation time
+                                    # Allow for a small buffer (e.g. 1 second) due to filesystem resolution
+                                    if entry.stat().st_ctime >= tasks[task_id]["start_time"] - 1.0:
+                                        newest_report = entry.path
+                                        break
+                        
+                        if newest_report:
+                            conn = sqlite3.connect(DB_PATH)
+                            cursor = conn.cursor()
+                            cursor.execute(
+                                "INSERT INTO reports (name, path, tool) VALUES (?, ?, ?)",
+                                (request.report_name, newest_report, tool)
+                            )
+                            conn.commit()
+                            conn.close()
+                            print(f"DEBUG: Saved report '{request.report_name}' to DB for path: {newest_report}")
+                            await tasks[task_id]["queue"].put(f"Report saved as: {request.report_name}")
+                        else:
+                            print("DEBUG: Could not find created report folder to save to DB")
+                    except Exception as e:
+                        print(f"DEBUG: Failed to save report to DB: {e}")
 
             except Exception as e:
                 error_msg = f"Processing error: {str(e)}"
@@ -565,14 +620,29 @@ async def stop_processing(task_id: str):
         tasks[task_id]["status"] = "stopped"
 
         # CLEANUP: Delete partial report directory if it exists
-        report_path = tasks[task_id].get("created_report_path")
-        if report_path and os.path.exists(report_path):
+        output_folder = tasks[task_id].get("output_folder")
+        start_time = tasks[task_id].get("start_time")
+        
+        if output_folder and start_time and os.path.exists(output_folder):
             try:
-                shutil.rmtree(report_path)
-                await tasks[task_id]["queue"].put(f"Deleted incomplete report: {os.path.basename(report_path)}")
-                print(f"DEBUG: Deleted incomplete report at {report_path}")
+                # Check for any new report directories created after start_time
+                for item in os.listdir(output_folder):
+                    item_path = os.path.join(output_folder, item)
+                    if os.path.isdir(item_path):
+                        # Check if it looks like a LEAPP report
+                        if item.startswith(('iLEAPP_Reports_', 'aLEAPP_Reports_', 'RLEAPP_Reports_', 'tLEAPP_Reports_')):
+                            # Check creation time
+                            try:
+                                ctime = os.path.getctime(item_path)
+                                # Allow for a small time difference (e.g. if folder created immediately)
+                                if ctime >= start_time - 1.0:
+                                    shutil.rmtree(item_path)
+                                    await tasks[task_id]["queue"].put(f"Deleted incomplete report: {item}")
+                                    print(f"DEBUG: Deleted incomplete report at {item_path}")
+                            except Exception as e:
+                                print(f"DEBUG: Error checking/deleting {item}: {e}")
             except Exception as e:
-                error_msg = f"Failed to delete incomplete report: {e}"
+                error_msg = f"Failed to cleanup reports: {e}"
                 await tasks[task_id]["queue"].put(error_msg)
                 print(f"DEBUG: {error_msg}")
 
@@ -624,29 +694,23 @@ async def get_profiles(tool: str):
     """Get list of all saved profiles for specified tool"""
     if tool not in TOOLS_CONFIG:
         raise HTTPException(status_code=404, detail=f"Tool '{tool}' not found")
-    
-    try:
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
-        cursor.execute('SELECT id, name, modules_json, created_at FROM profiles WHERE tool = ? ORDER BY created_at DESC', (tool,))
-        rows = cursor.fetchall()
-        conn.close()
+        
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, name, tool, modules_json FROM profiles WHERE tool = ?", (tool,))
+    profiles = []
+    for row in cursor.fetchall():
+        profiles.append(Profile(
+            id=row[0],
+            name=row[1],
+            tool=row[2],
+            modules=json.loads(row[3])
+        ))
+    conn.close()
+    return profiles
 
-        profiles = []
-        for row in rows:
-            profiles.append(Profile(
-                id=row[0],
-                name=row[1],
-                modules=json.loads(row[2]),
-                created_at=row[3]
-            ))
-
-        return profiles
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to fetch profiles: {str(e)}")
-
-@app.post("/api/{tool}/profiles", response_model=Profile)
-async def create_profile(tool: str, profile: ProfileCreate):
+@app.post("/api/{tool}/profiles")
+async def save_profile(tool: str, profile: ProfileCreate):
     """Create a new profile for specified tool"""
     if tool not in TOOLS_CONFIG:
         raise HTTPException(status_code=404, detail=f"Tool '{tool}' not found")
@@ -667,8 +731,8 @@ async def create_profile(tool: str, profile: ProfileCreate):
         return Profile(
             id=profile_id,
             name=profile.name,
-            modules=profile.modules,
-            created_at=datetime.now().isoformat()
+            tool=tool,
+            modules=profile.modules
         )
     except sqlite3.IntegrityError:
         raise HTTPException(status_code=400, detail="Profile with this name already exists")
@@ -681,8 +745,8 @@ async def load_profile(tool: str, profile_id: int):
     if tool not in TOOLS_CONFIG:
         raise HTTPException(status_code=404, detail=f"Tool '{tool}' not found")
     
-    global available_modules
-
+    # The actual loading of modules into the UI is handled by the frontend
+    # This endpoint primarily serves to fetch the profile data.
     try:
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
@@ -695,16 +759,21 @@ async def load_profile(tool: str, profile_id: int):
 
         profile_name, modules_json = row
         selected_modules = json.loads(modules_json)
-
-        # Update global available_modules with profile selection for this tool
+        
+        # Update available_modules state
         if tool in available_modules:
-            for module_name in available_modules[tool]:
-                available_modules[tool][module_name]['selected'] = module_name in selected_modules
+            # Convert list to set for faster lookup
+            selected_set = set(selected_modules)
+            
+            for module_name, module_data in available_modules[tool].items():
+                # Update selected status
+                module_data["selected"] = module_name in selected_set
 
         return {
             "message": f"Loaded profile: {profile_name}",
             "profile_id": profile_id,
-            "selected_count": len(selected_modules)
+            "selected_count": len(selected_modules),
+            "modules": selected_modules # Return modules for frontend to update
         }
     except HTTPException:
         raise
@@ -746,69 +815,87 @@ def get_size_format(b, factor=1024, suffix="B"):
 
 @app.get("/api/reports", response_model=List[Report])
 async def get_reports():
-    """Scan report directories and return list of reports"""
+    """Get list of reports from database"""
     reports = []
     
-    report_dirs = {
-        "ileapp": os.path.join(os.path.dirname(__file__), "reports", "ileapp-reports"),
-        "aleapp": os.path.join(os.path.dirname(__file__), "reports", "aleapp-reports")
-    }
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        
+        # Get all reports from DB
+        cursor.execute('SELECT name, path, tool, created_at FROM reports ORDER BY created_at DESC')
+        rows = cursor.fetchall()
+        conn.close()
+        
+        for row in rows:
+            name, path, tool, created_at = row
+            
+            # Verify path exists
+            if not os.path.exists(path):
+                # Handle case mismatch for aLEAPP reports (DB has aLEAPP-reports, disk has aleapp-reports)
+                if 'aLEAPP-reports' in path:
+                    alt_path = path.replace('aLEAPP-reports', 'aleapp-reports')
+                    if os.path.exists(alt_path):
+                        print(f"DEBUG: Found report at alternate path: {alt_path}")
+                        path = alt_path
+                    else:
+                        print(f"DEBUG: Report path not found: {path}")
+                        continue
+                else:
+                    print(f"DEBUG: Report path not found: {path}")
+                    continue
+            
+            print(f"DEBUG: Found report: {name} ({tool}) at {path}")
+                
+            try:
+                # Calculate size and file count
+                total_size = 0
+                file_count = 0
+                for dirpath, dirnames, filenames in os.walk(path):
+                    for f in filenames:
+                        fp = os.path.join(dirpath, f)
+                        if not os.path.islink(fp):
+                            total_size += os.path.getsize(fp)
+                        file_count += 1
+                
+                reports.append(Report(
+                    name=name,
+                    path=path,
+                    tool=tool,
+                    created_at=created_at,
+                    size=get_size_format(total_size),
+                    artifact_count=file_count
+                ))
+            except Exception as e:
+                print(f"Error processing report {name}: {e}")
+                continue
+                
+    except Exception as e:
+        print(f"Error fetching reports: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch reports: {str(e)}")
 
-    for tool, base_path in report_dirs.items():
-        if not os.path.exists(base_path):
-            continue
-
-        try:
-            # Scan directory
-            with os.scandir(base_path) as entries:
-                for entry in entries:
-                    if entry.is_dir():
-                        try:
-                            # Get stats
-                            stats = entry.stat()
-                            created_at = datetime.fromtimestamp(stats.st_ctime).isoformat()
-                            
-                            # Calculate size
-                            total_size = 0
-                            file_count = 0
-                            for dirpath, dirnames, filenames in os.walk(entry.path):
-                                for f in filenames:
-                                    fp = os.path.join(dirpath, f)
-                                    if not os.path.islink(fp):
-                                        total_size += os.path.getsize(fp)
-                                    file_count += 1
-                            
-                            reports.append(Report(
-                                name=entry.name,
-                                path=entry.path,
-                                tool=tool,
-                                created_at=created_at,
-                                size=get_size_format(total_size),
-                                artifact_count=file_count
-                            ))
-                        except Exception as e:
-                            print(f"Error processing report {entry.name}: {e}")
-                            continue
-        except Exception as e:
-            print(f"Error scanning {tool} reports: {e}")
-
-    # Sort by creation date desc
-    reports.sort(key=lambda x: x.created_at, reverse=True)
     return reports
 
 @app.delete("/api/reports")
 async def delete_report(path: str):
-    """Delete a report directory"""
-    if not os.path.exists(path):
-        raise HTTPException(status_code=404, detail="Report not found")
-    
+    """Delete a report directory and DB entry"""
     # Security check: ensure path is within reports directory
     reports_base = os.path.join(os.path.dirname(__file__), "reports")
     if not os.path.abspath(path).startswith(os.path.abspath(reports_base)):
         raise HTTPException(status_code=403, detail="Invalid report path")
 
     try:
-        shutil.rmtree(path)
+        # Delete from DB first
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute('DELETE FROM reports WHERE path = ?', (path,))
+        conn.commit()
+        conn.close()
+
+        # Delete from filesystem if it exists
+        if os.path.exists(path):
+            shutil.rmtree(path)
+            
         return {"message": "Report deleted successfully"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to delete report: {str(e)}")

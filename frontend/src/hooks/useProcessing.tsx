@@ -6,7 +6,7 @@ interface ProcessingContextType {
   isProcessing: boolean;
   progress: { current: number; total: number };
   taskId: string | null;
-  startProcessing: (inputFile: string, outputFolder: string, selectedModules: string[]) => Promise<void>;
+  startProcessing: (inputFile: string, outputFolder: string, selectedModules: string[], reportName?: string) => Promise<void>;
   stopProcessing: () => Promise<void>;
   clearLogs: () => void;
   tool: string;
@@ -25,7 +25,8 @@ export function ProcessingProvider({ children, tool }: { children: ReactNode; to
   const startProcessing = async (
     inputFile: string,
     outputFolder: string,
-    selectedModules: string[]
+    selectedModules: string[],
+    reportName?: string
   ) => {
     // Clear logs and progress at the start
     setLogs([]);
@@ -33,7 +34,7 @@ export function ProcessingProvider({ children, tool }: { children: ReactNode; to
     setIsProcessing(true);
 
     try {
-      const response = await api.processing.start(inputFile, outputFolder, selectedModules);
+      const response = await api.processing.start(inputFile, outputFolder, selectedModules, reportName);
       setTaskId(response.task_id);
 
       // Set up EventSource for streaming logs

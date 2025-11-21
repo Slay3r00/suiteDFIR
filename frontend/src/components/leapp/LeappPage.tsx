@@ -22,6 +22,7 @@ function LeappContent({ logoPath, tool }: { logoPath: string; tool: string }) {
         : '/Users/jacobcontreras/vdf-tools/backend/reports/aleapp-reports';
 
     const [inputFile, setInputFile] = useState('');
+    const [reportName, setReportName] = useState('');
     const [outputFolder, setOutputFolder] = useState(defaultOutputPath);
     const { logs, isProcessing, clearLogs } = useProcessing();
 
@@ -39,16 +40,34 @@ function LeappContent({ logoPath, tool }: { logoPath: string; tool: string }) {
             <div className="flex-1 flex gap-[9vh] min-h-0">
                 {/* Left Panel - Input & Controls */}
                 <div className="flex-1 h-full flex flex-col gap-6 min-h-0">
-                    {/* Input Section */}
-                    <div className="space-y-2">
-                        <h2 className="text-xl font-semibold">Input</h2>
-                        <FileSelector
-                            value={inputFile}
-                            onChange={setInputFile}
-                            disabled={isProcessing}
-                            placeholder="Select input file..."
-                            showFolderOption={true}
-                        />
+                    {/* Input & Report Name Row */}
+                    <div className="flex gap-6">
+                        {/* Report Name Section */}
+                        <div className="flex-1 space-y-2">
+                            <h2 className="text-xl font-semibold">Name</h2>
+                            <div className="flex gap-3">
+                                <input
+                                    type="text"
+                                    value={reportName}
+                                    onChange={(e) => setReportName(e.target.value)}
+                                    disabled={isProcessing}
+                                    placeholder="Enter report name"
+                                    className="w-full bg-[#212121] border border-[#333] rounded-md px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors disabled:opacity-50"
+                                />
+                            </div>
+                        </div>
+
+                        {/* Input Section */}
+                        <div className="flex-[2] space-y-2">
+                            <h2 className="text-xl font-semibold">Input</h2>
+                            <FileSelector
+                                value={inputFile}
+                                onChange={setInputFile}
+                                disabled={isProcessing}
+                                placeholder="Select input file..."
+                                showFolderOption={true}
+                            />
+                        </div>
                     </div>
 
                     {/* Module Selection */}
@@ -60,6 +79,7 @@ function LeappContent({ logoPath, tool }: { logoPath: string; tool: string }) {
                     <ProcessControls
                         inputFile={inputFile}
                         outputFolder={outputFolder}
+                        reportName={reportName}
                     />
                 </div>
 

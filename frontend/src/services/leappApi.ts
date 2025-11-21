@@ -73,7 +73,7 @@ export function createLeappApi(tool: string) {
         },
 
         processing: {
-            start: async (inputPath: string, outputFolder: string, selectedModules: string[]): Promise<{ task_id: string }> => {
+            start: async (inputPath: string, outputFolder: string, selectedModules: string[], reportName?: string): Promise<{ task_id: string }> => {
                 const response = await fetch(`${API_BASE}/${tool}/process`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -81,7 +81,8 @@ export function createLeappApi(tool: string) {
                         input_path: inputPath,
                         output_folder: outputFolder,
                         selected_modules: selectedModules,
-                        timezone_offset: 'UTC'
+                        timezone_offset: 'UTC',
+                        report_name: reportName || ''
                     }),
                 });
                 return handleApiResponse(response);

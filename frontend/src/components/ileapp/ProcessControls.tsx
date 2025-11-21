@@ -6,16 +6,17 @@ import { Square } from 'lucide-react';
 interface ProcessControlsProps {
   inputFile: string;
   outputFolder: string;
+  reportName?: string;
 }
 
-export default function ProcessControls({ inputFile, outputFolder }: ProcessControlsProps) {
+export default function ProcessControls({ inputFile, outputFolder, reportName }: ProcessControlsProps) {
   const { selectedModules } = useModules();
   const { isProcessing, startProcessing, stopProcessing, progress } = useProcessing();
 
   const handleStart = async () => {
     try {
       // Convert Set to Array for the API
-      await startProcessing(inputFile, outputFolder, Array.from(selectedModules));
+      await startProcessing(inputFile, outputFolder, Array.from(selectedModules), reportName);
     } catch (error) {
       console.error('Failed to start processing:', error);
     }
@@ -29,7 +30,7 @@ export default function ProcessControls({ inputFile, outputFolder }: ProcessCont
     }
   };
 
-  const canStart = inputFile && selectedModules.size > 0 && outputFolder && !isProcessing;
+  const canStart = inputFile && selectedModules.size > 0 && outputFolder && !isProcessing && reportName && reportName.trim().length > 0;
 
   // Calculate progress percentage
   const progressPercent = progress.total > 0
