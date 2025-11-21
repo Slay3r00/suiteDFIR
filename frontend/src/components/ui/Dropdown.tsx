@@ -6,9 +6,10 @@ interface DropdownProps {
   children: React.ReactNode;
   align?: 'left' | 'right';
   buttonRef?: React.RefObject<HTMLButtonElement>;
+  className?: string;
 }
 
-export default function Dropdown({ isOpen, onClose, children, align = 'right', buttonRef }: DropdownProps) {
+export default function Dropdown({ isOpen, onClose, children, align = 'right', buttonRef, className = '' }: DropdownProps) {
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -45,7 +46,7 @@ export default function Dropdown({ isOpen, onClose, children, align = 'right', b
   return (
     <div
       ref={dropdownRef}
-      className={`absolute top-full mt-2 z-50 w-fit ${align === 'left' ? 'left-0' : 'right-0'
+      className={`absolute top-full mt-2 z-50 ${className || 'w-fit'} ${align === 'left' ? 'left-0' : 'right-0'
         }`}
     >
       <div className="bg-[#262626] rounded-lg shadow-xl overflow-hidden">

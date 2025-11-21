@@ -95,7 +95,7 @@ export default function ModuleSelector({ isProcessing = false }: ModuleSelectorP
 
   return (
     <div className="flex-1 min-h-0 flex flex-col">
-      <h2 className="text-xl font-semibold mb-2">Modules</h2>
+      <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider ml-1">Modules</label>
 
       <div className="flex items-center justify-between mb-3">
         <div className="flex gap-3">

@@ -146,7 +146,7 @@ export default function Reports() {
                     {/* Header with Controls */}
                     <div className="flex items-center justify-between gap-4">
                         <div className="flex items-center gap-4">
-                            <h2 className="text-xl font-semibold">Reports Library</h2>
+                            <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider ml-1">Reports Library</label>
                             <div className="flex gap-1 bg-[#1A1A1A] p-1 rounded-lg border border-white/10">
                                 <button
                                     onClick={() => setFilter('all')}

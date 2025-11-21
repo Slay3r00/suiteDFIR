@@ -8,7 +8,8 @@ import {
     Clock,
     Settings,
     PanelLeft,
-    Bot
+    Bot,
+    Archive
 } from "lucide-react"
 
 import {
@@ -49,6 +50,11 @@ const data = {
             title: "Android",
             url: "/android",
             icon: Smartphone,
+        },
+        {
+            title: "Backup",
+            url: "/backup",
+            icon: Archive,
         },
     ],
     ai: [

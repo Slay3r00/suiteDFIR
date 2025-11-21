@@ -63,8 +63,7 @@ export default function LogViewer({ logs, enabled = true }: LogViewerProps) {
     <div
       ref={logsRef}
       onScroll={handleScroll}
-      className="h-full rounded-lg overflow-y-auto font-mono text-xs leading-relaxed border border-gray-800 p-4 bg-[#171717]"
-      style={{ borderColor: '#333', borderWidth: '1px' }}
+      className="h-full overflow-y-auto font-mono text-xs leading-relaxed p-4 bg-[#171717]"
     >
       {logs.length > 0 ? (
         <div className="flex flex-col gap-0.5">

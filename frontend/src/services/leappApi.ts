@@ -73,7 +73,13 @@ export function createLeappApi(tool: string) {
         },
 
         processing: {
-            start: async (inputPath: string, outputFolder: string, selectedModules: string[], reportName?: string): Promise<{ task_id: string }> => {
+            start: async (
+                inputPath: string,
+                outputFolder: string,
+                selectedModules: string[],
+                reportName?: string,
+                password?: string
+            ): Promise<{ task_id: string }> => {
                 const response = await fetch(`${API_BASE}/${tool}/process`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -81,19 +87,59 @@ export function createLeappApi(tool: string) {
                         input_path: inputPath,
                         output_folder: outputFolder,
                         selected_modules: selectedModules,
-                        timezone_offset: 'UTC',
-                        report_name: reportName || ''
+                        report_name: reportName,
+                        password: password
                     }),
                 });
                 return handleApiResponse(response);
             },
 
             stop: async (taskId: string): Promise<void> => {
-                await fetch(`${API_BASE}/process/stop/${taskId}`, { method: 'POST' });
+                const response = await fetch(`${API_BASE}/${tool}/stop/${taskId}`, {
+                    method: 'POST',
+                });
+                return handleApiResponse(response);
+            },
+
+            validateBackup: async (inputPath: string): Promise<{ encrypted: boolean, type: string, supported: boolean, message?: string }> => {
+                const response = await fetch(`${API_BASE}/ios/validate-backup`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ input_path: inputPath }),
+                });
+                return handleApiResponse(response);
             },
 
             createEventSource: (taskId: string): EventSource => {
                 return new EventSource(`${API_BASE}/process/stream/${taskId}`);
+            },
+        },
+        backup: {
+            getDevices: async () => {
+                const response = await fetch(`${API_BASE}/ios/devices`);
+                if (!response.ok) throw new Error('Failed to fetch devices');
+                return response.json();
+            },
+            startBackup: async (udid: string, name: string) => {
+                const response = await fetch(`${API_BASE}/ios/backup`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ udid, name }),
+                });
+                if (!response.ok) throw new Error('Failed to start backup');
+                return response.json();
+            },
+            getBackups: async () => {
+                const response = await fetch(`${API_BASE}/backups`);
+                if (!response.ok) throw new Error('Failed to fetch backups');
+                return response.json();
+            },
+            deleteBackup: async (id: number) => {
+                const response = await fetch(`${API_BASE}/backups/${id}`, {
+                    method: 'DELETE',
+                });
+                if (!response.ok) throw new Error('Failed to delete backup');
+                return response.json();
             },
         },
     };
