@@ -17,6 +17,7 @@ interface Device {
     udid: string
     name: string
     type: string
+    is_encrypted?: boolean
 }
 
 interface Backup {
@@ -36,6 +37,8 @@ export default function BackupPage() {
     const [backups, setBackups] = useState<Backup[]>([])
     const [selectedDevice, setSelectedDevice] = useState<string>('')
     const [backupName, setBackupName] = useState('')
+    const [isEncrypted, setIsEncrypted] = useState(false)
+    const [backupPassword, setBackupPassword] = useState('')
     const [isBackingUp, setIsBackingUp] = useState(false)
     const [isLoadingDevices, setIsLoadingDevices] = useState(false)
     const [logs, setLogs] = useState<string[]>([])
@@ -120,7 +123,10 @@ export default function BackupPage() {
         })
 
         eventSource.onerror = (error) => {
-            console.error('EventSource failed:', error)
+            // Only log error if stream wasn't closed intentionally (readyState 2 is CLOSED)
+            if (eventSource.readyState !== 2) {
+                console.error('EventSource failed:', error)
+            }
             eventSource.close()
             // Don't set isBackingUp to false here, let polling handle status
         }
@@ -234,7 +240,7 @@ export default function BackupPage() {
 
                                         <div className="relative transform transition-transform duration-700 hover:scale-[1.02]">
                                             <Iphone15Pro
-                                                className="h-[320px] w-auto drop-shadow-2xl"
+                                                className="h-[400px] w-auto drop-shadow-2xl"
                                                 src="/ios-wallpaper.jpg"
                                             />
                                         </div>
@@ -320,8 +326,71 @@ export default function BackupPage() {
                                                     )}
                                                 </Dropdown>
                                             </div>
+                                            <Button
+                                                onClick={fetchDevices}
+                                                variant="outline"
+                                                size="icon"
+                                                className="h-9 w-9 border-[#333] bg-[#262626] hover:bg-[#333] hover:text-white shrink-0"
+                                            >
+                                                <RefreshCw className={`h-4 w-4 ${isLoadingDevices ? 'animate-spin' : ''}`} />
+                                            </Button>
                                         </div>
                                     </div>
+                                </div>
+
+                                {/* Encryption Options */}
+                                <div className="pt-2 border-t border-white/5">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <div className="flex items-center gap-2">
+                                            <label className="flex items-center gap-2 text-sm text-gray-300 cursor-pointer select-none">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={isEncrypted || (selectedDevice && devices.find(d => d.udid === selectedDevice)?.is_encrypted) || false}
+                                                    onChange={(e) => {
+                                                        // Prevent unchecking if device is already encrypted
+                                                        const device = devices.find(d => d.udid === selectedDevice);
+                                                        if (device?.is_encrypted) return;
+                                                        setIsEncrypted(e.target.checked);
+                                                    }}
+                                                    disabled={isBackingUp || (selectedDevice && devices.find(d => d.udid === selectedDevice)?.is_encrypted) || false}
+                                                    className="rounded border-gray-600 bg-[#262626] text-blue-500 focus:ring-blue-500/20 focus:ring-offset-0"
+                                                />
+                                                Encrypted Backup
+                                            </label>
+                                            {selectedDevice && devices.find(d => d.udid === selectedDevice)?.is_encrypted && (
+                                                <span
+                                                    className="text-[10px] font-medium px-1.5 py-0 rounded border border-white"
+                                                    style={{ borderWidth: '0.5px', backgroundColor: '#262626', color: 'white' }}
+                                                >
+                                                    ENABLED ON DEVICE
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {isEncrypted && !((selectedDevice && devices.find(d => d.udid === selectedDevice)?.is_encrypted)) && (
+                                        <div className="animate-in fade-in slide-in-from-top-2 duration-200">
+                                            <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider ml-1 mb-1.5 block">
+                                                Set Backup Password
+                                            </label>
+                                            <Input
+                                                type="password"
+                                                value={backupPassword}
+                                                onChange={(e) => setBackupPassword(e.target.value)}
+                                                placeholder="Enter password..."
+                                                disabled={isBackingUp}
+                                                className="w-full bg-[#1A1A1A] border-[#333] focus:border-blue-500/50 transition-colors"
+                                            />
+                                        </div>
+                                    )}
+
+                                    {selectedDevice && devices.find(d => d.udid === selectedDevice)?.is_encrypted && (
+                                        <div className="animate-in fade-in slide-in-from-top-2 duration-200 mt-2">
+                                            <p className="text-[10px] text-gray-500 ml-1">
+                                                This device is already encrypted. You will need the existing password to analyze this backup later.
+                                            </p>
+                                        </div>
+                                    )}
                                 </div>
 
                                 {/* Action Button */}
@@ -333,12 +402,12 @@ export default function BackupPage() {
                                                 const progress = activeBackup?.progress || 0;
                                                 return (
                                                     <Button
-                                                        variant="destructive"
+                                                        variant="secondary"
                                                         onClick={() => activeBackup && handleStopBackup(activeBackup.id)}
-                                                        className="w-full relative overflow-hidden"
+                                                        className="w-full relative overflow-hidden bg-[#e5e5e5] text-black hover:bg-[#d4d4d4]"
                                                     >
                                                         <div
-                                                            className="absolute inset-0 bg-black/20 transition-all duration-500"
+                                                            className="absolute inset-0 bg-white transition-all duration-500"
                                                             style={{ width: `${progress}%` }}
                                                         />
                                                         <div className="relative z-10 flex items-center justify-center gap-2">
@@ -416,7 +485,7 @@ export default function BackupPage() {
                                                         text-[10px] font-medium px-1.5 py-0 rounded border border-white
                                                         ${backup.status === 'completed' ? '' :
                                                                 backup.status === 'failed' || backup.status === 'cancelled' ? 'bg-red-500/10 text-red-400 border-red-500/20' :
-                                                                    'bg-green-500/10 text-green-400 border-green-500/20'}
+                                                                    'bg-green-500/10 text-white border-green-500/20'}
                                                     `}
                                                             style={backup.status === 'completed' ? { borderWidth: '0.5px', backgroundColor: '#262626', color: 'white' } : {}}
                                                         >

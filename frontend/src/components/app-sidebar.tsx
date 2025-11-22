@@ -26,6 +26,8 @@ import {
     useSidebar,
 } from "@/components/ui/sidebar"
 
+import { usePathname } from "next/navigation"
+
 // Menu items.
 const data = {
     case: [
@@ -78,8 +80,10 @@ const data = {
     ],
 }
 
+
 export function AppSidebar() {
     const { toggleSidebar } = useSidebar()
+    const pathname = usePathname()
 
     return (
         <Sidebar collapsible="icon">
@@ -101,7 +105,7 @@ export function AppSidebar() {
                         <SidebarMenu>
                             {data.case.map((item) => (
                                 <SidebarMenuItem key={item.title}>
-                                    <SidebarMenuButton asChild tooltip={item.title}>
+                                    <SidebarMenuButton asChild tooltip={item.title} isActive={pathname === item.url}>
                                         <a href={item.url}>
                                             <item.icon />
                                             <span>{item.title}</span>
@@ -118,7 +122,7 @@ export function AppSidebar() {
                         <SidebarMenu>
                             {data.mobile.map((item) => (
                                 <SidebarMenuItem key={item.title}>
-                                    <SidebarMenuButton asChild tooltip={item.title}>
+                                    <SidebarMenuButton asChild tooltip={item.title} isActive={pathname === item.url}>
                                         <a href={item.url}>
                                             <item.icon />
                                             <span>{item.title}</span>
@@ -135,7 +139,7 @@ export function AppSidebar() {
                         <SidebarMenu>
                             {data.ai.map((item) => (
                                 <SidebarMenuItem key={item.title}>
-                                    <SidebarMenuButton asChild tooltip={item.title}>
+                                    <SidebarMenuButton asChild tooltip={item.title} isActive={pathname === item.url}>
                                         <a href={item.url}>
                                             <item.icon />
                                             <span>{item.title}</span>
@@ -152,7 +156,7 @@ export function AppSidebar() {
                         <SidebarMenu>
                             {data.visualization.map((item) => (
                                 <SidebarMenuItem key={item.title}>
-                                    <SidebarMenuButton asChild tooltip={item.title}>
+                                    <SidebarMenuButton asChild tooltip={item.title} isActive={pathname === item.url}>
                                         <a href={item.url}>
                                             <item.icon />
                                             <span>{item.title}</span>
@@ -167,7 +171,7 @@ export function AppSidebar() {
             <SidebarFooter>
                 <SidebarMenu>
                     <SidebarMenuItem>
-                        <SidebarMenuButton asChild tooltip="Preferences">
+                        <SidebarMenuButton asChild tooltip="Preferences" isActive={pathname === "/preferences"}>
                             <a href="/preferences">
                                 <Settings className="h-5 w-5" />
                                 <span>Preferences</span>

@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, BackgroundTasks
 import shutil
 import zipfile
 from pathlib import Path
@@ -6,7 +6,7 @@ from fastapi.responses import StreamingResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import List, Dict
+from typing import List, Dict, Optional
 from contextlib import asynccontextmanager
 import uvicorn
 import os
@@ -62,6 +62,24 @@ def init_database():
         # Migrate existing table
         cursor.execute('ALTER TABLE backups ADD COLUMN progress INTEGER DEFAULT 0')
         print("Migrated backups table to include progress column")
+
+    # Check if priority column exists in tasks
+    cursor.execute("PRAGMA table_info(tasks)")
+    task_columns = [col[1] for col in cursor.fetchall()]
+    
+    if 'priority' not in task_columns and 'tasks' in [row[0] for row in cursor.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()]:
+        # Migrate existing table
+        cursor.execute('ALTER TABLE tasks ADD COLUMN priority TEXT DEFAULT "medium"')
+        print("Migrated tasks table to include priority column")
+
+    # Check if password column exists in backups
+    cursor.execute("PRAGMA table_info(backups)")
+    backup_columns = [col[1] for col in cursor.fetchall()]
+    
+    if 'password' not in backup_columns and 'backups' in [row[0] for row in cursor.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()]:
+        # Migrate existing table
+        cursor.execute('ALTER TABLE backups ADD COLUMN password TEXT')
+        print("Migrated backups table to include password column")
     
     # Create profiles table if doesn't exist
     cursor.execute('''
@@ -97,12 +115,59 @@ def init_database():
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             status TEXT NOT NULL,
             size TEXT,
-            progress INTEGER DEFAULT 0
+            progress INTEGER DEFAULT 0,
+            type TEXT DEFAULT 'ios',
+            password TEXT
+        )
+    ''')
+    
+    # Migration: Add type column if it doesn't exist
+    cursor.execute("PRAGMA table_info(backups)")
+    columns = [info[1] for info in cursor.fetchall()]
+    if 'type' not in columns:
+        print("Migrating database: Adding type column to backups table")
+        cursor.execute("ALTER TABLE backups ADD COLUMN type TEXT DEFAULT 'ios'")
+
+    # Create tasks table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS tasks (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            content TEXT NOT NULL,
+            description TEXT,
+            priority TEXT DEFAULT 'medium',
+            completed BOOLEAN DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
 
+    # Create notes table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS notes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            content TEXT NOT NULL,
+            description TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+
+    # Migration: Add description column to tasks if it doesn't exist
+    cursor.execute("PRAGMA table_info(tasks)")
+    columns = [info[1] for info in cursor.fetchall()]
+    if 'description' not in columns:
+        print("Migrating database: Adding description column to tasks table")
+        cursor.execute("ALTER TABLE tasks ADD COLUMN description TEXT")
+
+    # Migration: Add description column to notes if it doesn't exist
+    cursor.execute("PRAGMA table_info(notes)")
+    columns = [info[1] for info in cursor.fetchall()]
+    if 'description' not in columns:
+        print("Migrating database: Adding description column to notes table")
+        cursor.execute("ALTER TABLE notes ADD COLUMN description TEXT")
+
     conn.commit()
     conn.close()
+
+
 
 
 @asynccontextmanager
@@ -259,6 +324,29 @@ class Report(BaseModel):
     created_at: str
     size: str
     artifact_count: int
+
+class Task(BaseModel):
+    id: int
+    content: str
+    description: Optional[str] = None
+    priority: str
+    completed: bool
+    created_at: str
+
+class TaskCreate(BaseModel):
+    content: str
+    description: Optional[str] = None
+    priority: str = "medium"
+
+class Note(BaseModel):
+    id: int
+    content: str
+    description: Optional[str] = None
+    created_at: str
+
+class NoteCreate(BaseModel):
+    content: str
+    description: Optional[str] = None
 
 
 # Global state
@@ -983,6 +1071,7 @@ active_backups: Dict[int, asyncio.subprocess.Process] = {}
 class BackupRequest(BaseModel):
     udid: str
     name: str
+    password: Optional[str] = None
 
 def get_connected_devices():
     """Get list of connected iOS devices"""
@@ -1002,10 +1091,19 @@ def get_connected_devices():
                 type_result = subprocess.run(['ideviceinfo', '-u', udid, '-k', 'ProductType'], capture_output=True, text=True)
                 product_type = type_result.stdout.strip() if type_result.returncode == 0 else "Unknown Type"
                 
+                # Check encryption status
+                enc_result = subprocess.run(['ideviceinfo', '-u', udid, '-q', 'com.apple.mobile.backup'], capture_output=True, text=True)
+                is_encrypted = False
+                if enc_result.returncode == 0:
+                    output = enc_result.stdout
+                    if "WillEncrypt: true" in output or "RequiresEncryption: 1" in output:
+                        is_encrypted = True
+
                 devices.append({
                     "udid": udid,
                     "name": device_name,
-                    "type": product_type
+                    "type": product_type,
+                    "is_encrypted": is_encrypted
                 })
     except Exception as e:
         print(f"Error getting devices: {e}")
@@ -1017,8 +1115,150 @@ async def list_devices():
     """List connected iOS devices"""
     return get_connected_devices()
 
+async def run_backup_process(backup_id: int, udid: str, backup_path: str, password: Optional[str] = None):
+    cmd = ['idevicebackup2', 'backup', backup_path, '-u', udid]
+
+    try:
+        if password:
+            # Enable encryption
+            enc_cmd = ['idevicebackup2', 'encryption', 'on', password, '-u', udid]
+            enc_proc = await asyncio.create_subprocess_exec(
+                *enc_cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
+            stdout, stderr = await enc_proc.communicate()
+            if enc_proc.returncode != 0:
+                # Failed to enable encryption
+                error_msg = f"Failed to enable encryption: {stderr.decode()}"
+                print(error_msg)
+                if backup_id in backup_tasks:
+                    await backup_tasks[backup_id]["queue"].put(error_msg)
+                    backup_tasks[backup_id]["status"] = "failed"
+                
+                conn = sqlite3.connect(DB_PATH)
+                cursor = conn.cursor()
+                cursor.execute("UPDATE backups SET status = 'failed' WHERE id = ?", (backup_id,))
+                conn.commit()
+                conn.close()
+                return
+
+        # Create subprocess with increased stream limit to handle \r progress bars
+        # idevicebackup2 uses \r for progress which can cause buffer overflow
+        process = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.STDOUT,
+            limit=1024 * 1024  # 1MB limit instead of default 64KB
+        )
+        
+        # Store process handle
+        active_backups[backup_id] = process
+        backup_tasks[backup_id]["process"] = process
+
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        
+        # Stream output line by line
+        # Use readline instead of async iteration to avoid buffer issues with \r progress bars
+        while True:
+            try:
+                line = await asyncio.wait_for(process.stdout.readline(), timeout=60.0)
+                if not line:
+                    break
+                
+                line_text = line.decode().strip()
+                if line_text:
+                    # Stream to queue
+                    if backup_id in backup_tasks:
+                        await backup_tasks[backup_id]["queue"].put(line_text)
+                    
+                    # Parse progress
+                    if '%' in line_text:
+                        try:
+                            parts = line_text.split('%')[0].split()
+                            if parts:
+                                percentage = int(parts[-1])
+                                cursor.execute(
+                                    "UPDATE backups SET progress = ? WHERE id = ?",
+                                    (percentage, backup_id)
+                                )
+                                conn.commit()
+                        except Exception as e:
+                            print(f"Error parsing progress: {e}")
+            except asyncio.TimeoutError:
+                # Check if process is still alive
+                if process.returncode is not None:
+                    break
+                continue
+            except Exception as e:
+                print(f"Error reading backup output: {e}")
+                break
+
+        # Wait for process to finish
+        await process.wait()
+        
+        # Final status update
+        status = 'failed' # Default to failed
+        
+        if process.returncode == 0:
+            status = 'completed'
+            if backup_id in backup_tasks:
+                await backup_tasks[backup_id]["queue"].put("Backup completed successfully")
+        else:
+            # Check if it was cancelled
+            cursor.execute("SELECT status FROM backups WHERE id = ?", (backup_id,))
+            row = cursor.fetchone()
+            current_status = row[0] if row else 'failed'
+            
+            if current_status == 'cancelled':
+                status = 'cancelled'
+                if backup_id in backup_tasks:
+                    await backup_tasks[backup_id]["queue"].put("Backup cancelled by user")
+            else:
+                status = 'failed'
+                if backup_id in backup_tasks:
+                    await backup_tasks[backup_id]["queue"].put(f"Backup failed with exit code {process.returncode}")
+        
+        if backup_id in backup_tasks:
+            backup_tasks[backup_id]["status"] = status
+        
+        # Update DB with final status
+        cursor.execute("UPDATE backups SET status = ?, progress = 100 WHERE id = ?", (status, backup_id))
+        conn.commit()
+        
+        # Calculate size if successful
+        if status == 'completed':
+            try:
+                total_size = 0
+                for dirpath, dirnames, filenames in os.walk(backup_path):
+                    for f in filenames:
+                        fp = os.path.join(dirpath, f)
+                        if not os.path.islink(fp):
+                            total_size += os.path.getsize(fp)
+                
+                size_str = f"{total_size / (1024*1024*1024):.2f} GB"
+                cursor.execute("UPDATE backups SET size = ? WHERE id = ?", (size_str, backup_id))
+                conn.commit()
+            except Exception as e:
+                print(f"Error calculating size: {e}")
+
+    except Exception as e:
+        print(f"Backup error: {e}")
+        cursor.execute("UPDATE backups SET status = 'failed' WHERE id = ?", (backup_id,))
+        conn.commit()
+        if backup_id in backup_tasks:
+            await backup_tasks[backup_id]["queue"].put(f"Backup error: {str(e)}")
+            backup_tasks[backup_id]["status"] = "failed"
+            
+    finally:
+        conn.close()
+        if backup_id in active_backups:
+            del active_backups[backup_id]
+        # Note: We don't delete from backup_tasks here to allow the stream to finish sending logs
+
 @app.post("/api/ios/backup")
-async def start_backup(request: BackupRequest):
+async def start_backup(request: BackupRequest, background_tasks: BackgroundTasks):
     """Start iOS backup"""
     # Check if device is still connected
     devices = get_connected_devices()
@@ -1035,8 +1275,8 @@ async def start_backup(request: BackupRequest):
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute(
-        "INSERT INTO backups (name, device_udid, device_name, path, status) VALUES (?, ?, ?, ?, ?)",
-        (request.name, request.udid, device['name'], backup_path, 'in_progress')
+        "INSERT INTO backups (name, device_udid, device_name, path, status, password) VALUES (?, ?, ?, ?, ?, ?)",
+        (request.name, request.udid, device['name'], backup_path, 'in_progress', request.password)
     )
     backup_id = cursor.lastrowid
     conn.commit()
@@ -1050,126 +1290,16 @@ async def start_backup(request: BackupRequest):
         "process": None
     }
     
-    # Start background task
-    async def run_backup():
-        cmd = ['idevicebackup2', 'backup', backup_path, '-u', request.udid]
-
-        try:
-            # Create subprocess with increased stream limit to handle \r progress bars
-            # idevicebackup2 uses \r for progress which can cause buffer overflow
-            process = await asyncio.create_subprocess_exec(
-                *cmd,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.STDOUT,
-                limit=1024 * 1024  # 1MB limit instead of default 64KB
-            )
-            
-            # Store process handle
-            active_backups[backup_id] = process
-            backup_tasks[backup_id]["process"] = process
-
-            conn = sqlite3.connect(DB_PATH)
-            cursor = conn.cursor()
-            
-            # Stream output line by line
-            # Use readline instead of async iteration to avoid buffer issues with \r progress bars
-            while True:
-                try:
-                    line = await asyncio.wait_for(process.stdout.readline(), timeout=60.0)
-                    if not line:
-                        break
-                    
-                    line_text = line.decode().strip()
-                    if line_text:
-                        # Stream to queue
-                        if backup_id in backup_tasks:
-                            await backup_tasks[backup_id]["queue"].put(line_text)
-                        
-                        # Parse progress
-                        if '%' in line_text:
-                            try:
-                                parts = line_text.split('%')[0].split()
-                                if parts:
-                                    percentage = int(parts[-1])
-                                    cursor.execute(
-                                        "UPDATE backups SET progress = ? WHERE id = ?",
-                                        (percentage, backup_id)
-                                    )
-                                    conn.commit()
-                            except Exception as e:
-                                print(f"Error parsing progress: {e}")
-                except asyncio.TimeoutError:
-                    # Check if process is still alive
-                    if process.returncode is not None:
-                        break
-                    continue
-                except Exception as e:
-                    print(f"Error reading backup output: {e}")
-                    break
-
-            # Wait for process to finish
-            await process.wait()
-            
-            # Final status update
-            status = 'failed' # Default to failed
-            
-            if process.returncode == 0:
-                status = 'completed'
-                if backup_id in backup_tasks:
-                    await backup_tasks[backup_id]["queue"].put("Backup completed successfully")
-            else:
-                # Check if it was cancelled
-                cursor.execute("SELECT status FROM backups WHERE id = ?", (backup_id,))
-                row = cursor.fetchone()
-                current_status = row[0] if row else 'failed'
-                
-                if current_status == 'cancelled':
-                    status = 'cancelled'
-                    if backup_id in backup_tasks:
-                        await backup_tasks[backup_id]["queue"].put("Backup cancelled by user")
-                else:
-                    status = 'failed'
-                    if backup_id in backup_tasks:
-                        await backup_tasks[backup_id]["queue"].put(f"Backup failed with exit code {process.returncode}")
-            
-            if backup_id in backup_tasks:
-                backup_tasks[backup_id]["status"] = status
-            
-            # Update DB with final status
-            cursor.execute("UPDATE backups SET status = ?, progress = 100 WHERE id = ?", (status, backup_id))
-            conn.commit()
-            
-            # Calculate size if successful
-            if status == 'completed':
-                try:
-                    total_size = 0
-                    for dirpath, dirnames, filenames in os.walk(backup_path):
-                        for f in filenames:
-                            fp = os.path.join(dirpath, f)
-                            if not os.path.islink(fp):
-                                total_size += os.path.getsize(fp)
-                    
-                    size_str = f"{total_size / (1024*1024*1024):.2f} GB"
-                    cursor.execute("UPDATE backups SET size = ? WHERE id = ?", (size_str, backup_id))
-                    conn.commit()
-                except Exception as e:
-                    print(f"Error calculating size: {e}")
-
-        except Exception as e:
-            print(f"Backup error: {e}")
-            cursor.execute("UPDATE backups SET status = 'failed' WHERE id = ?", (backup_id,))
-            conn.commit()
-            if backup_id in backup_tasks:
-                await backup_tasks[backup_id]["queue"].put(f"Backup error: {str(e)}")
-                backup_tasks[backup_id]["status"] = "failed"
-                
-        finally:
-            conn.close()
-            if backup_id in active_backups:
-                del active_backups[backup_id]
-            # Note: We don't delete from backup_tasks here to allow the stream to finish sending logs
-
-    asyncio.create_task(run_backup())
+    background_tasks.add_task(run_backup_process, backup_id, request.udid, backup_path, request.password)
+    
+    # This async function is just a placeholder to return the response quickly
+    async def run_backup_placeholder():
+        # Wait a bit for response to be sent
+        await asyncio.sleep(0.1)
+        # Actual process is started in background_tasks.add_task
+        pass
+        
+    asyncio.create_task(run_backup_placeholder())
     
     return {"message": "Backup started", "backup_id": backup_id}
 
@@ -1211,6 +1341,9 @@ async def stream_backup_logs(backup_id: int):
             yield f"data: Backup {final_status}\n\n"
             yield f"event: close\ndata: Stream ended\n\n"
             
+            # Give client time to process close event
+            await asyncio.sleep(0.5)
+            
             # Cleanup
             del backup_tasks[backup_id]
 
@@ -1227,41 +1360,31 @@ async def stream_backup_logs(backup_id: int):
 @app.post("/api/ios/backup/{backup_id}/stop")
 async def stop_backup(backup_id: int):
     """Stop an active backup"""
-    if backup_id in active_backups:
+    if backup_id in active_backups and active_backups[backup_id] is not None:
         process = active_backups[backup_id]
         try:
+            # Send SIGTERM
             process.terminate()
-            # Wait a bit and kill if necessary
-            try:
-                await asyncio.wait_for(process.wait(), timeout=5.0)
-            except asyncio.TimeoutError:
-                process.kill()
-            
-            del active_backups[backup_id]
             
             # Update status in DB
             conn = sqlite3.connect(DB_PATH)
             cursor = conn.cursor()
-            cursor.execute(
-                "UPDATE backups SET status = ? WHERE id = ?",
-                ('cancelled', backup_id)
-            )
+            cursor.execute("UPDATE backups SET status = 'cancelled' WHERE id = ?", (backup_id,))
             conn.commit()
             conn.close()
             
-            return {"message": "Backup stopped"}
+            return {"message": "Backup stopping"}
         except Exception as e:
-            print(f"Error stopping backup: {e}")
-            raise HTTPException(status_code=500, detail=str(e))
+            raise HTTPException(status_code=500, detail=f"Failed to stop backup: {str(e)}")
     else:
-        raise HTTPException(status_code=404, detail="Backup process not found or already finished")
+        raise HTTPException(status_code=404, detail="Backup not found or not active")
 
 @app.get("/api/backups")
 async def get_backups():
     """Get list of backups"""
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    cursor.execute("SELECT id, name, device_udid, device_name, path, created_at, status, size, progress FROM backups ORDER BY created_at DESC")
+    cursor.execute("SELECT id, name, device_udid, device_name, path, created_at, status, size, progress, type FROM backups ORDER BY created_at DESC")
     rows = cursor.fetchall()
     conn.close()
     
@@ -1276,7 +1399,8 @@ async def get_backups():
             "created_at": row[5],
             "status": row[6],
             "size": row[7],
-            "progress": row[8] if len(row) > 8 else 0
+            "progress": row[8] if len(row) > 8 else 0,
+            "type": row[9] if len(row) > 9 else 'ios'
         })
         
     return backups
@@ -1350,6 +1474,245 @@ async def download_report(path: str):
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to download report: {str(e)}")
+
+# Dashboard Tasks & Notes API
+
+@app.get("/api/dashboard/tasks", response_model=List[Task])
+async def get_tasks():
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM tasks ORDER BY created_at DESC")
+    tasks = [dict(row) for row in cursor.fetchall()]
+    conn.close()
+    return tasks
+
+@app.post("/api/dashboard/tasks", response_model=Task)
+async def create_task(task: TaskCreate):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("INSERT INTO tasks (content, description, priority) VALUES (?, ?, ?)", (task.content, task.description, task.priority))
+    task_id = cursor.lastrowid
+    conn.commit()
+    
+    cursor.execute("SELECT * FROM tasks WHERE id = ?", (task_id,))
+    new_task = dict(sqlite3.Row(cursor, cursor.fetchone()))
+    conn.close()
+    return new_task
+
+@app.put("/api/dashboard/tasks/{task_id}", response_model=Task)
+async def toggle_task(task_id: int):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    
+    # Get current status
+    cursor.execute("SELECT completed FROM tasks WHERE id = ?", (task_id,))
+    result = cursor.fetchone()
+    if not result:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Task not found")
+        
+    new_status = not result[0]
+    cursor.execute("UPDATE tasks SET completed = ? WHERE id = ?", (new_status, task_id))
+    conn.commit()
+    
+    cursor.execute("SELECT * FROM tasks WHERE id = ?", (task_id,))
+    updated_task = dict(sqlite3.Row(cursor, cursor.fetchone()))
+    conn.close()
+    return updated_task
+
+@app.delete("/api/dashboard/tasks/{task_id}")
+async def delete_task(task_id: int):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM tasks WHERE id = ?", (task_id,))
+    conn.commit()
+    conn.close()
+    return {"message": "Task deleted"}
+
+@app.get("/api/dashboard/notes", response_model=List[Note])
+async def get_notes():
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM notes ORDER BY created_at DESC")
+    notes = [dict(row) for row in cursor.fetchall()]
+    conn.close()
+    return notes
+
+@app.post("/api/dashboard/notes", response_model=Note)
+async def create_note(note: NoteCreate):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("INSERT INTO notes (content, description) VALUES (?, ?)", (note.content, note.description))
+    note_id = cursor.lastrowid
+    conn.commit()
+    
+    cursor.execute("SELECT * FROM notes WHERE id = ?", (note_id,))
+    new_note = dict(sqlite3.Row(cursor, cursor.fetchone()))
+    conn.close()
+    return new_note
+
+@app.delete("/api/dashboard/notes/{note_id}")
+async def delete_note(note_id: int):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM notes WHERE id = ?", (note_id,))
+    conn.commit()
+    conn.close()
+    return {"message": "Note deleted"}
+
+    conn.close()
+    return {"message": "Note deleted"}
+
+# Dashboard Top Widgets API
+
+@app.get("/api/system/health")
+async def get_system_health():
+    import psutil
+    return {
+        "cpu": psutil.cpu_percent(interval=1),
+        "ram": psutil.virtual_memory().percent,
+        "disk": psutil.disk_usage('/').percent
+    }
+
+@app.get("/api/system/storage")
+async def get_storage_usage():
+    import psutil
+    
+    # Get total disk usage
+    disk = psutil.disk_usage('/')
+    total = disk.total
+    free = disk.free
+    used = disk.used
+    
+    # Calculate size of backups and reports
+    backups_size = 0
+    reports_size = 0
+    
+    # Helper to get directory size
+    def get_dir_size(path):
+        total_size = 0
+        for dirpath, dirnames, filenames in os.walk(path):
+            for f in filenames:
+                fp = os.path.join(dirpath, f)
+                if not os.path.islink(fp):
+                    total_size += os.path.getsize(fp)
+        return total_size
+
+    # Calculate backups size (assuming they are in a 'backups' folder or similar)
+    # Since we store backup paths in DB, we could sum those, but a folder scan is safer if they are centralized
+    # For now, let's assume a 'backups' directory exists in root or we check the DB
+    # Let's use the DB to find where backups are stored or just check common paths
+    # Based on previous code, backups seem to be in specific paths. 
+    # Let's just sum up the size of known backup paths from DB for accuracy
+    
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    
+    cursor.execute("SELECT path FROM backups")
+    backup_paths = [row[0] for row in cursor.fetchall()]
+    
+    cursor.execute("SELECT path FROM reports")
+    report_paths = [row[0] for row in cursor.fetchall()]
+    
+    conn.close()
+    
+    for path in backup_paths:
+        if os.path.exists(path):
+            if os.path.isfile(path):
+                backups_size += os.path.getsize(path)
+            else:
+                backups_size += get_dir_size(path)
+                
+    for path in report_paths:
+        if os.path.exists(path):
+             if os.path.isfile(path):
+                reports_size += os.path.getsize(path)
+             else:
+                reports_size += get_dir_size(path)
+
+    # System usage is everything else used
+    system_size = max(0, used - backups_size - reports_size)
+    
+    return {
+        "total": total,
+        "free": free,
+        "breakdown": [
+            {"name": "Backups", "value": backups_size, "color": "#3b82f6"}, # Blue
+            {"name": "Reports", "value": reports_size, "color": "#10b981"}, # Green
+            {"name": "System", "value": system_size, "color": "#6b7280"},  # Gray
+            {"name": "Free", "value": free, "color": "#1f2937"}    # Dark Gray
+        ]
+    }
+
+@app.get("/api/dashboard/activity")
+async def get_recent_activity():
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    
+    # Get recent backups
+    cursor.execute("SELECT id, name, 'backup' as type, status, created_at FROM backups ORDER BY created_at DESC LIMIT 5")
+    backups = [dict(row) for row in cursor.fetchall()]
+    
+    # Get recent reports
+    cursor.execute("SELECT id, name, 'report' as type, 'completed' as status, created_at FROM reports ORDER BY created_at DESC LIMIT 5")
+    reports = [dict(row) for row in cursor.fetchall()]
+    
+    conn.close()
+    
+    # Combine and sort
+    activity = backups + reports
+    activity.sort(key=lambda x: x['created_at'], reverse=True)
+    
+    return activity[:10] # Return top 10
+
+@app.get("/api/dashboard/devices")
+async def get_active_devices():
+    devices = []
+    
+    # Check for iOS devices using idevice_id
+    try:
+        # Check if idevice_id is available
+        if shutil.which("idevice_id"):
+            result = subprocess.run(["idevice_id", "-l"], capture_output=True, text=True)
+            if result.returncode == 0:
+                for line in result.stdout.splitlines():
+                    if line.strip():
+                        devices.append({
+                            "id": line.strip(),
+                            "name": "iOS Device", # Getting name requires ideviceinfo which is slower
+                            "type": "ios",
+                            "status": "online",
+                            "connection": "usb",
+                            "battery": 100 # Placeholder as getting battery is complex
+                        })
+    except Exception as e:
+        print(f"Error checking iOS devices: {e}")
+
+    # Check for Android devices using adb
+    try:
+        # Check if adb is available
+        if shutil.which("adb"):
+            result = subprocess.run(["adb", "devices"], capture_output=True, text=True)
+            if result.returncode == 0:
+                lines = result.stdout.splitlines()
+                for line in lines[1:]: # Skip first line "List of devices attached"
+                    if line.strip() and "device" in line:
+                        parts = line.split()
+                        devices.append({
+                            "id": parts[0],
+                            "name": "Android Device",
+                            "type": "android",
+                            "status": "online",
+                            "connection": "usb",
+                            "battery": 100
+                        })
+    except Exception as e:
+        print(f"Error checking Android devices: {e}")
+        
+    return devices
 
 # Mount static reports directories (MUST be last to avoid catching API routes)
 reports_base = os.path.join(os.path.dirname(__file__), "reports")

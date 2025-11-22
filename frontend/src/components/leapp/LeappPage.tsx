@@ -68,6 +68,7 @@ function LeappContent({ logoPath, tool }: { logoPath: string; tool: string }) {
                                 disabled={isProcessing}
                                 placeholder="Select input file..."
                                 showFolderOption={true}
+                                tool={tool}
                             />
                         </div>
                     </div>

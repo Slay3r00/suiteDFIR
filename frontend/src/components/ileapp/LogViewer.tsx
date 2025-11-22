@@ -41,6 +41,23 @@ export default function LogViewer({ logs, enabled = true }: LogViewerProps) {
       );
     }
 
+    // idevicebackup2 Progress
+    if (log.includes('%') && (log.includes('[') || log.includes(']'))) {
+      return (
+        <div key={index} className="whitespace-pre-wrap break-all text-gray-500 font-mono">
+          {log.split(' ').map((word, i) => {
+            if (word.includes('%')) return <span key={i} className="text-white font-bold"> {word}</span>;
+            return <span key={i}> {word}</span>;
+          })}
+        </div>
+      );
+    }
+
+    // idevicebackup2 Status
+    if (log.includes('Backup Successful') || log.includes('Receiving') || log.includes('Initializing') || log.includes('Backup')) {
+      return <div key={index} className="whitespace-pre-wrap break-all text-gray-300 font-semibold">{log}</div>;
+    }
+
     // Data found
     if (log.includes('Found') && log.includes('records')) {
       return (

@@ -1,0 +1,116 @@
+"use client"
+
+import { useState, useEffect } from 'react'
+import { Card, CardContent } from "@/components/ui/Card"
+import { Clock, FileText, Smartphone, CheckCircle, XCircle, AlertCircle } from 'lucide-react'
+
+interface Activity {
+    id: number
+    name: string
+    type: 'backup' | 'report'
+    status: string
+    created_at: string
+}
+
+export default function RecentActivityWidget() {
+    const [activities, setActivities] = useState<Activity[]>([])
+
+    useEffect(() => {
+        const fetchData = async () => {
+            try {
+                const res = await fetch('http://localhost:8000/api/dashboard/activity')
+                if (res.ok) {
+                    const json = await res.json()
+                    setActivities(json)
+                }
+            } catch (error) {
+                console.error('Failed to fetch activity:', error)
+            }
+        }
+
+        fetchData()
+        const interval = setInterval(fetchData, 10000) // Refresh every 10s
+        return () => clearInterval(interval)
+    }, [])
+
+    const getIcon = (type: string) => {
+        return type === 'backup'
+            ? <Smartphone size={14} className="text-blue-400" />
+            : <FileText size={14} className="text-purple-400" />
+    }
+
+    const getStatusIcon = (status: string) => {
+        switch (status.toLowerCase()) {
+            case 'completed': return <CheckCircle size={12} className="text-green-500" />
+            case 'failed': return <XCircle size={12} className="text-red-500" />
+            case 'running': return <AlertCircle size={12} className="text-yellow-500" />
+            default: return <div className="w-2 h-2 rounded-full bg-gray-500" />
+        }
+    }
+
+    const formatTime = (dateStr: string) => {
+        // Ensure date is treated as UTC if it comes as "YYYY-MM-DD HH:MM:SS"
+        const utcDateStr = dateStr.endsWith('Z') ? dateStr : dateStr.replace(' ', 'T') + 'Z'
+        const date = new Date(utcDateStr)
+        const now = new Date()
+        const diff = (now.getTime() - date.getTime()) / 1000 // seconds
+
+        if (diff < 60) return 'Just now'
+        if (diff < 3600) return `${Math.floor(diff / 60)}m ago`
+        if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`
+        return date.toLocaleDateString()
+    }
+
+    return (
+        <Card className="bg-transparent border-none shadow-none flex flex-col overflow-hidden h-full">
+            <CardContent className="flex-1 p-4 flex flex-col min-h-0">
+                <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-sm font-medium text-gray-200 flex items-center gap-2">
+                        <Clock size={16} className="text-orange-400" />
+                        Recent Activity
+                    </h3>
+                </div>
+
+                <div className="flex-1 overflow-y-auto pr-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+                    <div className="relative min-h-full pb-2">
+                        <div className="space-y-3">
+                            {activities.length === 0 ? (
+                                <div className="text-xs text-gray-500 text-center py-4">No recent activity</div>
+                            ) : (
+                                activities.map((activity, i) => (
+                                    <div key={`${activity.type}-${activity.id}`} className="flex gap-3 relative z-10">
+                                        <div className="w-10 flex flex-col items-center shrink-0 relative">
+                                            <div className="w-8 h-8 rounded-full bg-[#212121] border border-[#333333] flex items-center justify-center shadow-sm z-10 relative">
+                                                {getIcon(activity.type)}
+                                            </div>
+                                            {i !== activities.length - 1 && (
+                                                <div className="absolute top-8 bottom-[-12px] w-[1px] bg-[#333333]" />
+                                            )}
+                                        </div>
+                                        <div className="flex-1 min-w-0 py-1">
+                                            <div className="flex items-center justify-between">
+                                                <p className="text-xs font-medium text-gray-200 truncate pr-2">
+                                                    {activity.type === 'backup' ? 'Backup: ' : 'Report: '}
+                                                    {activity.name}
+                                                </p>
+                                                <span className="text-[10px] text-gray-500 shrink-0">
+                                                    {formatTime(activity.created_at)}
+                                                </span>
+                                            </div>
+                                            <div className="flex items-center gap-1.5 mt-0.5">
+                                                {getStatusIcon(activity.status)}
+                                                <span className="text-[10px] text-gray-400 capitalize">
+                                                    {activity.status}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    </div>
+                </div>
+            </CardContent>
+        </Card>
+    )
+}
