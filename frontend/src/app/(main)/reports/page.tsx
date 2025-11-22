@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { Search, FileText, FolderOpen, Download, Trash2, HardDrive, X, Maximize2 } from 'lucide-react';
-import { Button } from '../../components/ui';
+import { Button } from '@/components/ui';
+import { useCase } from "@/context/CaseContext";
 
 interface Report {
     name: string;
@@ -21,10 +22,14 @@ export default function Reports() {
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedReport, setSelectedReport] = useState<Report | null>(null);
     const [isFullscreen, setIsFullscreen] = useState(false);
+    const { selectedCaseId } = useCase();
 
     const fetchReports = async () => {
         try {
-            const response = await fetch('http://localhost:8000/api/reports');
+            const url = selectedCaseId
+                ? `http://localhost:8000/api/reports?case_id=${selectedCaseId}`
+                : 'http://localhost:8000/api/reports';
+            const response = await fetch(url);
             if (response.ok) {
                 const data = await response.json();
                 setReports(data);
@@ -42,7 +47,7 @@ export default function Reports() {
 
     useEffect(() => {
         fetchReports();
-    }, []);
+    }, [selectedCaseId]);
 
     const handleOpen = async (path: string) => {
         try {

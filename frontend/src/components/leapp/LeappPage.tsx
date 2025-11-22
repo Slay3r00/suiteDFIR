@@ -9,6 +9,7 @@ import ProcessControls from '../../components/ileapp/ProcessControls';
 import LogViewer from '../../components/ileapp/LogViewer';
 
 import { Button, Input } from '../../components/ui';
+import { useCase } from '@/context/CaseContext';
 
 interface LeappPageProps {
     tool: 'ileapp' | 'aleapp';
@@ -25,6 +26,7 @@ function LeappContent({ logoPath, tool }: { logoPath: string; tool: string }) {
     const [reportName, setReportName] = useState('');
     const [outputFolder, setOutputFolder] = useState(defaultOutputPath);
     const { logs, isProcessing, clearLogs } = useProcessing();
+    const { selectedCaseId } = useCase();
 
     // aLEAPP logo is 10% smaller than iLEAPP
     const logoHeight = tool === 'aleapp' ? 'h-[57.6px]' : 'h-16';
@@ -83,6 +85,7 @@ function LeappContent({ logoPath, tool }: { logoPath: string; tool: string }) {
                         inputFile={inputFile}
                         outputFolder={outputFolder}
                         reportName={reportName}
+                        caseId={selectedCaseId ? parseInt(selectedCaseId) : undefined}
                     />
                 </div>
 

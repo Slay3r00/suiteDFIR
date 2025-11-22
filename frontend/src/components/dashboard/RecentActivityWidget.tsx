@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Card, CardContent } from "@/components/ui/Card"
 import { Clock, FileText, Smartphone, CheckCircle, XCircle, AlertCircle } from 'lucide-react'
+import { useCase } from "@/context/CaseContext"
 
 interface Activity {
     id: number
@@ -13,12 +14,17 @@ interface Activity {
 }
 
 export default function RecentActivityWidget() {
+    const { selectedCaseId } = useCase()
     const [activities, setActivities] = useState<Activity[]>([])
 
     useEffect(() => {
         const fetchData = async () => {
+            if (!selectedCaseId) {
+                setActivities([])
+                return
+            }
             try {
-                const res = await fetch('http://localhost:8000/api/dashboard/activity')
+                const res = await fetch(`http://localhost:8000/api/dashboard/activity?case_id=${selectedCaseId}`)
                 if (res.ok) {
                     const json = await res.json()
                     setActivities(json)
@@ -31,7 +37,7 @@ export default function RecentActivityWidget() {
         fetchData()
         const interval = setInterval(fetchData, 10000) // Refresh every 10s
         return () => clearInterval(interval)
-    }, [])
+    }, [selectedCaseId])
 
     const getIcon = (type: string) => {
         return type === 'backup'
@@ -59,6 +65,16 @@ export default function RecentActivityWidget() {
         if (diff < 3600) return `${Math.floor(diff / 60)}m ago`
         if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`
         return date.toLocaleDateString()
+    }
+
+    if (!selectedCaseId) {
+        return (
+            <Card className="bg-transparent border-none shadow-none flex flex-col overflow-hidden h-full">
+                <CardContent className="flex items-center justify-center h-full text-gray-500">
+                    <p className="text-sm">Select a case to view activity</p>
+                </CardContent>
+            </Card>
+        )
     }
 
     return (

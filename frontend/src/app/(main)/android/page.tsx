@@ -1,4 +1,4 @@
-import LeappPage from '../../components/leapp/LeappPage';
+import LeappPage from '@/components/leapp/LeappPage';
 
 export default function ALEAPP() {
     return (

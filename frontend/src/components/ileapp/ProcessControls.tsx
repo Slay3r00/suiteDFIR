@@ -10,9 +10,10 @@ interface ProcessControlsProps {
   inputFile: string;
   outputFolder: string;
   reportName?: string;
+  caseId?: number;
 }
 
-export default function ProcessControls({ inputFile, outputFolder, reportName }: ProcessControlsProps) {
+export default function ProcessControls({ inputFile, outputFolder, reportName, caseId }: ProcessControlsProps) {
   const { selectedModules } = useModules();
   const { isProcessing, startProcessing, stopProcessing, progress } = useProcessing();
   const { toast } = useToast();
@@ -49,13 +50,13 @@ export default function ProcessControls({ inputFile, outputFolder, reportName }:
         setShowPasswordDialog(true);
       } else {
         // Not encrypted, proceed normally
-        await startProcessing(inputFile, outputFolder, Array.from(selectedModules), reportName);
+        await startProcessing(inputFile, outputFolder, Array.from(selectedModules), reportName, undefined, caseId);
       }
     } catch (error) {
       console.error("Validation failed:", error);
       // If validation fails (e.g. not a backup folder), just try to process anyway
       // It might be a zip or tar that the validator doesn't handle yet
-      await startProcessing(inputFile, outputFolder, Array.from(selectedModules), reportName);
+      await startProcessing(inputFile, outputFolder, Array.from(selectedModules), reportName, undefined, caseId);
     } finally {
       setIsValidating(false);
     }
@@ -64,7 +65,7 @@ export default function ProcessControls({ inputFile, outputFolder, reportName }:
   const handlePasswordSubmit = async () => {
     setShowPasswordDialog(false);
     try {
-      await startProcessing(inputFile, outputFolder, Array.from(selectedModules), reportName, password);
+      await startProcessing(inputFile, outputFolder, Array.from(selectedModules), reportName, password, caseId);
       setPassword(''); // Clear password after sending
     } catch (error) {
       console.error("Processing failed:", error);

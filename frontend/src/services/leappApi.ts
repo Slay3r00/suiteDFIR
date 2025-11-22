@@ -1,4 +1,4 @@
-import { Module, Profile } from '../app/ileapp/types';
+import { Module, Profile } from '../app/(main)/ileapp/types';
 
 const API_BASE = 'http://localhost:8000/api';
 
@@ -78,7 +78,8 @@ export function createLeappApi(tool: string) {
                 outputFolder: string,
                 selectedModules: string[],
                 reportName?: string,
-                password?: string
+                password?: string,
+                caseId?: number
             ): Promise<{ task_id: string }> => {
                 const response = await fetch(`${API_BASE}/${tool}/process`, {
                     method: 'POST',
@@ -88,7 +89,8 @@ export function createLeappApi(tool: string) {
                         output_folder: outputFolder,
                         selected_modules: selectedModules,
                         report_name: reportName,
-                        password: password
+                        password: password,
+                        case_id: caseId
                     }),
                 });
                 return handleApiResponse(response);
@@ -120,17 +122,18 @@ export function createLeappApi(tool: string) {
                 if (!response.ok) throw new Error('Failed to fetch devices');
                 return response.json();
             },
-            startBackup: async (udid: string, name: string) => {
+            startBackup: async (udid: string, name: string, caseId?: number) => {
                 const response = await fetch(`${API_BASE}/ios/backup`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ udid, name }),
+                    body: JSON.stringify({ udid, name, case_id: caseId }),
                 });
                 if (!response.ok) throw new Error('Failed to start backup');
                 return response.json();
             },
-            getBackups: async () => {
-                const response = await fetch(`${API_BASE}/backups`);
+            getBackups: async (caseId?: number) => {
+                const url = caseId ? `${API_BASE}/backups?case_id=${caseId}` : `${API_BASE}/backups`;
+                const response = await fetch(url);
                 if (!response.ok) throw new Error('Failed to fetch backups');
                 return response.json();
             },

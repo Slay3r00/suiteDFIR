@@ -16,18 +16,18 @@ export default function DashboardPage() {
                 <div className="flex-1 min-h-0">
                     <CaseDetailsWidget />
                 </div>
-                {/* Storage - Short (1/3) */}
-                <div className="h-1/3 min-h-0">
-                    <StorageWidget />
+                {/* Active Devices & Activity - Short (43%) */}
+                <div className="h-[43%] min-h-0 grid grid-cols-2 gap-4">
+                    <RecentActivityWidget />
+                    <ActiveDevicesWidget />
                 </div>
             </div>
 
             {/* Right Column */}
             <div className="flex flex-col gap-4 h-full min-h-0">
-                {/* Top Right - Devices & Activity (Short 1/3) */}
-                <div className="h-1/3 min-h-0 grid grid-cols-2 gap-4">
-                    <ActiveDevicesWidget />
-                    <RecentActivityWidget />
+                {/* Top Right - Storage (Short 43%) */}
+                <div className="h-[43%] min-h-0">
+                    <StorageWidget />
                 </div>
                 {/* Tasks & Notes - Tall (Flex-1) */}
                 <div className="flex-1 min-h-0">

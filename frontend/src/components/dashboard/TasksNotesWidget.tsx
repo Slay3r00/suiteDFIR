@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/Button"
 import { Input } from "@/components/ui/Input"
 import { Plus, Trash2, CheckSquare, FileText, Check } from 'lucide-react'
 import { useToast } from "@/hooks/use-toast"
+import { useCase } from "@/context/CaseContext"
 
 interface Task {
     id: number
@@ -14,6 +15,7 @@ interface Task {
     priority: 'low' | 'medium' | 'high'
     completed: boolean
     created_at: string
+    case_id?: number
 }
 
 interface Note {
@@ -21,9 +23,11 @@ interface Note {
     content: string
     description?: string
     created_at: string
+    case_id?: number
 }
 
 export default function TasksNotesWidget() {
+    const { selectedCaseId } = useCase()
     const [activeTab, setActiveTab] = useState<'tasks' | 'notes'>('tasks')
     const [tasks, setTasks] = useState<Task[]>([])
     const [notes, setNotes] = useState<Note[]>([])
@@ -34,14 +38,21 @@ export default function TasksNotesWidget() {
     const { toast } = useToast()
 
     useEffect(() => {
-        fetchData()
-    }, [])
+        if (selectedCaseId) {
+            fetchData()
+        } else {
+            setTasks([])
+            setNotes([])
+        }
+    }, [selectedCaseId])
 
     const fetchData = async () => {
+        if (!selectedCaseId) return
+
         try {
             const [tasksRes, notesRes] = await Promise.all([
-                fetch('http://localhost:8000/api/dashboard/tasks'),
-                fetch('http://localhost:8000/api/dashboard/notes')
+                fetch(`http://localhost:8000/api/dashboard/tasks?case_id=${selectedCaseId}`),
+                fetch(`http://localhost:8000/api/dashboard/notes?case_id=${selectedCaseId}`)
             ])
 
             if (tasksRes.ok) setTasks(await tasksRes.json())
@@ -52,14 +63,14 @@ export default function TasksNotesWidget() {
     }
 
     const handleAdd = async () => {
-        if (!inputValue.trim()) return
+        if (!inputValue.trim() || !selectedCaseId) return
 
         setIsLoading(true)
         try {
             const endpoint = activeTab === 'tasks' ? 'tasks' : 'notes'
             const body = activeTab === 'tasks'
-                ? { content: inputValue, description: descriptionValue, priority }
-                : { content: inputValue, description: descriptionValue }
+                ? { content: inputValue, description: descriptionValue, priority, case_id: parseInt(selectedCaseId) }
+                : { content: inputValue, description: descriptionValue, case_id: parseInt(selectedCaseId) }
 
             const res = await fetch(`http://localhost:8000/api/dashboard/${endpoint}`, {
                 method: 'POST',
@@ -154,6 +165,16 @@ export default function TasksNotesWidget() {
             case 'low': return 'text-blue-400 border-blue-400/30 bg-blue-400/10'
             default: return 'text-gray-400 border-gray-400/30 bg-gray-400/10'
         }
+    }
+
+    if (!selectedCaseId) {
+        return (
+            <Card className="bg-[#171717] border-[#333333] flex flex-col overflow-hidden h-full">
+                <CardContent className="flex items-center justify-center h-full text-gray-500">
+                    <p className="text-sm">Select a case to view tasks and notes</p>
+                </CardContent>
+            </Card>
+        )
     }
 
     return (

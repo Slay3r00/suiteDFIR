@@ -1,15 +1,89 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import { Card, CardContent } from "@/components/ui/Card"
 import { cn } from "@/lib/utils"
-
+import { useCase } from "@/context/CaseContext"
 import { Briefcase, User, MapPin, Phone, Building, FileText, Info } from 'lucide-react'
 
+interface Case {
+    id: number
+    case_number: string
+    name: string
+    business_name: string
+    investigator_name: string
+    client_name: string
+    client_location: string
+    client_contact: string
+    description: string
+    status: string
+    priority: string
+    created_at: string
+}
+
 export default function CaseDetailsWidget({ className }: { className?: string }) {
+    const { selectedCaseId } = useCase()
+    const [caseData, setCaseData] = useState<Case | null>(null)
+    const [isLoading, setIsLoading] = useState(false)
+
+    useEffect(() => {
+        if (selectedCaseId) {
+            fetchCaseDetails()
+        } else {
+            setCaseData(null)
+        }
+    }, [selectedCaseId])
+
+    const fetchCaseDetails = async () => {
+        setIsLoading(true)
+        try {
+            const res = await fetch(`http://localhost:8000/api/cases/${selectedCaseId}`)
+            if (res.ok) {
+                const data = await res.json()
+                setCaseData(data)
+            }
+        } catch (error) {
+            console.error('Failed to fetch case details:', error)
+        } finally {
+            setIsLoading(false)
+        }
+    }
+
+    if (!selectedCaseId) {
+        return (
+            <Card className={cn("bg-[#171717] border-[#333333] flex flex-col overflow-hidden h-full", className)}>
+                <CardContent className="flex items-center justify-center h-full text-gray-500">
+                    <p className="text-sm">No case selected</p>
+                </CardContent>
+            </Card>
+        )
+    }
+
+    if (isLoading) {
+        return (
+            <Card className={cn("bg-[#171717] border-[#333333] flex flex-col overflow-hidden h-full", className)}>
+                <CardContent className="flex items-center justify-center h-full text-gray-500">
+                    <p className="text-sm">Loading case details...</p>
+                </CardContent>
+            </Card>
+        )
+    }
+
+    if (!caseData) {
+        return (
+            <Card className={cn("bg-[#171717] border-[#333333] flex flex-col overflow-hidden h-full", className)}>
+                <CardContent className="flex items-center justify-center h-full text-gray-500">
+                    <p className="text-sm">Case not found</p>
+                </CardContent>
+            </Card>
+        )
+    }
+
     return (
         <Card className={cn("bg-[#171717] border-[#333333] flex flex-col overflow-hidden h-full", className)}>
             <div className="px-4 py-2 border-b border-[#333333] bg-[#1A1A1A] flex justify-between items-center">
                 <h3 className="text-xs font-medium text-gray-400 uppercase tracking-wider">Case Overview</h3>
+                <span className="text-[10px] font-mono text-gray-500">{caseData.case_number}</span>
             </div>
             <CardContent className="flex-1 p-6 flex flex-col min-h-0">
                 <div className="grid grid-cols-2 gap-x-12 gap-y-8 mb-8 shrink-0">
@@ -19,7 +93,7 @@ export default function CaseDetailsWidget({ className }: { className?: string })
                             <FileText size={14} />
                             <span className="text-[10px] font-medium uppercase tracking-wider">Case Name</span>
                         </div>
-                        <p className="text-sm text-gray-200 font-medium">Operation Blackout</p>
+                        <p className="text-sm text-gray-200 font-medium">{caseData.name}</p>
                     </div>
 
                     {/* Business Name */}
@@ -28,7 +102,7 @@ export default function CaseDetailsWidget({ className }: { className?: string })
                             <Building size={14} />
                             <span className="text-[10px] font-medium uppercase tracking-wider">Business Name</span>
                         </div>
-                        <p className="text-sm text-gray-200 font-medium">TechCorp Industries</p>
+                        <p className="text-sm text-gray-200 font-medium">{caseData.business_name || 'N/A'}</p>
                     </div>
 
                     {/* Investigator */}
@@ -37,7 +111,7 @@ export default function CaseDetailsWidget({ className }: { className?: string })
                             <User size={14} />
                             <span className="text-[10px] font-medium uppercase tracking-wider">Investigator</span>
                         </div>
-                        <p className="text-sm text-gray-200 font-medium">Det. Sarah Connor</p>
+                        <p className="text-sm text-gray-200 font-medium">{caseData.investigator_name || 'N/A'}</p>
                     </div>
 
                     {/* Client Name */}
@@ -46,7 +120,7 @@ export default function CaseDetailsWidget({ className }: { className?: string })
                             <User size={14} />
                             <span className="text-[10px] font-medium uppercase tracking-wider">Client Name</span>
                         </div>
-                        <p className="text-sm text-gray-200 font-medium">John Doe</p>
+                        <p className="text-sm text-gray-200 font-medium">{caseData.client_name || 'N/A'}</p>
                     </div>
 
                     {/* Client Location */}
@@ -55,7 +129,7 @@ export default function CaseDetailsWidget({ className }: { className?: string })
                             <MapPin size={14} />
                             <span className="text-[10px] font-medium uppercase tracking-wider">Client Location</span>
                         </div>
-                        <p className="text-sm text-gray-200 font-medium">San Francisco, CA</p>
+                        <p className="text-sm text-gray-200 font-medium">{caseData.client_location || 'N/A'}</p>
                     </div>
 
                     {/* Client Contact */}
@@ -64,7 +138,7 @@ export default function CaseDetailsWidget({ className }: { className?: string })
                             <Phone size={14} />
                             <span className="text-[10px] font-medium uppercase tracking-wider">Client Contact</span>
                         </div>
-                        <p className="text-sm text-gray-200 font-medium">+1 (555) 012-3456</p>
+                        <p className="text-sm text-gray-200 font-medium">{caseData.client_contact || 'N/A'}</p>
                     </div>
                 </div>
 
@@ -75,15 +149,7 @@ export default function CaseDetailsWidget({ className }: { className?: string })
                         <span className="text-[10px] font-medium uppercase tracking-wider">Case Description</span>
                     </div>
                     <div className="flex-1 bg-[#111111] border border-[#333333] rounded-md p-3 overflow-y-auto text-sm text-gray-300 leading-relaxed">
-                        <p>
-                            Investigation into alleged unauthorized data exfiltration involving internal servers. Suspect device seized for forensic analysis.
-                        </p>
-                        <p className="mt-2">
-                            Initial reports indicate potential involvement of external actors. Several encrypted volumes discovered on the primary drive requiring brute-force decryption. Chain of custody log initiated and all physical evidence secured in Evidence Room B.
-                        </p>
-                        <p className="mt-2">
-                            Preliminary scan shows traces of deleted log files and suspicious network activity timestamps matching the incident report.
-                        </p>
+                        <p>{caseData.description || 'No description provided.'}</p>
                     </div>
                 </div>
             </CardContent>

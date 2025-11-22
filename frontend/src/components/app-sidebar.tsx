@@ -9,7 +9,8 @@ import {
     Settings,
     PanelLeft,
     Bot,
-    Archive
+    Archive,
+    ChevronLeft
 } from "lucide-react"
 
 import {
@@ -26,7 +27,7 @@ import {
     useSidebar,
 } from "@/components/ui/sidebar"
 
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 
 // Menu items.
 const data = {
@@ -84,16 +85,23 @@ const data = {
 export function AppSidebar() {
     const { toggleSidebar } = useSidebar()
     const pathname = usePathname()
+    const router = useRouter()
 
     return (
         <Sidebar collapsible="icon">
             <SidebarHeader>
                 <div className="flex items-center justify-between p-2 group-data-[collapsible=icon]:justify-center">
-                    <div className="flex flex-col overflow-hidden whitespace-nowrap opacity-0 max-w-0 group-data-[state=expanded]:opacity-100 group-data-[state=expanded]:max-w-[200px] group-data-[state=expanded]:transition-[opacity,max-width] group-data-[state=expanded]:duration-300 group-data-[state=expanded]:ease-in-out group-data-[state=expanded]:delay-200">
-                        <span className="text-lg font-bold text-white">VDF Tools</span>
-                        <span className="text-[10px] uppercase tracking-widest text-muted-foreground font-medium">Forensic Toolkit</span>
+                    <div className="flex items-center gap-2 overflow-hidden group-data-[state=expanded]:w-full">
+                        <ChevronLeft
+                            className="h-4 w-4 text-white opacity-70 flex-shrink-0 group-data-[state=collapsed]:hidden cursor-pointer hover:opacity-100 transition-opacity"
+                            onClick={() => router.push('/cases')}
+                        />
+                        <div className="flex flex-col overflow-hidden whitespace-nowrap opacity-0 max-w-0 group-data-[state=expanded]:opacity-100 group-data-[state=expanded]:max-w-[200px] group-data-[state=expanded]:transition-[opacity,max-width] group-data-[state=expanded]:duration-300 group-data-[state=expanded]:ease-in-out group-data-[state=expanded]:delay-200">
+                            <span className="text-lg font-bold text-white">VDF Tools</span>
+                            <span className="text-[10px] uppercase tracking-widest text-muted-foreground font-medium">Forensic Toolkit</span>
+                        </div>
                     </div>
-                    <button onClick={toggleSidebar} className="p-1 hover:bg-sidebar-accent rounded-md text-sidebar-foreground">
+                    <button onClick={toggleSidebar} className="p-1 hover:bg-sidebar-accent rounded-md text-sidebar-foreground flex-shrink-0">
                         <PanelLeft className="h-5 w-5" />
                     </button>
                 </div>

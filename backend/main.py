@@ -164,6 +164,57 @@ def init_database():
         print("Migrating database: Adding description column to notes table")
         cursor.execute("ALTER TABLE notes ADD COLUMN description TEXT")
 
+    # Create cases table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS cases (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            case_number TEXT,
+            business_name TEXT,
+            investigator_name TEXT,
+            client_name TEXT,
+            client_location TEXT,
+            client_contact TEXT,
+            description TEXT,
+            status TEXT DEFAULT 'Active',
+            priority TEXT DEFAULT 'Medium',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+
+    # Check if we need to create a default case (only if cases table is empty but other tables have data)
+    cursor.execute("SELECT count(*) FROM cases")
+    case_count = cursor.fetchone()[0]
+    default_case_id = None
+
+    if case_count == 0:
+        # Create default case
+        cursor.execute('''
+            INSERT INTO cases (name, case_number, description, status, priority)
+            VALUES (?, ?, ?, ?, ?)
+        ''', ("Default Case", "DEF-001", "Auto-generated default case for existing data", "Active", "Medium"))
+        default_case_id = cursor.lastrowid
+        print(f"Created Default Case with ID: {default_case_id}")
+
+    # Helper to add case_id column and migrate data
+    def add_case_id_column(table_name):
+        cursor.execute(f"PRAGMA table_info({table_name})")
+        columns = [info[1] for info in cursor.fetchall()]
+        if 'case_id' not in columns:
+            print(f"Migrating database: Adding case_id column to {table_name} table")
+            cursor.execute(f"ALTER TABLE {table_name} ADD COLUMN case_id INTEGER REFERENCES cases(id)")
+            
+            # If we have a default case, assign all existing records to it
+            if default_case_id:
+                cursor.execute(f"UPDATE {table_name} SET case_id = ?", (default_case_id,))
+                print(f"Assigned existing {table_name} records to Default Case (ID: {default_case_id})")
+
+    # Migrate tables
+    add_case_id_column('backups')
+    add_case_id_column('reports')
+    add_case_id_column('tasks')
+    add_case_id_column('notes')
+
     conn.commit()
     conn.close()
 
@@ -297,13 +348,52 @@ class Profile(BaseModel):
     tool: str
     modules: List[str]
 
+class Case(BaseModel):
+    id: int
+    name: str
+    case_number: Optional[str] = None
+    business_name: Optional[str] = None
+    investigator_name: Optional[str] = None
+    client_name: Optional[str] = None
+    client_location: Optional[str] = None
+    client_contact: Optional[str] = None
+    description: Optional[str] = None
+    status: str = "Active"
+    priority: str = "Medium"
+    created_at: str
+
+class CaseCreate(BaseModel):
+    name: str
+    case_number: Optional[str] = None
+    business_name: Optional[str] = None
+    investigator_name: Optional[str] = None
+    client_name: Optional[str] = None
+    client_location: Optional[str] = None
+    client_contact: Optional[str] = None
+    description: Optional[str] = None
+    status: str = "Active"
+    priority: str = "Medium"
+
+class CaseUpdate(BaseModel):
+    name: Optional[str] = None
+    case_number: Optional[str] = None
+    business_name: Optional[str] = None
+    investigator_name: Optional[str] = None
+    client_name: Optional[str] = None
+    client_location: Optional[str] = None
+    client_contact: Optional[str] = None
+    description: Optional[str] = None
+    status: Optional[str] = None
+    priority: Optional[str] = None
+
 class ProcessRequest(BaseModel):
     input_path: str
-    output_folder: str
+    output_folder: Optional[str] = None
     selected_modules: List[str]
     timezone_offset: str = "UTC"
-    report_name: str = ""  # Optional custom report name
-    password: str = ""  # Optional backup password
+    report_name: Optional[str] = None
+    password: Optional[str] = None
+    case_id: Optional[int] = None
 
 class ValidateBackupRequest(BaseModel):
     input_path: str
@@ -332,21 +422,25 @@ class Task(BaseModel):
     priority: str
     completed: bool
     created_at: str
+    case_id: Optional[int] = None
 
 class TaskCreate(BaseModel):
     content: str
     description: Optional[str] = None
     priority: str = "medium"
+    case_id: Optional[int] = None
 
 class Note(BaseModel):
     id: int
     content: str
     description: Optional[str] = None
     created_at: str
+    case_id: Optional[int] = None
 
 class NoteCreate(BaseModel):
     content: str
     description: Optional[str] = None
+    case_id: Optional[int] = None
 
 
 # Global state
@@ -643,7 +737,8 @@ async def start_processing(tool: str, request: ProcessRequest):
             "output_folder": output_folder,
             "start_time": datetime.now().timestamp(),
             "report_name": request.report_name,
-            "tool": tool
+            "tool": tool,
+            "case_id": request.case_id
         }
 
         # Run iLEAPP as background task
@@ -713,8 +808,8 @@ async def start_processing(tool: str, request: ProcessRequest):
                             conn = sqlite3.connect(DB_PATH)
                             cursor = conn.cursor()
                             cursor.execute(
-                                "INSERT INTO reports (name, path, tool) VALUES (?, ?, ?)",
-                                (request.report_name, newest_report, tool)
+                                "INSERT INTO reports (name, path, tool, case_id) VALUES (?, ?, ?, ?)",
+                                (request.report_name, newest_report, tool, tasks[task_id].get("case_id"))
                             )
                             conn.commit()
                             conn.close()
@@ -970,7 +1065,7 @@ def get_size_format(b, factor=1024, suffix="B"):
     return f"{b:.2f}Y{suffix}"
 
 @app.get("/api/reports", response_model=List[Report])
-async def get_reports():
+async def get_reports(case_id: Optional[int] = None):
     """Get list of reports from database"""
     reports = []
     
@@ -979,7 +1074,10 @@ async def get_reports():
         cursor = conn.cursor()
         
         # Get all reports from DB
-        cursor.execute('SELECT name, path, tool, created_at FROM reports ORDER BY created_at DESC')
+        if case_id:
+            cursor.execute('SELECT name, path, tool, created_at FROM reports WHERE case_id = ? ORDER BY created_at DESC', (case_id,))
+        else:
+            cursor.execute('SELECT name, path, tool, created_at FROM reports ORDER BY created_at DESC')
         rows = cursor.fetchall()
         conn.close()
         
@@ -1052,6 +1150,215 @@ async def delete_report(path: str):
 
         # Delete from filesystem
         if os.path.exists(path):
+            if os.path.isdir(path):
+                shutil.rmtree(path)
+            else:
+                os.remove(path)
+                
+        return {"message": "Report deleted successfully"}
+    except Exception as e:
+        print(f"Error deleting report: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# Case Management Endpoints
+
+@app.get("/api/cases", response_model=List[Case])
+async def get_cases():
+    """Get list of all cases"""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT id, name, case_number, business_name, investigator_name, 
+                   client_name, client_location, client_contact, description, 
+                   status, priority, created_at 
+            FROM cases 
+            ORDER BY created_at DESC
+        ''')
+        cases = []
+        for row in cursor.fetchall():
+            cases.append(Case(
+                id=row[0],
+                name=row[1],
+                case_number=row[2],
+                business_name=row[3],
+                investigator_name=row[4],
+                client_name=row[5],
+                client_location=row[6],
+                client_contact=row[7],
+                description=row[8],
+                status=row[9],
+                priority=row[10],
+                created_at=row[11]
+            ))
+        conn.close()
+        return cases
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch cases: {str(e)}")
+
+@app.post("/api/cases", response_model=Case)
+async def create_case(case: CaseCreate):
+    """Create a new case"""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute('''
+            INSERT INTO cases (
+                name, case_number, business_name, investigator_name, 
+                client_name, client_location, client_contact, description, 
+                status, priority
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (
+            case.name, case.case_number, case.business_name, case.investigator_name,
+            case.client_name, case.client_location, case.client_contact, case.description,
+            case.status, case.priority
+        ))
+        case_id = cursor.lastrowid
+        
+        # Fetch created case
+        cursor.execute('SELECT created_at FROM cases WHERE id = ?', (case_id,))
+        created_at = cursor.fetchone()[0]
+        conn.commit()
+        conn.close()
+
+        return Case(
+            id=case_id,
+            created_at=created_at,
+            **case.dict()
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to create case: {str(e)}")
+
+@app.get("/api/cases/{case_id}", response_model=Case)
+async def get_case(case_id: int):
+    """Get a specific case by ID"""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT id, name, case_number, business_name, investigator_name, 
+                   client_name, client_location, client_contact, description, 
+                   status, priority, created_at 
+            FROM cases 
+            WHERE id = ?
+        ''', (case_id,))
+        row = cursor.fetchone()
+        conn.close()
+        
+        if not row:
+            raise HTTPException(status_code=404, detail="Case not found")
+            
+        return Case(
+            id=row[0],
+            name=row[1],
+            case_number=row[2],
+            business_name=row[3],
+            investigator_name=row[4],
+            client_name=row[5],
+            client_location=row[6],
+            client_contact=row[7],
+            description=row[8],
+            status=row[9],
+            priority=row[10],
+            created_at=row[11]
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch case: {str(e)}")
+
+@app.put("/api/cases/{case_id}", response_model=Case)
+async def update_case(case_id: int, case_update: CaseUpdate):
+    """Update an existing case"""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        
+        # Build update query dynamically
+        update_data = case_update.dict(exclude_unset=True)
+        if not update_data:
+            raise HTTPException(status_code=400, detail="No fields to update")
+            
+        set_clause = ", ".join([f"{key} = ?" for key in update_data.keys()])
+        values = list(update_data.values())
+        values.append(case_id)
+        
+        cursor.execute(f'UPDATE cases SET {set_clause} WHERE id = ?', values)
+        
+        if cursor.rowcount == 0:
+            conn.close()
+            raise HTTPException(status_code=404, detail="Case not found")
+            
+        conn.commit()
+        
+        # Fetch updated case
+        cursor.execute('''
+            SELECT id, name, case_number, business_name, investigator_name, 
+                   client_name, client_location, client_contact, description, 
+                   status, priority, created_at 
+            FROM cases 
+            WHERE id = ?
+        ''', (case_id,))
+        row = cursor.fetchone()
+        conn.close()
+        
+        return Case(
+            id=row[0],
+            name=row[1],
+            case_number=row[2],
+            business_name=row[3],
+            investigator_name=row[4],
+            client_name=row[5],
+            client_location=row[6],
+            client_contact=row[7],
+            description=row[8],
+            status=row[9],
+            priority=row[10],
+            created_at=row[11]
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to update case: {str(e)}")
+
+@app.delete("/api/cases/{case_id}")
+async def delete_case(case_id: int):
+    """Delete a case"""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        
+        # Check if case exists
+        cursor.execute('SELECT id FROM cases WHERE id = ?', (case_id,))
+        if not cursor.fetchone():
+            conn.close()
+            raise HTTPException(status_code=404, detail="Case not found")
+            
+        # Delete case (Foreign keys should handle cascade if configured, but SQLite default is OFF)
+        # We might want to reassign or delete related records. For now, let's just delete the case.
+        # Ideally we should set related records' case_id to NULL or a default case.
+        # Let's check if there's a default case to fallback to, or just leave them orphaned (case_id will point to non-existent case)
+        # Better approach: Set case_id to NULL for related records
+        cursor.execute('UPDATE backups SET case_id = NULL WHERE case_id = ?', (case_id,))
+        cursor.execute('UPDATE reports SET case_id = NULL WHERE case_id = ?', (case_id,))
+        cursor.execute('UPDATE tasks SET case_id = NULL WHERE case_id = ?', (case_id,))
+        cursor.execute('UPDATE notes SET case_id = NULL WHERE case_id = ?', (case_id,))
+        
+        cursor.execute('DELETE FROM cases WHERE id = ?', (case_id,))
+        conn.commit()
+        conn.close()
+        
+        return {"message": "Case deleted successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to delete case: {str(e)}")
+        cursor.execute("DELETE FROM reports WHERE path = ?", (path,))
+        conn.commit()
+        conn.close()
+
+        # Delete from filesystem
+        if os.path.exists(path):
             shutil.rmtree(path)
             return {"message": "Report deleted successfully"}
         else:
@@ -1072,6 +1379,7 @@ class BackupRequest(BaseModel):
     udid: str
     name: str
     password: Optional[str] = None
+    case_id: Optional[int] = None
 
 def get_connected_devices():
     """Get list of connected iOS devices"""
@@ -1275,8 +1583,8 @@ async def start_backup(request: BackupRequest, background_tasks: BackgroundTasks
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute(
-        "INSERT INTO backups (name, device_udid, device_name, path, status, password) VALUES (?, ?, ?, ?, ?, ?)",
-        (request.name, request.udid, device['name'], backup_path, 'in_progress', request.password)
+        "INSERT INTO backups (name, device_udid, device_name, path, status, password, case_id) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (request.name, request.udid, device['name'], backup_path, 'in_progress', request.password, request.case_id)
     )
     backup_id = cursor.lastrowid
     conn.commit()
@@ -1380,11 +1688,14 @@ async def stop_backup(backup_id: int):
         raise HTTPException(status_code=404, detail="Backup not found or not active")
 
 @app.get("/api/backups")
-async def get_backups():
+async def get_backups(case_id: Optional[int] = None):
     """Get list of backups"""
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    cursor.execute("SELECT id, name, device_udid, device_name, path, created_at, status, size, progress, type FROM backups ORDER BY created_at DESC")
+    if case_id:
+        cursor.execute("SELECT id, name, device_udid, device_name, path, created_at, status, size, progress, type FROM backups WHERE case_id = ? ORDER BY created_at DESC", (case_id,))
+    else:
+        cursor.execute("SELECT id, name, device_udid, device_name, path, created_at, status, size, progress, type FROM backups ORDER BY created_at DESC")
     rows = cursor.fetchall()
     conn.close()
     
@@ -1478,11 +1789,14 @@ async def download_report(path: str):
 # Dashboard Tasks & Notes API
 
 @app.get("/api/dashboard/tasks", response_model=List[Task])
-async def get_tasks():
+async def get_tasks(case_id: Optional[int] = None):
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM tasks ORDER BY created_at DESC")
+    if case_id:
+        cursor.execute("SELECT * FROM tasks WHERE case_id = ? ORDER BY created_at DESC", (case_id,))
+    else:
+        cursor.execute("SELECT * FROM tasks ORDER BY created_at DESC")
     tasks = [dict(row) for row in cursor.fetchall()]
     conn.close()
     return tasks
@@ -1491,7 +1805,7 @@ async def get_tasks():
 async def create_task(task: TaskCreate):
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    cursor.execute("INSERT INTO tasks (content, description, priority) VALUES (?, ?, ?)", (task.content, task.description, task.priority))
+    cursor.execute("INSERT INTO tasks (content, description, priority, case_id) VALUES (?, ?, ?, ?)", (task.content, task.description, task.priority, task.case_id))
     task_id = cursor.lastrowid
     conn.commit()
     
@@ -1531,11 +1845,14 @@ async def delete_task(task_id: int):
     return {"message": "Task deleted"}
 
 @app.get("/api/dashboard/notes", response_model=List[Note])
-async def get_notes():
+async def get_notes(case_id: Optional[int] = None):
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM notes ORDER BY created_at DESC")
+    if case_id:
+        cursor.execute("SELECT * FROM notes WHERE case_id = ? ORDER BY created_at DESC", (case_id,))
+    else:
+        cursor.execute("SELECT * FROM notes ORDER BY created_at DESC")
     notes = [dict(row) for row in cursor.fetchall()]
     conn.close()
     return notes
@@ -1544,7 +1861,7 @@ async def get_notes():
 async def create_note(note: NoteCreate):
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    cursor.execute("INSERT INTO notes (content, description) VALUES (?, ?)", (note.content, note.description))
+    cursor.execute("INSERT INTO notes (content, description, case_id) VALUES (?, ?, ?)", (note.content, note.description, note.case_id))
     note_id = cursor.lastrowid
     conn.commit()
     
@@ -1577,7 +1894,7 @@ async def get_system_health():
     }
 
 @app.get("/api/system/storage")
-async def get_storage_usage():
+async def get_storage_usage(case_id: Optional[int] = None):
     import psutil
     
     # Get total disk usage
@@ -1610,10 +1927,16 @@ async def get_storage_usage():
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     
-    cursor.execute("SELECT path FROM backups")
+    if case_id:
+        cursor.execute("SELECT path FROM backups WHERE case_id = ?", (case_id,))
+    else:
+        cursor.execute("SELECT path FROM backups")
     backup_paths = [row[0] for row in cursor.fetchall()]
     
-    cursor.execute("SELECT path FROM reports")
+    if case_id:
+        cursor.execute("SELECT path FROM reports WHERE case_id = ?", (case_id,))
+    else:
+        cursor.execute("SELECT path FROM reports")
     report_paths = [row[0] for row in cursor.fetchall()]
     
     conn.close()
@@ -1647,17 +1970,23 @@ async def get_storage_usage():
     }
 
 @app.get("/api/dashboard/activity")
-async def get_recent_activity():
+async def get_recent_activity(case_id: Optional[int] = None):
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     
     # Get recent backups
-    cursor.execute("SELECT id, name, 'backup' as type, status, created_at FROM backups ORDER BY created_at DESC LIMIT 5")
+    if case_id:
+        cursor.execute("SELECT id, name, 'backup' as type, status, created_at FROM backups WHERE case_id = ? ORDER BY created_at DESC LIMIT 5", (case_id,))
+    else:
+        cursor.execute("SELECT id, name, 'backup' as type, status, created_at FROM backups ORDER BY created_at DESC LIMIT 5")
     backups = [dict(row) for row in cursor.fetchall()]
     
     # Get recent reports
-    cursor.execute("SELECT id, name, 'report' as type, 'completed' as status, created_at FROM reports ORDER BY created_at DESC LIMIT 5")
+    if case_id:
+        cursor.execute("SELECT id, name, 'report' as type, 'completed' as status, created_at FROM reports WHERE case_id = ? ORDER BY created_at DESC LIMIT 5", (case_id,))
+    else:
+        cursor.execute("SELECT id, name, 'report' as type, 'completed' as status, created_at FROM reports ORDER BY created_at DESC LIMIT 5")
     reports = [dict(row) for row in cursor.fetchall()]
     
     conn.close()

@@ -12,6 +12,7 @@ import { useDropdown } from "@/hooks"
 import Iphone15Pro from "@/components/ui/shadcn-io/iphone-15-pro"
 import LogViewer from "@/components/ileapp/LogViewer"
 import { useToast } from "@/hooks/use-toast"
+import { useCase } from "@/context/CaseContext"
 
 interface Device {
     udid: string
@@ -44,6 +45,7 @@ export default function BackupPage() {
     const [logs, setLogs] = useState<string[]>([])
     const deviceDropdown = useDropdown()
     const { toast } = useToast()
+    const { selectedCaseId } = useCase()
 
     const api = createLeappApi('ios')
 
@@ -78,7 +80,7 @@ export default function BackupPage() {
 
     const fetchBackups = async () => {
         try {
-            const data = await api.backup.getBackups()
+            const data = await api.backup.getBackups(selectedCaseId ? parseInt(selectedCaseId) : undefined)
             setBackups(data)
         } catch (error) {
             console.error('Failed to fetch backups:', error)
@@ -95,7 +97,7 @@ export default function BackupPage() {
             fetchDevices()
         }, 5000)
         return () => clearInterval(interval)
-    }, [])
+    }, [selectedCaseId])
 
     // Reconnect to log stream if backup is in progress on mount/refresh
     useEffect(() => {
@@ -141,7 +143,7 @@ export default function BackupPage() {
 
         setIsBackingUp(true)
         try {
-            const response = await api.backup.startBackup(selectedDevice, name)
+            const response = await api.backup.startBackup(selectedDevice, name, selectedCaseId ? parseInt(selectedCaseId) : undefined)
             toast({
                 title: "Backup Started",
                 description: `Backup '${name}' has started in the background.`,

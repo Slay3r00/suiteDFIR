@@ -65,5 +65,7 @@ htmlcov/
 # LEAPP
 
 forensic-tools/leapp-tools/*
-reports/*
+reports/aleapp-reports/*
+reports/ileapp-reports/*
 backups/*
+*vdf_tool.db

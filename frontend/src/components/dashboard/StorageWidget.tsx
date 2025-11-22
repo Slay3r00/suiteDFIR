@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { Card, CardContent } from "@/components/ui/Card"
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts'
 import { Database, HardDrive } from 'lucide-react'
+import { useCase } from "@/context/CaseContext"
 
 interface StorageData {
     total: number
@@ -20,12 +21,17 @@ interface StorageWidgetProps {
 }
 
 export default function StorageWidget({ className }: StorageWidgetProps) {
+    const { selectedCaseId } = useCase()
     const [data, setData] = useState<StorageData | null>(null)
 
     useEffect(() => {
         const fetchData = async () => {
+            if (!selectedCaseId) {
+                setData(null)
+                return
+            }
             try {
-                const res = await fetch('http://localhost:8000/api/system/storage')
+                const res = await fetch(`http://localhost:8000/api/system/storage?case_id=${selectedCaseId}`)
                 if (res.ok) {
                     const json = await res.json()
                     setData(json)
@@ -36,7 +42,7 @@ export default function StorageWidget({ className }: StorageWidgetProps) {
         }
 
         fetchData()
-    }, [])
+    }, [selectedCaseId])
 
     const formatBytes = (bytes: number) => {
         if (!Number.isFinite(bytes) || bytes < 0) return '0 B'
@@ -45,6 +51,16 @@ export default function StorageWidget({ className }: StorageWidgetProps) {
         const sizes = ['B', 'KB', 'MB', 'GB', 'TB']
         const i = Math.floor(Math.log(bytes) / Math.log(k))
         return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i]
+    }
+
+    if (!selectedCaseId) {
+        return (
+            <Card className={`bg-transparent border-none shadow-none flex flex-col overflow-hidden h-full ${className}`}>
+                <CardContent className="flex items-center justify-center h-full text-gray-500">
+                    <p className="text-sm">Select a case to view storage usage</p>
+                </CardContent>
+            </Card>
+        )
     }
 
     if (!data) return (
