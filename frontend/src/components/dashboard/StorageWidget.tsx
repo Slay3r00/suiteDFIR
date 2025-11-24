@@ -112,11 +112,7 @@ export default function StorageWidget({ className }: StorageWidgetProps) {
                                         <Cell key={`cell-${index}`} fill={entry.color} />
                                     ))}
                                 </Pie>
-                                <Tooltip
-                                    contentStyle={{ backgroundColor: '#1f2937', border: 'none', borderRadius: '4px', fontSize: '14px' }}
-                                    itemStyle={{ color: '#fff' }}
-                                    formatter={(value: number) => formatBytes(value)}
-                                />
+
                             </PieChart>
                         </ResponsiveContainer>
                         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">

@@ -88,15 +88,55 @@ export default function BackupPage() {
     }
 
     useEffect(() => {
+        let isMounted = true;
+        // Initial fetch
         fetchDevices()
         fetchBackups()
 
-        // Poll for backup status updates and new devices
-        const interval = setInterval(() => {
-            fetchBackups()
-            fetchDevices()
-        }, 5000)
-        return () => clearInterval(interval)
+        // Connect to unified SSE stream
+        const eventSource = new EventSource('http://localhost:8000/api/stream');
+
+        eventSource.onmessage = (event) => {
+            if (!isMounted) return;
+            try {
+                const message = JSON.parse(event.data);
+
+                if (message.type === 'device_update') {
+                    const data = message.data;
+                    setDevices(data);
+
+                    // Auto-select logic
+                    if (data.length > 0) {
+                        // If current selected device is not in the new list, select the first one
+                        const currentDeviceStillConnected = data.find((d: Device) => d.udid === selectedDevice)
+                        if (!selectedDevice || !currentDeviceStillConnected) {
+                            setSelectedDevice(data[0].udid)
+                        }
+                    } else {
+                        // No devices, clear selection
+                        setSelectedDevice('')
+                    }
+                } else if (message.type === 'backup_update') {
+                    fetchBackups();
+                }
+            } catch (error) {
+                console.error('Failed to parse SSE message:', error);
+            }
+        };
+
+        eventSource.onerror = (error) => {
+            if (!isMounted) return;
+            // Only log if it's not a clean close
+            if (eventSource.readyState !== EventSource.CLOSED) {
+                console.error('SSE connection error:', error);
+            }
+            eventSource.close();
+        };
+
+        return () => {
+            isMounted = false;
+            eventSource.close()
+        }
     }, [selectedCaseId])
 
     // Reconnect to log stream if backup is in progress on mount/refresh
@@ -104,12 +144,29 @@ export default function BackupPage() {
         const activeBackup = backups.find(b => b.status === 'in_progress')
         if (activeBackup) {
             setIsBackingUp(true)
-            connectToLogStream(activeBackup.id)
-        }
-    }, [backups.length]) // Only run when backups list changes (initial load)
+            // Only connect if we haven't already (or if it's a different backup)
+            // We check logs.length > 2 to allow for the initial "Initializing..." messages
+            // But we need a way to track WHICH backup we are connected to.
+            // For now, let's just check if we are already backing up.
+            // Actually, the issue is that this effect runs when 'backups' updates (polling),
+            // and calls connectToLogStream, which defaults keepExistingLogs=false.
 
-    const connectToLogStream = (backupId: number) => {
-        setLogs([]) // Clear previous logs
+            // We should track the current backup ID in a ref or state to avoid reconnecting
+            // But for now, let's just pass true to keep logs if we are already backing up
+            connectToLogStream(activeBackup.id, true)
+        } else if (isBackingUp) {
+            // If we think we're backing up but the list says otherwise, check if we just finished
+            // This handles the case where the backup finishes/fails/cancels and we need to reset UI
+            // But we should be careful not to reset if we just started and the list hasn't updated yet
+            // The 'close' event from SSE usually handles this, but this is a fallback
+        }
+    }, [backups])
+
+    const connectToLogStream = (backupId: number, keepExistingLogs = false) => {
+        if (!keepExistingLogs) {
+            setLogs([]) // Clear previous logs only if requested
+        }
+
         const eventSource = new EventSource(`http://localhost:8000/api/ios/backup/stream/${backupId}`)
 
         eventSource.onmessage = (event) => {
@@ -130,18 +187,30 @@ export default function BackupPage() {
                 console.error('EventSource failed:', error)
             }
             eventSource.close()
-            // Don't set isBackingUp to false here, let polling handle status
+
+            // If stream errors out, we should probably check status
+            // But don't immediately set isBackingUp(false) as it might be a temporary network blip
+            // However, if the backend closed the connection without a 'close' event, we might get stuck
+            // Let's rely on polling to eventually catch the status change, 
+            // OR set a timeout to check status?
+            // For now, let's assume if error happens, we should re-fetch backups to see if it's done
+            fetchBackups()
         }
 
         return eventSource
     }
 
     const handleStartBackup = async () => {
-        if (!selectedDevice) return
+        if (!selectedDevice || !backupName) return
 
-        const name = backupName || `Backup ${new Date().toLocaleString()} `
+        const name = backupName // Name is now required
 
         setIsBackingUp(true)
+        setLogs([
+            "Initializing backup process...",
+            "Please wait while we prepare the device...",
+            "NOTE: You may see a prompt on your device to enter your passcode to trust this computer."
+        ])
         try {
             const response = await api.backup.startBackup(selectedDevice, name, selectedCaseId ? parseInt(selectedCaseId) : undefined)
             toast({
@@ -152,7 +221,7 @@ export default function BackupPage() {
 
             // Connect to log stream immediately with the backup_id from response
             if (response.backup_id) {
-                connectToLogStream(response.backup_id)
+                connectToLogStream(response.backup_id, true) // Keep the "Initializing..." logs
             }
 
             fetchBackups()
@@ -401,20 +470,15 @@ export default function BackupPage() {
                                         <div className="w-full">
                                             {(() => {
                                                 const activeBackup = backups.find(b => b.status === 'in_progress' && b.device_udid === selectedDevice);
-                                                const progress = activeBackup?.progress || 0;
                                                 return (
                                                     <Button
                                                         variant="secondary"
                                                         onClick={() => activeBackup && handleStopBackup(activeBackup.id)}
                                                         className="w-full relative overflow-hidden bg-[#e5e5e5] text-black hover:bg-[#d4d4d4]"
                                                     >
-                                                        <div
-                                                            className="absolute inset-0 bg-white transition-all duration-500"
-                                                            style={{ width: `${progress}%` }}
-                                                        />
                                                         <div className="relative z-10 flex items-center justify-center gap-2">
                                                             <div className="h-2 w-2 bg-red-500 rounded-full animate-pulse" />
-                                                            <span>Stop Backup ({progress}%)</span>
+                                                            <span>Stop Backup</span>
                                                         </div>
                                                     </Button>
                                                 );
@@ -422,9 +486,9 @@ export default function BackupPage() {
                                         </div>
                                     ) : (
                                         <Button
-                                            className="w-full bg-white text-black hover:bg-gray-200 font-medium"
+                                            className="w-full bg-white text-black hover:bg-gray-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                                             onClick={handleStartBackup}
-                                            disabled={!selectedDevice || isBackingUp}
+                                            disabled={!selectedDevice || !backupName || isBackingUp}
                                         >
                                             {isBackingUp ? "Starting..." : "Start Backup"}
                                         </Button>
@@ -491,9 +555,7 @@ export default function BackupPage() {
                                                     `}
                                                             style={backup.status === 'completed' ? { borderWidth: '0.5px', backgroundColor: '#262626', color: 'white' } : {}}
                                                         >
-                                                            {backup.status === 'in_progress'
-                                                                ? `${backup.progress || 0}%`
-                                                                : backup.status.toUpperCase().replace('_', ' ')}
+                                                            {backup.status.toUpperCase().replace('_', ' ')}
                                                         </span>
                                                     </div>
                                                     <div className="flex items-center gap-2 text-[10px] text-gray-400 mt-0.5">

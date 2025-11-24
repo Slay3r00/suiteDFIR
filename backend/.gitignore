@@ -68,4 +68,4 @@ forensic-tools/leapp-tools/*
 reports/aleapp-reports/*
 reports/ileapp-reports/*
 backups/*
-*vdf_tool.db
+vdf_tools.db

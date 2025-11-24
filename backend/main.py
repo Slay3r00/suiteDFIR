@@ -43,6 +43,8 @@ DB_PATH = os.path.join(os.path.dirname(__file__), "vdf_tools.db")
 def init_database():
     """Initialize SQLite database for profiles and reports"""
     conn = sqlite3.connect(DB_PATH)
+    # Enable WAL mode for better concurrency
+    conn.execute("PRAGMA journal_mode=WAL")
     cursor = conn.cursor()
     
     # Check if tool column exists in profiles
@@ -305,6 +307,8 @@ async def lifespan(app: FastAPI):
                 if 'original_dir' in locals():
                     os.chdir(original_dir)
 
+        # Start device monitor
+        asyncio.create_task(monitor_devices())
         yield
     finally:
         # Cleanup (if needed)
@@ -449,6 +453,165 @@ available_modules = {}
 tasks = {}
 backup_tasks = {}
 active_backups = {}
+
+# Event Broadcasting State
+current_devices = []
+event_clients = set()
+
+async def broadcast_event(event_type: str, data: dict):
+    """Broadcast event to all connected clients"""
+    if not event_clients:
+        return
+        
+    message = json.dumps({"type": event_type, "data": data})
+    disconnected_clients = set()
+    
+    for queue in event_clients:
+        try:
+            await queue.put(message)
+        except Exception as e:
+            print(f"DEBUG: Queue error: {e}")
+            disconnected_clients.add(queue)
+            
+    for client in disconnected_clients:
+        event_clients.remove(client)
+
+async def get_device_details(udid: str):
+    """Fetch detailed info for an iOS device asynchronously"""
+    device_info = {
+        "id": udid,
+        "udid": udid,
+        "name": "iOS Device",
+        "type": "ios",
+        "status": "online",
+        "connection": "usb",
+        "battery": 100,
+        "is_encrypted": False
+    }
+
+    try:
+        # Run ideviceinfo -x (XML) or simple key lookups
+        # We'll do key lookups as they are simpler to parse without xmltodict
+        
+        # Get Device Name
+        proc_name = await asyncio.create_subprocess_exec(
+            "ideviceinfo", "-u", udid, "-k", "DeviceName",
+            stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
+        )
+        stdout_name, _ = await proc_name.communicate()
+        if proc_name.returncode == 0:
+            device_info["name"] = stdout_name.decode().strip()
+
+        # Get Product Type
+        proc_type = await asyncio.create_subprocess_exec(
+            "ideviceinfo", "-u", udid, "-k", "ProductType",
+            stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
+        )
+        stdout_type, _ = await proc_type.communicate()
+        if proc_type.returncode == 0:
+            device_info["type"] = stdout_type.decode().strip()
+
+        # Check Encryption (com.apple.mobile.backup Domain)
+        proc_enc = await asyncio.create_subprocess_exec(
+            "ideviceinfo", "-u", udid, "-q", "com.apple.mobile.backup",
+            stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
+        )
+        stdout_enc, _ = await proc_enc.communicate()
+        if proc_enc.returncode == 0:
+            output = stdout_enc.decode()
+            if "WillEncrypt: true" in output or "RequiresEncryption: 1" in output:
+                device_info["is_encrypted"] = True
+                
+    except Exception as e:
+        print(f"Error fetching details for {udid}: {e}")
+        
+    return device_info
+
+async def get_connected_devices():
+    """Helper to get list of connected devices with details"""
+    devices = []
+    
+    # Check for iOS devices using idevice_id
+    try:
+        if shutil.which("idevice_id"):
+            result = await asyncio.create_subprocess_exec(
+                "idevice_id", "-l",
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
+            stdout, _ = await result.communicate()
+            if result.returncode == 0:
+                udids = [line.strip() for line in stdout.decode().splitlines() if line.strip()]
+                
+                # Fetch details for all devices concurrently
+                if udids:
+                    details = await asyncio.gather(*(get_device_details(udid) for udid in udids))
+                    devices.extend(details)
+                    
+    except Exception as e:
+        print(f"Error checking iOS devices: {e}")
+
+    # Check for Android devices using adb
+    try:
+        if shutil.which("adb"):
+            result = await asyncio.create_subprocess_exec(
+                "adb", "devices",
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
+            stdout, _ = await result.communicate()
+            if result.returncode == 0:
+                lines = stdout.decode().splitlines()
+                for line in lines[1:]:
+                    if line.strip() and "device" in line:
+                        parts = line.split()
+                        devices.append({
+                            "id": parts[0],
+                            "udid": parts[0], # Alias for consistency
+                            "name": "Android Device",
+                            "type": "android",
+                            "status": "online",
+                            "connection": "usb",
+                            "battery": 100,
+                            "is_encrypted": False
+                        })
+    except Exception as e:
+        print(f"Error checking Android devices: {e}")
+        
+    return devices
+
+async def monitor_devices():
+    """Background task to monitor connected devices"""
+    global current_devices
+    print("Starting device monitor...")
+    
+    while True:
+        try:
+            # print("DEBUG: Calling get_connected_devices")
+            new_devices = await get_connected_devices()
+            # print(f"DEBUG: Got devices: {new_devices}")
+            
+            # Check if devices changed (simple comparison)
+            # We compare IDs to detect changes
+            current_ids = set(d["id"] for d in current_devices)
+            new_ids = set(d["id"] for d in new_devices)
+            
+            if current_ids != new_ids:
+                print(f"Devices changed: {len(new_devices)} connected")
+                current_devices = new_devices
+                
+                # Broadcast to all clients
+                await broadcast_event("device_update", current_devices)
+            
+            # Update current_devices anyway to keep battery/status fresh if we were checking that
+            current_devices = new_devices
+            
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            print(f"Error in device monitor: {e}")
+            
+        await asyncio.sleep(2) # Check every 2 seconds
 
 @app.get("/")
 async def root():
@@ -1090,16 +1253,16 @@ async def get_reports(case_id: Optional[int] = None):
                 if 'aLEAPP-reports' in path:
                     alt_path = path.replace('aLEAPP-reports', 'aleapp-reports')
                     if os.path.exists(alt_path):
-                        print(f"DEBUG: Found report at alternate path: {alt_path}")
+                        # print(f"DEBUG: Found report at alternate path: {alt_path}")
                         path = alt_path
                     else:
-                        print(f"DEBUG: Report path not found: {path}")
+                        # print(f"DEBUG: Report path not found: {path}")
                         continue
                 else:
-                    print(f"DEBUG: Report path not found: {path}")
+                    # print(f"DEBUG: Report path not found: {path}")
                     continue
             
-            print(f"DEBUG: Found report: {name} ({tool}) at {path}")
+            # print(f"DEBUG: Found report: {name} ({tool}) at {path}")
                 
             try:
                 # Calculate size and file count
@@ -1381,47 +1544,12 @@ class BackupRequest(BaseModel):
     password: Optional[str] = None
     case_id: Optional[int] = None
 
-def get_connected_devices():
-    """Get list of connected iOS devices"""
-    devices = []
-    try:
-        # Get UDIDs
-        result = subprocess.run(['idevice_id', '-l'], capture_output=True, text=True)
-        if result.returncode == 0:
-            udids = [line.strip() for line in result.stdout.splitlines() if line.strip()]
-            
-            for udid in udids:
-                # Get device name
-                name_result = subprocess.run(['ideviceinfo', '-u', udid, '-k', 'DeviceName'], capture_output=True, text=True)
-                device_name = name_result.stdout.strip() if name_result.returncode == 0 else "Unknown Device"
-                
-                # Get product type (e.g. iPhone12,1)
-                type_result = subprocess.run(['ideviceinfo', '-u', udid, '-k', 'ProductType'], capture_output=True, text=True)
-                product_type = type_result.stdout.strip() if type_result.returncode == 0 else "Unknown Type"
-                
-                # Check encryption status
-                enc_result = subprocess.run(['ideviceinfo', '-u', udid, '-q', 'com.apple.mobile.backup'], capture_output=True, text=True)
-                is_encrypted = False
-                if enc_result.returncode == 0:
-                    output = enc_result.stdout
-                    if "WillEncrypt: true" in output or "RequiresEncryption: 1" in output:
-                        is_encrypted = True
-
-                devices.append({
-                    "udid": udid,
-                    "name": device_name,
-                    "type": product_type,
-                    "is_encrypted": is_encrypted
-                })
-    except Exception as e:
-        print(f"Error getting devices: {e}")
-        
-    return devices
+# Removed duplicate get_connected_devices function
 
 @app.get("/api/ios/devices")
 async def list_devices():
     """List connected iOS devices"""
-    return get_connected_devices()
+    return await get_connected_devices()
 
 async def run_backup_process(backup_id: int, udid: str, backup_path: str, password: Optional[str] = None):
     cmd = ['idevicebackup2', 'backup', backup_path, '-u', udid]
@@ -1463,6 +1591,9 @@ async def run_backup_process(backup_id: int, udid: str, backup_path: str, passwo
         # Store process handle
         active_backups[backup_id] = process
         backup_tasks[backup_id]["process"] = process
+        
+        # Broadcast start
+        await broadcast_event("backup_update", {"id": backup_id, "status": "in_progress"})
 
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
@@ -1477,6 +1608,10 @@ async def run_backup_process(backup_id: int, udid: str, backup_path: str, passwo
                 
                 line_text = line.decode().strip()
                 if line_text:
+                    # Filter out specific lines
+                    if "*** Waiting for passcode to be entered on the device ***" in line_text:
+                        continue
+
                     # Stream to queue
                     if backup_id in backup_tasks:
                         await backup_tasks[backup_id]["queue"].put(line_text)
@@ -1487,11 +1622,14 @@ async def run_backup_process(backup_id: int, udid: str, backup_path: str, passwo
                             parts = line_text.split('%')[0].split()
                             if parts:
                                 percentage = int(parts[-1])
-                                cursor.execute(
-                                    "UPDATE backups SET progress = ? WHERE id = ?",
-                                    (percentage, backup_id)
-                                )
-                                conn.commit()
+                                # Throttle DB updates - only update every 5% or if 100%
+                                # This prevents locking the DB during frequent updates
+                                if percentage % 5 == 0 or percentage == 100:
+                                    cursor.execute(
+                                        "UPDATE backups SET progress = ? WHERE id = ?",
+                                        (percentage, backup_id)
+                                    )
+                                    conn.commit()
                         except Exception as e:
                             print(f"Error parsing progress: {e}")
             except asyncio.TimeoutError:
@@ -1513,6 +1651,7 @@ async def run_backup_process(backup_id: int, udid: str, backup_path: str, passwo
             status = 'completed'
             if backup_id in backup_tasks:
                 await backup_tasks[backup_id]["queue"].put("Backup completed successfully")
+            await broadcast_event("backup_update", {"id": backup_id, "status": "completed"})
         else:
             # Check if it was cancelled
             cursor.execute("SELECT status FROM backups WHERE id = ?", (backup_id,))
@@ -1569,7 +1708,7 @@ async def run_backup_process(backup_id: int, udid: str, backup_path: str, passwo
 async def start_backup(request: BackupRequest, background_tasks: BackgroundTasks):
     """Start iOS backup"""
     # Check if device is still connected
-    devices = get_connected_devices()
+    devices = await get_connected_devices()
     device = next((d for d in devices if d['udid'] == request.udid), None)
     
     if not device:
@@ -1668,24 +1807,31 @@ async def stream_backup_logs(backup_id: int):
 @app.post("/api/ios/backup/{backup_id}/stop")
 async def stop_backup(backup_id: int):
     """Stop an active backup"""
+    
+    # Update status IMMEDIATELY to give feedback
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("UPDATE backups SET status = 'cancelled' WHERE id = ?", (backup_id,))
+    conn.commit()
+    conn.close()
+    
+    if backup_id in backup_tasks:
+        backup_tasks[backup_id]["status"] = "cancelled"
+        await backup_tasks[backup_id]["queue"].put("Stopping backup...")
+
     if backup_id in active_backups and active_backups[backup_id] is not None:
         process = active_backups[backup_id]
         try:
             # Send SIGTERM
             process.terminate()
             
-            # Update status in DB
-            conn = sqlite3.connect(DB_PATH)
-            cursor = conn.cursor()
-            cursor.execute("UPDATE backups SET status = 'cancelled' WHERE id = ?", (backup_id,))
-            conn.commit()
-            conn.close()
+            # We don't wait here, run_backup_process will handle the exit
             
-            return {"message": "Backup stopping"}
         except Exception as e:
+            print(f"Error stopping backup process: {e}")
             raise HTTPException(status_code=500, detail=f"Failed to stop backup: {str(e)}")
-    else:
-        raise HTTPException(status_code=404, detail="Backup not found or not active")
+            
+    return {"message": "Backup stop requested"}
 
 @app.get("/api/backups")
 async def get_backups(case_id: Optional[int] = None):
@@ -1740,7 +1886,9 @@ async def delete_backup(backup_id: int):
     # Delete from filesystem
     if os.path.exists(path):
         try:
-            shutil.rmtree(path)
+            # Run blocking I/O in thread pool
+            loop = asyncio.get_running_loop()
+            await loop.run_in_executor(None, shutil.rmtree, path)
         except Exception as e:
             print(f"Error deleting backup files: {e}")
             
@@ -1999,49 +2147,36 @@ async def get_recent_activity(case_id: Optional[int] = None):
 
 @app.get("/api/dashboard/devices")
 async def get_active_devices():
-    devices = []
-    
-    # Check for iOS devices using idevice_id
-    try:
-        # Check if idevice_id is available
-        if shutil.which("idevice_id"):
-            result = subprocess.run(["idevice_id", "-l"], capture_output=True, text=True)
-            if result.returncode == 0:
-                for line in result.stdout.splitlines():
-                    if line.strip():
-                        devices.append({
-                            "id": line.strip(),
-                            "name": "iOS Device", # Getting name requires ideviceinfo which is slower
-                            "type": "ios",
-                            "status": "online",
-                            "connection": "usb",
-                            "battery": 100 # Placeholder as getting battery is complex
-                        })
-    except Exception as e:
-        print(f"Error checking iOS devices: {e}")
+    return await get_connected_devices()
 
-    # Check for Android devices using adb
-    try:
-        # Check if adb is available
-        if shutil.which("adb"):
-            result = subprocess.run(["adb", "devices"], capture_output=True, text=True)
-            if result.returncode == 0:
-                lines = result.stdout.splitlines()
-                for line in lines[1:]: # Skip first line "List of devices attached"
-                    if line.strip() and "device" in line:
-                        parts = line.split()
-                        devices.append({
-                            "id": parts[0],
-                            "name": "Android Device",
-                            "type": "android",
-                            "status": "online",
-                            "connection": "usb",
-                            "battery": 100
-                        })
-    except Exception as e:
-        print(f"Error checking Android devices: {e}")
+@app.get("/api/stream")
+async def stream_events():
+    """Unified SSE endpoint for real-time updates"""
+    async def event_generator():
+        queue = asyncio.Queue()
+        event_clients.add(queue)
         
-    return devices
+        try:
+            # Send initial device state immediately
+            initial_data = json.dumps({"type": "device_update", "data": current_devices})
+            yield f"data: {initial_data}\n\n"
+            
+            while True:
+                # Wait for updates
+                data = await queue.get()
+                yield f"data: {data}\n\n"
+        except asyncio.CancelledError:
+            event_clients.remove(queue)
+            
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "Access-Control-Allow-Origin": "*",
+        }
+    )
 
 # Mount static reports directories (MUST be last to avoid catching API routes)
 reports_base = os.path.join(os.path.dirname(__file__), "reports")

@@ -9,7 +9,7 @@ import CaseDetailsWidget from "@/components/dashboard/CaseDetailsWidget"
 
 export default function DashboardPage() {
     return (
-        <div className="h-full w-full grid grid-cols-2 gap-4 bg-[#151515] text-white py-[3vh] px-[9vh]">
+        <div className="h-full w-full grid grid-cols-2 gap-[9vh] bg-[#151515] text-white py-[3vh] px-[9vh]">
             {/* Left Column */}
             <div className="flex flex-col gap-4 h-full min-h-0">
                 {/* Case Details - Tall (Flex-1) */}

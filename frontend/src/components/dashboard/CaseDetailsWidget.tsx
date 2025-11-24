@@ -6,25 +6,14 @@ import { cn } from "@/lib/utils"
 import { useCase } from "@/context/CaseContext"
 import { Briefcase, User, MapPin, Phone, Building, FileText, Info } from 'lucide-react'
 
-interface Case {
-    id: number
-    case_number: string
-    name: string
-    business_name: string
-    investigator_name: string
-    client_name: string
-    client_location: string
-    client_contact: string
-    description: string
-    status: string
-    priority: string
-    created_at: string
-}
+import { Edit2 } from 'lucide-react'
+import { CaseFormDialog, Case } from "@/components/cases/CaseFormDialog"
 
 export default function CaseDetailsWidget({ className }: { className?: string }) {
     const { selectedCaseId } = useCase()
     const [caseData, setCaseData] = useState<Case | null>(null)
     const [isLoading, setIsLoading] = useState(false)
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false)
 
     useEffect(() => {
         if (selectedCaseId) {
@@ -47,6 +36,10 @@ export default function CaseDetailsWidget({ className }: { className?: string })
         } finally {
             setIsLoading(false)
         }
+    }
+
+    const handleCaseSaved = (savedCase: Case) => {
+        setCaseData(savedCase)
     }
 
     if (!selectedCaseId) {
@@ -82,7 +75,16 @@ export default function CaseDetailsWidget({ className }: { className?: string })
     return (
         <Card className={cn("bg-[#171717] border-[#333333] flex flex-col overflow-hidden h-full", className)}>
             <div className="px-4 py-2 border-b border-[#333333] bg-[#1A1A1A] flex justify-between items-center">
-                <h3 className="text-xs font-medium text-gray-400 uppercase tracking-wider">Case Overview</h3>
+                <div className="flex items-center gap-2">
+                    <h3 className="text-xs font-medium text-gray-400 uppercase tracking-wider">Case Overview</h3>
+                    <button
+                        onClick={() => setIsEditModalOpen(true)}
+                        className="p-1 hover:bg-[#333333] rounded text-gray-500 hover:text-white transition-colors"
+                        title="Edit Case"
+                    >
+                        <Edit2 size={12} />
+                    </button>
+                </div>
                 <span className="text-[10px] font-mono text-gray-500">{caseData.case_number}</span>
             </div>
             <CardContent className="flex-1 p-6 flex flex-col min-h-0">
@@ -153,6 +155,13 @@ export default function CaseDetailsWidget({ className }: { className?: string })
                     </div>
                 </div>
             </CardContent>
+
+            <CaseFormDialog
+                open={isEditModalOpen}
+                onOpenChange={setIsEditModalOpen}
+                caseData={caseData}
+                onSuccess={handleCaseSaved}
+            />
         </Card>
     )
 }

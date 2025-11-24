@@ -35,8 +35,25 @@ export default function RecentActivityWidget() {
         }
 
         fetchData()
-        const interval = setInterval(fetchData, 10000) // Refresh every 10s
-        return () => clearInterval(interval)
+
+        // Subscribe to SSE stream
+        const eventSource = new EventSource('http://localhost:8000/api/stream')
+
+        eventSource.onmessage = (event) => {
+            try {
+                const data = JSON.parse(event.data)
+                // Refresh on backup updates
+                if (data.type === 'backup_update') {
+                    fetchData()
+                }
+            } catch (error) {
+                console.error('Error parsing SSE message:', error)
+            }
+        }
+
+        return () => {
+            eventSource.close()
+        }
     }, [selectedCaseId])
 
     const getIcon = (type: string) => {

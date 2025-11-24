@@ -25,21 +25,35 @@ export default function ActiveDevicesWidget() {
     const [devices, setDevices] = useState<Device[]>([])
 
     useEffect(() => {
-        const fetchDevices = async () => {
+        let isMounted = true;
+        // Connect to unified SSE stream
+        const eventSource = new EventSource('http://localhost:8000/api/stream');
+
+        eventSource.onmessage = (event) => {
+            if (!isMounted) return;
             try {
-                const res = await fetch('http://localhost:8000/api/dashboard/devices')
-                if (res.ok) {
-                    const json = await res.json()
-                    setDevices(json)
+                const message = JSON.parse(event.data);
+                if (message.type === 'device_update') {
+                    setDevices(message.data);
                 }
             } catch (error) {
-                console.error('Failed to fetch devices:', error)
+                console.error('Failed to parse device update:', error);
             }
-        }
+        };
 
-        fetchDevices()
-        const interval = setInterval(fetchDevices, 5000) // Refresh every 5s
-        return () => clearInterval(interval)
+        eventSource.onerror = (error) => {
+            if (!isMounted) return;
+            // Only log if it's not a clean close
+            if (eventSource.readyState !== EventSource.CLOSED) {
+                console.error('SSE connection error:', error);
+            }
+            eventSource.close();
+        };
+
+        return () => {
+            isMounted = false;
+            eventSource.close();
+        };
     }, [])
 
     return (
