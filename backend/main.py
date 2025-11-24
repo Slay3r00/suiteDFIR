@@ -17,6 +17,9 @@ import platform
 import sqlite3
 import json
 from datetime import datetime
+import xml.etree.ElementTree as ET
+import csv
+import io
 
 # Tool Configuration - Add new tools here
 TOOLS_CONFIG = {
@@ -2177,6 +2180,182 @@ async def stream_events():
             "Access-Control-Allow-Origin": "*",
         }
     )
+
+@app.get("/api/spatial/kml-files")
+async def get_kml_files():
+    """Scan reports directory for KML files."""
+    kml_files = {}
+    
+    try:
+        # Fetch report names from DB to map paths to user-defined names
+        report_names = {}
+        try:
+            conn = sqlite3.connect(DB_PATH)
+            cursor = conn.cursor()
+            cursor.execute("SELECT path, name FROM reports")
+            for path, name in cursor.fetchall():
+                # Normalize path to ensure matching works
+                report_names[os.path.normpath(path)] = name
+            conn.close()
+        except Exception as e:
+            print(f"Error fetching report names from DB: {e}")
+
+        # Walk through the reports directory
+        for root, dirs, files in os.walk(REPORTS_DIR):
+            if "_KML Exports" in root:
+                # Extract report name from path
+                # Path structure: .../reports/tool-reports/Report_Name/_KML Exports
+                parts = Path(root).parts
+                try:
+                    kml_index = parts.index("_KML Exports")
+                    folder_name = parts[kml_index - 1]
+                    
+                    # Find tool name (parent of report name)
+                    tool_name = parts[kml_index - 2].replace("-reports", "")
+                    
+                    # Get the absolute path to the report directory (parent of _KML Exports)
+                    report_dir = os.path.dirname(root)
+                    
+                    # Look up user-defined name from DB, fallback to folder name
+                    display_name = report_names.get(os.path.normpath(report_dir), folder_name)
+                    
+                    group_name = f"{display_name} ({tool_name.upper()})"
+                    
+                    if group_name not in kml_files:
+                        kml_files[group_name] = []
+                        
+                    for file in files:
+                        if file.lower().endswith('.kml') or file.lower().endswith('.kmz'):
+                            # Construct accessible URL
+                            # We need to map the file system path to the static mount path
+                            # File path: .../reports/tool-reports/Report_Name/_KML Exports/file.kml
+                            # URL: /tool-reports/Report_Name/_KML Exports/file.kml
+                            
+                            relative_path = os.path.relpath(os.path.join(root, file), REPORTS_DIR)
+                            url = f"/reports/{relative_path}"
+                            
+                            kml_files[group_name].append({
+                                "name": file,
+                                "url": url,
+                                "path": os.path.join(root, file)
+                            })
+                except ValueError:
+                    continue
+                    
+        return kml_files
+    except Exception as e:
+        print(f"Error scanning KML files: {e}")
+        return {}
+
+@app.get("/api/spatial/kml-data")
+async def get_kml_data(path: str):
+    """
+    Fetch and enrich KML data with TSV content.
+    path: Relative path to the KML file (e.g., /reports/ileapp-reports/.../file.kml)
+    """
+    try:
+        # Clean up path (remove leading /reports/)
+        clean_path = path.replace("/reports/", "", 1)
+        kml_abs_path = os.path.join(REPORTS_DIR, clean_path)
+        
+        if not os.path.exists(kml_abs_path):
+            raise HTTPException(status_code=404, detail="KML file not found")
+
+        # Determine TSV path
+        # Strategy 1: Replace '_KML Exports' with '_TSV Exports'
+        tsv_dir = os.path.dirname(kml_abs_path).replace("_KML Exports", "_TSV Exports")
+        kml_filename = os.path.basename(kml_abs_path)
+        
+        # Strategy 2: Exact match (.kml -> .tsv)
+        tsv_filename = kml_filename.replace(".kml", ".tsv")
+        tsv_abs_path = os.path.join(tsv_dir, tsv_filename)
+        
+        # Strategy 3: Remove " Location Data" suffix if exact match fails
+        if not os.path.exists(tsv_abs_path):
+            tsv_filename_alt = kml_filename.replace(" Location Data.kml", ".tsv")
+            tsv_abs_path_alt = os.path.join(tsv_dir, tsv_filename_alt)
+            if os.path.exists(tsv_abs_path_alt):
+                tsv_abs_path = tsv_abs_path_alt
+
+        # Parse TSV Data
+        tsv_data = {}
+        timestamp_col = None
+        POSSIBLE_KEYS = ['Timestamp', 'Update Time', 'Date', 'Time', 'Created Time', 'Modified Time', 'DateTime']
+
+        if os.path.exists(tsv_abs_path):
+            try:
+                # Use utf-8-sig to handle BOM if present
+                with open(tsv_abs_path, 'r', encoding='utf-8-sig', errors='replace') as f:
+                    reader = csv.DictReader(f, delimiter='\t')
+                    
+                    # Determine timestamp column from header
+                    if reader.fieldnames:
+                        for key in POSSIBLE_KEYS:
+                            if key in reader.fieldnames:
+                                timestamp_col = key
+                                break
+                    
+                    if timestamp_col:
+                        for row in reader:
+                            if timestamp_col in row:
+                                tsv_data[row[timestamp_col]] = row
+                    else:
+                        print(f"Warning: No timestamp column found in {tsv_filename}. Keys: {reader.fieldnames}")
+
+            except Exception as e:
+                print(f"Error reading TSV file: {e}")
+
+        # Parse and Enrich KML
+        try:
+            # Register namespace to avoid ns0: prefixes
+            ET.register_namespace('', "http://www.opengis.net/kml/2.2")
+            tree = ET.parse(kml_abs_path)
+            root = tree.getroot()
+            
+            # XML Namespaces
+            ns = {'kml': 'http://www.opengis.net/kml/2.2'}
+            
+            # Find all Placemarks
+            placemarks = root.findall('.//kml:Placemark', ns)
+            
+            for placemark in placemarks:
+                name_elem = placemark.find('kml:name', ns)
+                desc_elem = placemark.find('kml:description', ns)
+                
+                if name_elem is not None:
+                    if name_elem.text in tsv_data:
+                        row = tsv_data[name_elem.text]
+                        
+                        # Build HTML Table
+                        html_table = '<table class="table table-striped table-bordered table-hover table-sm">'
+                        
+                        # Add Artifact Name row (derived from filename or fixed string)
+                        artifact_name = tsv_filename.replace(".tsv", "")
+                        html_table += f'<tr><td colspan="2"><strong>Artifact</strong></td><td>{artifact_name}</td></tr>'
+                        
+                        for key, value in row.items():
+                            if key and value:
+                                html_table += f'<tr><td colspan="2"><strong>{key}</strong></td><td>{value}</td></tr>'
+                        html_table += '</table>'
+                        
+                        # Update description
+                        if desc_elem is None:
+                            desc_elem = ET.SubElement(placemark, 'description')
+                        desc_elem.text = html_table
+
+            # Return enriched KML
+            output = io.BytesIO()
+            tree.write(output, encoding='utf-8', xml_declaration=True)
+            output.seek(0)
+            return StreamingResponse(output, media_type="application/vnd.google-earth.kml+xml")
+
+        except Exception as e:
+            print(f"Error parsing KML: {e}")
+            # Fallback: return original file if parsing fails
+            return FileResponse(kml_abs_path)
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 # Mount static reports directories (MUST be last to avoid catching API routes)
 reports_base = os.path.join(os.path.dirname(__file__), "reports")
