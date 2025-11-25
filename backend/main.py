@@ -662,27 +662,44 @@ async def select_modules(tool: str, module_selections: Dict[str, bool]):
 @app.post("/api/browse-files", response_model=FilePathResponse)
 async def browse_files():
     """
-    Open native macOS file dialog to select forensic files.
+    Open native file dialog to select forensic files.
+    Supports macOS (osascript) and Linux (zenity).
     Returns the absolute path of the selected file.
     """
     try:
-        if platform.system() != "Darwin":
+        system = platform.system()
+        
+        if system == "Darwin":
+            # Minimal osascript for macOS file dialog (no type restrictions)
+            script = '''
+            tell application "System Events"
+                activate
+                set filePath to choose file with prompt "Select iLEAPP input file"
+                return POSIX path of filePath
+            end tell
+            '''
+            cmd = ['osascript', '-e', script]
+            
+        elif system == "Linux":
+            # Check for zenity
+            if not shutil.which("zenity"):
+                return FilePathResponse(
+                    file_path="", 
+                    success=False, 
+                    message="zenity is required for file dialogs on Linux. Please install it (e.g., sudo apt install zenity)."
+                )
+            
+            # Zenity command for file selection
+            cmd = ['zenity', '--file-selection', '--title=Select iLEAPP input file']
+            
+        else:
             raise HTTPException(
                 status_code=400,
-                detail="This feature is only available on macOS"
+                detail=f"File browsing is not supported on {system}"
             )
 
-        # Minimal osascript for macOS file dialog (no type restrictions)
-        script = '''
-        tell application "System Events"
-            activate
-            set filePath to choose file with prompt "Select iLEAPP input file"
-            return POSIX path of filePath
-        end tell
-        '''
-
         result = subprocess.run(
-            ['osascript', '-e', script],
+            cmd,
             capture_output=True,
             text=True,
             timeout=60
@@ -697,8 +714,9 @@ async def browse_files():
             )
 
         # Handle all error cases
-        if result.returncode == 1 and "-128" in result.stderr:
+        if result.returncode == 1:
             return FilePathResponse(file_path="", success=False, message="User cancelled file selection")
+            
         return FilePathResponse(file_path="", success=False, message=f"File dialog error: {result.stderr}")
 
     except subprocess.TimeoutExpired:
@@ -709,27 +727,44 @@ async def browse_files():
 @app.post("/api/browse-folders", response_model=FilePathResponse)
 async def browse_folders():
     """
-    Open native macOS folder dialog to select output directory.
+    Open native folder dialog to select output directory.
+    Supports macOS (osascript) and Linux (zenity).
     Returns the absolute path of the selected folder.
     """
     try:
-        if platform.system() != "Darwin":
+        system = platform.system()
+        
+        if system == "Darwin":
+            # Minimal osascript for macOS folder dialog
+            script = '''
+            tell application "System Events"
+                activate
+                set folderPath to choose folder with prompt "Select iLEAPP output folder"
+                return POSIX path of folderPath
+            end tell
+            '''
+            cmd = ['osascript', '-e', script]
+            
+        elif system == "Linux":
+            # Check for zenity
+            if not shutil.which("zenity"):
+                return FilePathResponse(
+                    file_path="", 
+                    success=False, 
+                    message="zenity is required for folder dialogs on Linux. Please install it (e.g., sudo apt install zenity)."
+                )
+            
+            # Zenity command for folder selection
+            cmd = ['zenity', '--file-selection', '--directory', '--title=Select iLEAPP output folder']
+            
+        else:
             raise HTTPException(
                 status_code=400,
-                detail="This feature is only available on macOS"
+                detail=f"Folder browsing is not supported on {system}"
             )
 
-        # Minimal osascript for macOS folder dialog
-        script = '''
-        tell application "System Events"
-            activate
-            set folderPath to choose folder with prompt "Select iLEAPP output folder"
-            return POSIX path of folderPath
-        end tell
-        '''
-
         result = subprocess.run(
-            ['osascript', '-e', script],
+            cmd,
             capture_output=True,
             text=True,
             timeout=60
@@ -744,8 +779,9 @@ async def browse_folders():
             )
 
         # Handle all error cases
-        if result.returncode == 1 and "-128" in result.stderr:
+        if result.returncode == 1:
             return FilePathResponse(file_path="", success=False, message="User cancelled folder selection")
+            
         return FilePathResponse(file_path="", success=False, message=f"Folder dialog error: {result.stderr}")
 
     except subprocess.TimeoutExpired:
