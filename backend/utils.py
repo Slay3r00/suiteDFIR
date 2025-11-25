@@ -100,9 +100,49 @@ async def get_connected_devices():
                     details = await get_device_details(udid)
                     devices.append(details)
                     
-    except FileNotFoundError:
-        print("idevice_id not found. Make sure libimobiledevice is installed.")
     except Exception as e:
         print(f"Error checking for devices: {e}")
         
     return devices
+
+def check_backup_encryption(path):
+    """
+    Check if an iTunes backup is encrypted using iLEAPP modules.
+    Returns dict with keys: encrypted, type, supported, message (or error)
+    """
+    import sys
+    import os
+    
+    # Setup iLEAPP path
+    # utils.py is in backend/, so we go to backend/forensic-tools/leapp-tools/iLEAPP
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    ileapp_path = os.path.join(current_dir, 'forensic-tools', 'leapp-tools', 'iLEAPP')
+    
+    # Add to path if not present
+    if ileapp_path not in sys.path:
+        sys.path.insert(0, ileapp_path)
+        
+    try:
+        # Import iLEAPP modules
+        # We do this inside the function to avoid ImportError if path isn't set up globally
+        # and to avoid polluting global namespace if not needed
+        import scripts.ilapfuncs
+        # Silence logging
+        scripts.ilapfuncs.logfunc = lambda x: None
+        
+        from scripts.search_files import get_itunes_backup_type, check_itunes_backup_status
+        
+        backup_type = get_itunes_backup_type(path)
+        if not backup_type:
+            return {"encrypted": False, "type": "unknown", "supported": False}
+        
+        supported, encrypted, message = check_itunes_backup_status(path, backup_type)
+        
+        return {
+            "encrypted": encrypted,
+            "type": backup_type,
+            "supported": supported,
+            "message": message
+        }
+    except Exception as e:
+        return {"error": str(e)}

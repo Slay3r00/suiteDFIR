@@ -36,25 +36,17 @@ async def validate_backup(request: ValidateBackupRequest):
         raise HTTPException(status_code=400, detail="Input path does not exist")
 
     try:
-        # Run the check_encryption.py script
-        # Adjust path to check_encryption.py which is in backend/
-        script_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "check_encryption.py")
+        from utils import check_backup_encryption
         
-        result = subprocess.run(
-            [sys.executable, script_path, request.input_path],
-            capture_output=True,
-            text=True,
-            cwd=os.path.dirname(os.path.dirname(__file__))
-        )
+        # Run the check in a thread pool to avoid blocking the event loop
+        # since it does file I/O and imports
+        loop = asyncio.get_running_loop()
+        result = await loop.run_in_executor(None, check_backup_encryption, request.input_path)
         
-        if result.returncode != 0:
-            raise HTTPException(status_code=500, detail=f"Validation script failed: {result.stderr}")
-            
-        try:
-            data = json.loads(result.stdout)
-            return data
-        except json.JSONDecodeError:
-            raise HTTPException(status_code=500, detail=f"Invalid JSON from validation script: {result.stdout}")
+        if "error" in result:
+             raise HTTPException(status_code=500, detail=f"Validation failed: {result['error']}")
+             
+        return result
             
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
