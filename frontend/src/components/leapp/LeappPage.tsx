@@ -18,9 +18,7 @@ interface LeappPageProps {
 }
 
 function LeappContent({ logoPath, tool }: { logoPath: string; tool: string }) {
-    const defaultOutputPath = tool === 'ileapp'
-        ? '/Users/jacobcontreras/vdf-tools/backend/reports/ileapp-reports'
-        : '/Users/jacobcontreras/vdf-tools/backend/reports/aleapp-reports';
+    const defaultOutputPath = '';
 
     const [inputFile, setInputFile] = useState('');
     const [reportName, setReportName] = useState('');
