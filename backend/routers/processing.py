@@ -4,7 +4,7 @@ import asyncio
 import json
 import os
 import sys
-import subprocess
+import sys
 import uuid
 import sqlite3
 from typing import Optional

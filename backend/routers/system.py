@@ -12,9 +12,9 @@ import csv
 import io
 import xml.etree.ElementTree as ET
 from pathlib import Path
-from typing import Optional, List, Dict
+from typing import Optional
 
-from models import FilePathResponse, Task
+from models import FilePathResponse
 from database import DB_PATH
 from config import TOOLS_CONFIG, REPORTS_DIR
 from state import plugin_loaders, available_modules, current_devices, event_clients

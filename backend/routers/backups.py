@@ -1,14 +1,11 @@
 from fastapi import APIRouter, HTTPException, BackgroundTasks
 from fastapi.responses import StreamingResponse
 import asyncio
-import json
 import os
-import sys
-import subprocess
 import shutil
 import sqlite3
 from datetime import datetime
-from typing import List, Optional, Dict
+from typing import List, Optional
 from models import BackupRequest, ValidateBackupRequest
 from database import DB_PATH
 from state import backup_tasks, active_backups
