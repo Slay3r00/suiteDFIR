@@ -123,14 +123,28 @@ def check_backup_encryption(path):
         sys.path.insert(0, ileapp_path)
         
     try:
-        # Import iLEAPP modules
-        # We do this inside the function to avoid ImportError if path isn't set up globally
-        # and to avoid polluting global namespace if not needed
-        import scripts.ilapfuncs
-        # Silence logging
-        scripts.ilapfuncs.logfunc = lambda x: None
+        # Import iLEAPP modules using importlib to avoid namespace collision with ALEAPP
+        # Both tools use 'scripts' package which causes conflicts in sys.modules
+        import importlib.util
         
-        from scripts.search_files import get_itunes_backup_type, check_itunes_backup_status
+        # 1. Force load iLEAPP's ilapfuncs first, as search_files depends on it
+        ilapfuncs_path = os.path.join(ileapp_path, 'scripts', 'ilapfuncs.py')
+        spec_funcs = importlib.util.spec_from_file_location("scripts.ilapfuncs", ilapfuncs_path)
+        ilapfuncs = importlib.util.module_from_spec(spec_funcs)
+        sys.modules["scripts.ilapfuncs"] = ilapfuncs # Inject into sys.modules so search_files finds THIS version
+        spec_funcs.loader.exec_module(ilapfuncs)
+        
+        # Silence logging
+        ilapfuncs.logfunc = lambda x: None
+
+        # 2. Now load search_files
+        search_files_path = os.path.join(ileapp_path, 'scripts', 'search_files.py')
+        spec = importlib.util.spec_from_file_location("ileapp_search_files", search_files_path)
+        search_files = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(search_files)
+        
+        get_itunes_backup_type = search_files.get_itunes_backup_type
+        check_itunes_backup_status = search_files.check_itunes_backup_status
         
         backup_type = get_itunes_backup_type(path)
         if not backup_type:

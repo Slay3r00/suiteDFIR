@@ -41,12 +41,25 @@ async def validate_backup(request: ValidateBackupRequest):
         result = await loop.run_in_executor(None, check_backup_encryption, request.input_path)
         
         if "error" in result:
-             raise HTTPException(status_code=500, detail=f"Validation failed: {result['error']}")
+             # Instead of failing, return unknown status so processing can proceed
+             print(f"Validation error: {result['error']}")
+             return {
+                 "encrypted": False,
+                 "type": "unknown",
+                 "supported": False,
+                 "message": f"Validation failed: {result['error']}"
+             }
              
         return result
             
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"Validation exception: {e}")
+        return {
+             "encrypted": False,
+             "type": "unknown",
+             "supported": False,
+             "message": f"Validation exception: {str(e)}"
+        }
 
 async def run_backup_process(backup_id: int, udid: str, backup_path: str, password: Optional[str] = None):
     cmd = ['idevicebackup2', 'backup', backup_path, '-u', udid]
