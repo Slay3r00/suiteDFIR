@@ -20,9 +20,10 @@ interface MapControlsProps {
     onDataUpload: (data: any) => void
     onKmlSelect: (kmlUrl: string, selected: boolean) => void
     currentLayer: 'normal' | 'satellite' | 'hybrid'
+    selectedCaseId: string | null
 }
 
-export default function MapControls({ onSearch, onLayerChange, onDataUpload, onKmlSelect, currentLayer }: MapControlsProps) {
+export default function MapControls({ onSearch, onLayerChange, onDataUpload, onKmlSelect, currentLayer, selectedCaseId }: MapControlsProps) {
     const [searchQuery, setSearchQuery] = useState("")
     const [isSearching, setIsSearching] = useState(false)
     const [isUploading, setIsUploading] = useState(false)
@@ -36,11 +37,14 @@ export default function MapControls({ onSearch, onLayerChange, onDataUpload, onK
         if (showKmlMenu) {
             fetchKmlFiles()
         }
-    }, [showKmlMenu])
+    }, [showKmlMenu, selectedCaseId])
 
     const fetchKmlFiles = async () => {
         try {
-            const res = await fetch('http://localhost:8000/api/spatial/kml-files')
+            const url = selectedCaseId
+                ? `http://localhost:8000/api/spatial/kml-files?case_id=${selectedCaseId}`
+                : 'http://localhost:8000/api/spatial/kml-files';
+            const res = await fetch(url)
             if (res.ok) {
                 const data = await res.json()
                 setKmlFiles(data)

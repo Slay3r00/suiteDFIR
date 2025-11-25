@@ -8,6 +8,7 @@ import { useCase } from "@/context/CaseContext";
 interface Report {
     name: string;
     path: string;
+    url: string;
     tool: 'ileapp' | 'aleapp';
     created_at: string;
     size: string;
@@ -33,10 +34,21 @@ export default function Reports() {
             if (response.ok) {
                 const data = await response.json();
                 setReports(data);
-                // Auto-select first report
-                if (data.length > 0 && !selectedReport) {
-                    setSelectedReport(data[0]);
-                }
+
+                // Smart selection logic
+                setSelectedReport(prev => {
+                    // If no reports, clear selection
+                    if (data.length === 0) return null;
+
+                    // If we have a previous selection, check if it still exists in the new list
+                    if (prev) {
+                        const stillExists = data.find((r: Report) => r.path === prev.path);
+                        if (stillExists) return prev;
+                    }
+
+                    // Otherwise (new case or previous selection gone), select the first one
+                    return data[0];
+                });
             }
         } catch (error) {
             console.error('Failed to fetch reports:', error);
@@ -46,6 +58,8 @@ export default function Reports() {
     };
 
     useEffect(() => {
+        // Clear selection when switching cases to prevent showing old case's report
+        setSelectedReport(null);
         fetchReports();
     }, [selectedCaseId]);
 
@@ -86,15 +100,6 @@ export default function Reports() {
         setSelectedReport(report);
     };
 
-    const getReportUrl = (report: Report) => {
-        // Extract directory name from path since report.name is now the custom display name
-        // report.path is absolute path, e.g. /.../ileapp-reports/iLEAPP_Reports_...
-        const pathParts = report.path.split(/[/\\]/);
-        const folderName = pathParts[pathParts.length - 1] || pathParts[pathParts.length - 2];
-        const tool = report.tool;
-        return `http://localhost:8000/reports/${tool}-reports/${folderName}/index.html`;
-    };
-
     const filteredReports = reports
         .filter(r => {
             if (filter !== 'all' && r.tool !== filter) return false;
@@ -129,7 +134,7 @@ export default function Reports() {
                 {selectedReport ? (
                     <div className={`flex-1 bg-[#1A1A1A] border border-white/10 overflow-hidden shadow-xl ${isFullscreen ? 'rounded-none' : 'rounded-lg'}`}>
                         <iframe
-                            src={getReportUrl(selectedReport)}
+                            src={`http://localhost:8000${selectedReport.url}`}
                             className="w-full h-full"
                             title={selectedReport.name}
                         />

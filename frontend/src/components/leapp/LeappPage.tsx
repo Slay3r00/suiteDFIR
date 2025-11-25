@@ -69,6 +69,7 @@ function LeappContent({ logoPath, tool }: { logoPath: string; tool: string }) {
                                 placeholder="Select input file..."
                                 showFolderOption={true}
                                 tool={tool}
+                                caseId={selectedCaseId ? parseInt(selectedCaseId) : undefined}
                             />
                         </div>
                     </div>

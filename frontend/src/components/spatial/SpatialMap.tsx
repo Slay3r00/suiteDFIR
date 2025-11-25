@@ -47,12 +47,15 @@ function AutoFitBounds({ data }: { data: any }) {
     return null
 }
 
+import { useCase } from "@/context/CaseContext"
+
 export default function SpatialMap() {
     const [center, setCenter] = useState<[number, number]>([40.7128, -74.0060]) // NYC default
     const [zoom, setZoom] = useState(13)
     const [layer, setLayer] = useState<'normal' | 'satellite' | 'hybrid'>('normal')
     const [geoJsonData, setGeoJsonData] = useState<any>(null)
     const [browsedKmls, setBrowsedKmls] = useState<Record<string, any>>({})
+    const { selectedCaseId } = useCase()
 
     const handleSearch = (lat: number, lon: number) => {
         setCenter([lat, lon])
@@ -222,6 +225,7 @@ export default function SpatialMap() {
                 onDataUpload={setGeoJsonData}
                 onKmlSelect={handleKmlSelect}
                 currentLayer={layer}
+                selectedCaseId={selectedCaseId}
             />
 
             {/* @ts-ignore */}

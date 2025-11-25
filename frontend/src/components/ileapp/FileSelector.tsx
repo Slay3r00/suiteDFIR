@@ -15,6 +15,7 @@ interface FileSelectorProps {
   placeholder?: string;
   showFolderOption?: boolean;
   tool?: string;
+  caseId?: number;
 }
 
 interface Backup {
@@ -34,7 +35,8 @@ export default function FileSelector({
   disabled = false,
   placeholder = 'Select input file...',
   showFolderOption = true,
-  tool
+  tool,
+  caseId
 }: FileSelectorProps) {
   const fileDropdown = useDropdown();
   const [backups, setBackups] = useState<Backup[]>([]);
@@ -43,12 +45,15 @@ export default function FileSelector({
     if (fileDropdown.isOpen && tool) {
       fetchBackups();
     }
-  }, [fileDropdown.isOpen, tool]);
+  }, [fileDropdown.isOpen, tool, caseId]);
 
   const fetchBackups = async () => {
     try {
       console.log('Fetching backups for tool:', tool);
-      const res = await fetch('http://localhost:8000/api/backups');
+      const url = caseId
+        ? `http://localhost:8000/api/backups?case_id=${caseId}`
+        : 'http://localhost:8000/api/backups';
+      const res = await fetch(url);
       if (res.ok) {
         const json = await res.json();
         console.log('Fetched backups:', json);

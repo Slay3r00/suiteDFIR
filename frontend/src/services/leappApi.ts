@@ -17,43 +17,45 @@ export function createLeappApi(tool: string) {
     return {
         modules: {
             getAll: async (): Promise<{ modules: Module[] }> => {
-                const response = await fetch(`${API_BASE}/${tool}/modules`);
+                const response = await fetch(`${API_BASE}/profiles/modules?tool=${tool}`);
                 return handleApiResponse(response);
             },
 
             select: async (selections: Record<string, boolean>): Promise<void> => {
-                await fetch(`${API_BASE}/${tool}/modules/select`, {
+                await fetch(`${API_BASE}/profiles/modules/select`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(selections),
+                    body: JSON.stringify({ tool, selections }),
                 });
             },
         },
 
         profiles: {
             getAll: async (): Promise<Profile[]> => {
-                const response = await fetch(`${API_BASE}/${tool}/profiles`);
+                const response = await fetch(`${API_BASE}/profiles?tool=${tool}`);
                 return handleApiResponse(response);
             },
 
             load: async (profileId: number): Promise<{ message: string }> => {
-                const response = await fetch(` ${API_BASE}/${tool}/profiles/${profileId}/load`, {
+                const response = await fetch(`${API_BASE}/profiles/${profileId}/load`, {
                     method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ tool }),
                 });
                 return handleApiResponse(response);
             },
 
             save: async (name: string, modules: string[]): Promise<{ name: string }> => {
-                const response = await fetch(`${API_BASE}/${tool}/profiles`, {
+                const response = await fetch(`${API_BASE}/profiles`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name, modules }),
+                    body: JSON.stringify({ tool, name, modules }),
                 });
                 return handleApiResponse(response);
             },
 
             delete: async (profileId: number): Promise<{ message: string }> => {
-                const response = await fetch(`${API_BASE}/${tool}/profiles/${profileId}`, {
+                const response = await fetch(`${API_BASE}/profiles/${profileId}`, {
                     method: 'DELETE',
                 });
                 return handleApiResponse(response);
@@ -81,15 +83,17 @@ export function createLeappApi(tool: string) {
                 password?: string,
                 caseId?: number
             ): Promise<{ task_id: string }> => {
-                const response = await fetch(`${API_BASE}/${tool}/process`, {
+                const response = await fetch(`${API_BASE}/process/start`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
+                        tool: tool,
                         input_path: inputPath,
                         output_folder: outputFolder,
                         selected_modules: selectedModules,
                         report_name: reportName,
                         password: password,
+                        case_name: reportName || `Case_${Date.now()}`, // Fallback if needed
                         case_id: caseId
                     }),
                 });
@@ -97,8 +101,10 @@ export function createLeappApi(tool: string) {
             },
 
             stop: async (taskId: string): Promise<void> => {
-                const response = await fetch(`${API_BASE}/${tool}/stop/${taskId}`, {
+                const response = await fetch(`${API_BASE}/process/stop`, {
                     method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ task_id: taskId }),
                 });
                 return handleApiResponse(response);
             },
