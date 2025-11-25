@@ -147,20 +147,6 @@ def init_database():
         )
     ''')
 
-    # Check if we need to create a default case (only if cases table is empty but other tables have data)
-    cursor.execute("SELECT count(*) FROM cases")
-    case_count = cursor.fetchone()[0]
-    default_case_id = None
-
-    if case_count == 0:
-        # Create default case
-        cursor.execute('''
-            INSERT INTO cases (name, case_number, description, status, priority)
-            VALUES (?, ?, ?, ?, ?)
-        ''', ("Default Case", "DEF-001", "Auto-generated default case for existing data", "Active", "Medium"))
-        default_case_id = cursor.lastrowid
-        print(f"Created Default Case with ID: {default_case_id}")
-
     # Helper to add case_id column and migrate data
     def add_case_id_column(table_name):
         cursor.execute(f"PRAGMA table_info({table_name})")
@@ -168,11 +154,6 @@ def init_database():
         if 'case_id' not in columns:
             print(f"Migrating database: Adding case_id column to {table_name} table")
             cursor.execute(f"ALTER TABLE {table_name} ADD COLUMN case_id INTEGER REFERENCES cases(id)")
-            
-            # If we have a default case, assign all existing records to it
-            if default_case_id:
-                cursor.execute(f"UPDATE {table_name} SET case_id = ?", (default_case_id,))
-                print(f"Assigned existing {table_name} records to Default Case (ID: {default_case_id})")
 
     # Migrate tables
     add_case_id_column('backups')
