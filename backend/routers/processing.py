@@ -130,11 +130,11 @@ async def start_processing(request: ProcessRequest, background_tasks: Background
     
     # Start processing in background
     # Pass profile_path to be cleaned up
-    background_tasks.add_task(run_processing_job, task_id, cmd, tool, request.case_name, output_dir, request.case_id, profile_path)
+    background_tasks.add_task(run_processing_job, task_id, cmd, tool, request.case_name, output_dir, request.case_id, profile_path, request.report_name)
     
     return {"message": f"Started {config['name']} processing", "case": request.case_name, "task_id": task_id}
 
-async def run_processing_job(task_id, cmd, tool, case_name, output_dir, case_id, profile_path=None):
+async def run_processing_job(task_id, cmd, tool, case_name, output_dir, case_id, profile_path=None, user_report_name=None):
     """Run the processing job and stream logs"""
     # Track existing directories to identify the new one
     existing_dirs = set()
@@ -202,7 +202,9 @@ async def run_processing_job(task_id, cmd, tool, case_name, output_dir, case_id,
 
         if status == "success":
             if new_report_path:
-                report_name = os.path.basename(new_report_path)
+                # Use user provided name if available, otherwise fallback to folder name
+                report_name = user_report_name if user_report_name else os.path.basename(new_report_path)
+                
                 # Save to database
                 conn = sqlite3.connect(DB_PATH)
                 cursor = conn.cursor()
