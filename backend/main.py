@@ -7,7 +7,7 @@ import sys
 import asyncio
 
 from database import init_database
-from routers import cases, reports, profiles, tasks, processing, backups, system
+from routers import cases, reports, profiles, tasks, processing, backups, system, timeline
 from config import TOOLS_CONFIG, REPORTS_DIR
 from state import plugin_loaders, available_modules
 from utils import broadcast_event
@@ -38,9 +38,7 @@ async def lifespan(app: FastAPI):
                 # Change to tool directory for imports
                 os.chdir(tool_path)
 
-                # CRITICAL: Clear scripts from sys.modules to prevent caching between tools
-                # This ensures we load the correct plugin_loader for the current tool
-                # We must remove 'scripts' AND all submodules (e.g. scripts.plugin_loader)
+                # Clear scripts from sys.modules to prevent caching between tools
                 modules_to_remove = [m for m in sys.modules if m == 'scripts' or m.startswith('scripts.')]
                 for m in modules_to_remove:
                     del sys.modules[m]
@@ -93,25 +91,6 @@ async def lifespan(app: FastAPI):
                 # Restore directory if error occurred
                 if 'original_dir' in locals():
                     os.chdir(original_dir)
-
-        # Start device monitor
-        # Note: monitor_devices is now handled in system.py or utils.py, 
-        # but we need to start it here. Since we moved it to utils (implied by previous steps but not explicitly done in system.py),
-        # let's check where it is. Wait, I didn't move monitor_devices to system.py, I moved get_active_devices.
-        # The background task `monitor_devices` was in main.py. I should have moved it to system.py or utils.py.
-        # Let's import it from system if I put it there, or keep it here if I forgot.
-        # Looking at my write_to_file for system.py, I did NOT include monitor_devices loop, only get_active_devices.
-        # I need to keep monitor_devices here or move it. 
-        # Ideally it should be in system.py or utils.py to keep main.py clean.
-        # However, for now, to avoid breaking, I will keep the startup logic here but I need the function.
-        # Actually, I should have moved `monitor_devices` to `utils.py` or `system.py`.
-        # Let's import `monitor_devices` from `utils` if it's there.
-        # Checking utils.py content from memory/previous context... I only moved `broadcast_event` and `get_connected_devices`.
-        # So `monitor_devices` loop logic is missing from my new system.py.
-        # I will re-implement `monitor_devices` here using the utils functions, or better, move it to `utils.py` in a separate step?
-        # No, I can just define it here for now or import it if I put it in system.py.
-        # I did NOT put it in system.py.
-        # I will define it here for now to ensure it runs, using the imported utils.
         
         asyncio.create_task(monitor_devices_task())
         yield
@@ -160,6 +139,7 @@ app.include_router(profiles.router)
 app.include_router(tasks.router)
 app.include_router(processing.router)
 app.include_router(backups.router)
+app.include_router(timeline.router)
 
 # Configure CORS
 app.add_middleware(

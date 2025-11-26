@@ -51,7 +51,7 @@ SelectTrigger.displayName = "SelectTrigger"
 const SelectValue = React.forwardRef<
     HTMLSpanElement,
     React.HTMLAttributes<HTMLSpanElement> & { placeholder?: string }
->(({ className, placeholder, ...props }, ref) => {
+>(({ className, placeholder, children, ...props }, ref) => {
     const context = React.useContext(SelectContext)
     if (!context) throw new Error("SelectValue must be used within Select")
 
@@ -65,7 +65,7 @@ const SelectValue = React.forwardRef<
             className={cn("block truncate", className)}
             {...props}
         >
-            {context.value || placeholder}
+            {children || context.value || placeholder}
         </span>
     )
 })

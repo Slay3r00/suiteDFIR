@@ -1,0 +1,230 @@
+from fastapi import APIRouter, HTTPException, Query
+from typing import List, Optional, Dict, Any
+import sqlite3
+import os
+import json
+from database import DB_PATH
+
+router = APIRouter(
+    prefix="/api/cases/{case_id}/timeline",
+    tags=["timeline"]
+)
+
+@router.get("")
+async def get_timeline(
+    case_id: int,
+    page: int = Query(0, ge=0),
+    limit: int = Query(10, ge=-1),
+    sort_by: str = Query("date", regex="^(date|artifact|description|source|id)$"),
+    sort_order: str = Query("desc", regex="^(asc|desc)$"),
+    search: Optional[str] = None,
+    filters: Optional[str] = None,
+    report_id: Optional[str] = None
+):
+    """
+    Fetch timeline events from tl.db files for a specific case.
+    Supports pagination, sorting, filtering by report, global search, and column filters.
+    """
+    try:
+        # Parse column filters
+        column_filters = []
+        if filters:
+            try:
+                column_filters = json.loads(filters)
+            except:
+                pass
+
+        # 1. Get reports for the case
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
+        if report_id:
+            cursor.execute('SELECT path, name FROM reports WHERE case_id = ? AND path = ?', (case_id, report_id))
+        else:
+            cursor.execute('SELECT path, name FROM reports WHERE case_id = ? ORDER BY created_at DESC', (case_id,))
+            
+        reports = cursor.fetchall()
+        conn.close()
+        
+        if not reports:
+            return {"data": [], "total_count": 0}
+
+        # 2. Locate tl.db files
+        timeline_dbs = []
+        for report in reports:
+            report_path = report['path']
+            report_name = report['name']
+            
+            # Check for _Timeline/tl.db
+            tl_db_path = os.path.join(report_path, '_Timeline', 'tl.db')
+            if os.path.exists(tl_db_path):
+                timeline_dbs.append({
+                    'path': tl_db_path,
+                    'name': report_name
+                })
+
+        if not timeline_dbs:
+            return {"data": [], "total_count": 0}
+
+        # Limit to 10 DBs for "All" view to avoid SQLite limits
+        if not report_id and len(timeline_dbs) > 10:
+            timeline_dbs = timeline_dbs[:10]
+
+        # 3. Construct Query
+        mem_conn = sqlite3.connect(':memory:')
+        mem_cursor = mem_conn.cursor()
+        
+        select_parts = []
+        for i, db in enumerate(timeline_dbs):
+            alias = f"db{i}"
+            try:
+                mem_cursor.execute(f"ATTACH DATABASE ? AS {alias}", (db['path'],))
+                
+                # Extract timestamp
+                # Handle 'None' string explicitly by treating it as empty
+                timestamp_extract = """
+                    CASE 
+                        WHEN json_extract(datalist, '$.Timestamp') = 'None' THEN ''
+                        WHEN json_extract(datalist, '$.Sent') = 'None' THEN ''
+                        WHEN json_extract(datalist, '$.Date') = 'None' THEN ''
+                        WHEN json_extract(datalist, '$.Created') = 'None' THEN ''
+                        WHEN json_extract(datalist, '$."Received Time"') = 'None' THEN ''
+                        ELSE COALESCE(
+                            json_extract(datalist, '$.Timestamp'),
+                            json_extract(datalist, '$.Sent'),
+                            json_extract(datalist, '$.Date'),
+                            json_extract(datalist, '$.Created'),
+                            json_extract(datalist, '$."Received Time"'),
+                            ''
+                        )
+                    END
+                """
+                
+                # Build WHERE clause for this DB
+                where_clauses = []
+                params = []
+
+                # Global Search
+                if search:
+                    search_term = f"%{search}%"
+                    where_clauses.append(f"""
+                        (
+                            activity LIKE '{search_term}' OR 
+                            datalist LIKE '{search_term}' OR 
+                            '{db['name']}' LIKE '{search_term}' OR
+                            {timestamp_extract} LIKE '{search_term}'
+                        )
+                    """)
+
+                # Column Filters
+                for filter_item in column_filters:
+                    col_id = filter_item.get('id')
+                    val = filter_item.get('value')
+                    if not val:
+                        continue
+                    
+                    val_term = f"%{val}%"
+                    
+                    if col_id == 'artifact':
+                        where_clauses.append(f"activity LIKE '{val_term}'")
+                    elif col_id == 'description':
+                        where_clauses.append(f"datalist LIKE '{val_term}'")
+                    elif col_id == 'source':
+                        where_clauses.append(f"'{db['name']}' LIKE '{val_term}'")
+                    elif col_id == 'date':
+                        where_clauses.append(f"{timestamp_extract} LIKE '{val_term}'")
+
+                where_sql = ""
+                if where_clauses:
+                    where_sql = "WHERE " + " AND ".join(where_clauses)
+
+                select_parts.append(f"""
+                    SELECT 
+                        '{db['name']}' as source_report,
+                        activity as artifact,
+                        datalist as description_json,
+                        {timestamp_extract} as event_date,
+                        key as original_key
+                    FROM {alias}.data
+                    {where_sql}
+                """)
+            except sqlite3.OperationalError as e:
+                print(f"Error attaching {db['path']}: {e}")
+                continue
+
+        if not select_parts:
+             return {"data": [], "total_count": 0}
+
+        union_query = " UNION ALL ".join(select_parts)
+        
+        # Count total
+        count_query = f"SELECT COUNT(*) FROM ({union_query})"
+        mem_cursor.execute(count_query)
+        total_count = mem_cursor.fetchone()[0]
+
+        # Fetch page
+        sort_map = {
+            "date": "event_date",
+            "artifact": "artifact",
+            "source": "source_report",
+            "description": "description_json",
+            "id": "event_date"
+        }
+        sql_sort = sort_map.get(sort_by, "event_date")
+        
+        data_query = f"""
+            SELECT * FROM ({union_query})
+            ORDER BY {sql_sort} {sort_order.upper()}
+        """
+        
+        if limit != -1:
+            data_query += " LIMIT ? OFFSET ?"
+            mem_cursor.execute(data_query, (limit, page * limit))
+        else:
+            mem_cursor.execute(data_query)
+            
+        rows = mem_cursor.fetchall()
+        
+        # 4. Format Data
+        formatted_data = []
+        for i, row in enumerate(rows):
+            # row: source_report, artifact, description_json, event_date, original_key
+            source = row[0]
+            artifact = row[1]
+            desc_json = row[2]
+            date = row[3]
+            
+            # Parse JSON to make description more readable?
+            # For now, just send the raw JSON or a summary.
+            # The frontend table expects 'description' string.
+            # Let's try to make a readable string from the JSON.
+            description = desc_json
+            try:
+                data_dict = json.loads(desc_json)
+                # Remove timestamp fields to avoid redundancy
+                for k in ['Timestamp', 'Sent', 'Date', 'Created', 'Received Time']:
+                    data_dict.pop(k, None)
+                # Join remaining values
+                description = ", ".join([f"{k}: {v}" for k, v in data_dict.items() if v and v != "None"])
+            except:
+                pass
+
+            formatted_data.append({
+                "id": f"{page}-{i}", # Virtual ID
+                "date": date,
+                "artifact": artifact,
+                "description": description,
+                "source": source
+            })
+
+        mem_conn.close()
+        
+        return {
+            "data": formatted_data,
+            "total_count": total_count
+        }
+
+    except Exception as e:
+        print(f"Error fetching timeline: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
