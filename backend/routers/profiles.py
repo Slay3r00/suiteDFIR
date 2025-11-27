@@ -18,16 +18,14 @@ async def get_profiles(tool: str):
         raise HTTPException(status_code=404, detail=f"Tool '{tool}' not found")
         
     conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     cursor.execute("SELECT id, name, tool, modules_json FROM profiles WHERE tool = ?", (tool,))
     profiles = []
     for row in cursor.fetchall():
-        profiles.append(Profile(
-            id=row[0],
-            name=row[1],
-            tool=row[2],
-            modules=json.loads(row[3])
-        ))
+        d = dict(row)
+        d['modules'] = json.loads(d.pop('modules_json'))
+        profiles.append(Profile.model_validate(d))
     conn.close()
     return profiles
 
@@ -52,9 +50,7 @@ async def save_profile(profile: ProfileCreate):
 
         return Profile(
             id=profile_id,
-            name=profile.name,
-            tool=profile.tool,
-            modules=profile.modules
+            **profile.dict()
         )
     except sqlite3.IntegrityError:
         raise HTTPException(status_code=400, detail="Profile with this name already exists")
@@ -69,6 +65,7 @@ async def load_profile(profile_id: int, tool: str = Body(..., embed=True)):
     
     try:
         conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         cursor.execute('SELECT name, modules_json FROM profiles WHERE id = ? AND tool = ?', (profile_id, tool))
         row = cursor.fetchone()
@@ -77,7 +74,8 @@ async def load_profile(profile_id: int, tool: str = Body(..., embed=True)):
         if not row:
             raise HTTPException(status_code=404, detail="Profile not found")
 
-        profile_name, modules_json = row
+        profile_name = row['name']
+        modules_json = row['modules_json']
         selected_modules = json.loads(modules_json)
         
         # Update available_modules state

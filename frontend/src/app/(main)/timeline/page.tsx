@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import EnhancedTable, { TimelineEvent } from "@/components/ui/MUITable"
-import { useCases } from "@/hooks/useCases"
+import { useCase } from "@/context/CaseContext"
 import {
     Select,
     SelectContent,
@@ -19,7 +19,7 @@ interface Report {
 }
 
 export default function Timeline() {
-    const { currentCase } = useCases()
+    const { selectedCaseId } = useCase()
     const [data, setData] = useState<TimelineEvent[]>([])
     const [totalCount, setTotalCount] = useState(0)
     const [isLoading, setIsLoading] = useState(false)
@@ -37,11 +37,11 @@ export default function Timeline() {
 
     // Fetch Reports
     useEffect(() => {
-        if (!currentCase) return
+        if (!selectedCaseId) return
 
         const fetchReports = async () => {
             try {
-                const res = await fetch(`http://localhost:8000/api/reports?case_id=${currentCase.id}`)
+                const res = await fetch(`http://localhost:8000/api/reports?case_id=${selectedCaseId}`)
                 if (res.ok) {
                     const data = await res.json()
                     setReports(data)
@@ -51,11 +51,11 @@ export default function Timeline() {
             }
         }
         fetchReports()
-    }, [currentCase])
+    }, [selectedCaseId])
 
     // Fetch Timeline Data
     useEffect(() => {
-        if (!currentCase) return
+        if (!selectedCaseId) return
 
         const fetchData = async () => {
             setIsLoading(true)
@@ -63,7 +63,7 @@ export default function Timeline() {
                 const sortField = sorting.length > 0 ? sorting[0].id : 'date'
                 const sortOrder = sorting.length > 0 && sorting[0].desc ? 'desc' : 'asc'
 
-                let url = `http://localhost:8000/api/cases/${currentCase.id}/timeline?page=${pagination.pageIndex}&limit=${pagination.pageSize}&sort_by=${sortField}&sort_order=${sortOrder}`
+                let url = `http://localhost:8000/api/cases/${selectedCaseId}/timeline?page=${pagination.pageIndex}&limit=${pagination.pageSize}&sort_by=${sortField}&sort_order=${sortOrder}`
 
                 if (globalFilter) {
                     url += `&search=${encodeURIComponent(globalFilter)}`
@@ -91,16 +91,16 @@ export default function Timeline() {
         }
 
         fetchData()
-    }, [currentCase, pagination, sorting, selectedReport, globalFilter, columnFilters])
+    }, [selectedCaseId, pagination, sorting, selectedReport, globalFilter, columnFilters])
 
     const handleExportAll = async () => {
-        if (!currentCase) return
+        if (!selectedCaseId) return
         try {
             setIsLoading(true)
             const sortField = sorting.length > 0 ? sorting[0].id : 'date'
             const sortOrder = sorting.length > 0 && sorting[0].desc ? 'desc' : 'asc'
 
-            let url = `http://localhost:8000/api/cases/${currentCase.id}/timeline?page=0&limit=-1&sort_by=${sortField}&sort_order=${sortOrder}`
+            let url = `http://localhost:8000/api/cases/${selectedCaseId}/timeline?page=0&limit=-1&sort_by=${sortField}&sort_order=${sortOrder}`
 
             if (globalFilter) {
                 url += `&search=${encodeURIComponent(globalFilter)}`

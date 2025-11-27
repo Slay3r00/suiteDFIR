@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from typing import List, Optional
 from enum import Enum
 
@@ -32,6 +32,7 @@ class ProfileCreate(ProfileBase):
 
 class Profile(ProfileBase):
     """Response model for a tool configuration profile."""
+    model_config = ConfigDict(from_attributes=True)
     id: int
 
 # CASE MODELS
@@ -67,6 +68,7 @@ class CaseUpdate(BaseModel):
 
 class Case(CaseBase):
     """Response model for a case."""
+    model_config = ConfigDict(from_attributes=True)
     id: int
     created_at: str
 
@@ -96,6 +98,7 @@ class FilePathResponse(BaseModel):
 
 class Report(BaseModel):
     """Response model for a generated report."""
+    model_config = ConfigDict(from_attributes=True)
     name: str
     path: str
     url: str
@@ -118,6 +121,7 @@ class TaskCreate(TaskBase):
 
 class Task(TaskBase):
     """Response model for a task."""
+    model_config = ConfigDict(from_attributes=True)
     id: int
     completed: bool
     created_at: str
@@ -133,6 +137,7 @@ class NoteCreate(NoteBase):
 
 class Note(NoteBase):
     """Response model for a note."""
+    model_config = ConfigDict(from_attributes=True)
     id: int
     created_at: str
 

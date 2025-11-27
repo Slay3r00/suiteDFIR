@@ -19,30 +19,12 @@ async def get_cases():
     """Get list of all cases"""
     try:
         conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         cursor.execute('''
-            SELECT id, name, case_number, business_name, investigator_name, 
-                   client_name, client_location, client_contact, description, 
-                   status, priority, created_at 
-            FROM cases 
-            ORDER BY created_at DESC
+            SELECT * FROM cases ORDER BY created_at DESC
         ''')
-        cases = []
-        for row in cursor.fetchall():
-            cases.append(Case(
-                id=row[0],
-                name=row[1],
-                case_number=row[2],
-                business_name=row[3],
-                investigator_name=row[4],
-                client_name=row[5],
-                client_location=row[6],
-                client_contact=row[7],
-                description=row[8],
-                status=row[9],
-                priority=row[10],
-                created_at=row[11]
-            ))
+        cases = [Case.model_validate(dict(row)) for row in cursor.fetchall()]
         conn.close()
         return cases
     except Exception as e:
@@ -53,6 +35,7 @@ async def create_case(case: CaseCreate):
     """Create a new case"""
     try:
         conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         cursor.execute('''
             INSERT INTO cases (
@@ -68,16 +51,12 @@ async def create_case(case: CaseCreate):
         case_id = cursor.lastrowid
         
         # Fetch created case
-        cursor.execute('SELECT created_at FROM cases WHERE id = ?', (case_id,))
-        created_at = cursor.fetchone()[0]
+        cursor.execute('SELECT * FROM cases WHERE id = ?', (case_id,))
+        row = cursor.fetchone()
         conn.commit()
         conn.close()
 
-        return Case(
-            id=case_id,
-            created_at=created_at,
-            **case.dict()
-        )
+        return Case.model_validate(dict(row))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to create case: {str(e)}")
 
@@ -86,34 +65,16 @@ async def get_case(case_id: int):
     """Get a specific case by ID"""
     try:
         conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
-        cursor.execute('''
-            SELECT id, name, case_number, business_name, investigator_name, 
-                   client_name, client_location, client_contact, description, 
-                   status, priority, created_at 
-            FROM cases 
-            WHERE id = ?
-        ''', (case_id,))
+        cursor.execute('SELECT * FROM cases WHERE id = ?', (case_id,))
         row = cursor.fetchone()
         conn.close()
         
         if not row:
             raise HTTPException(status_code=404, detail="Case not found")
             
-        return Case(
-            id=row[0],
-            name=row[1],
-            case_number=row[2],
-            business_name=row[3],
-            investigator_name=row[4],
-            client_name=row[5],
-            client_location=row[6],
-            client_contact=row[7],
-            description=row[8],
-            status=row[9],
-            priority=row[10],
-            created_at=row[11]
-        )
+        return Case.model_validate(dict(row))
     except HTTPException:
         raise
     except Exception as e:
@@ -124,6 +85,7 @@ async def update_case(case_id: int, case_update: CaseUpdate):
     """Update an existing case"""
     try:
         conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         
         # Build update query dynamically
@@ -144,30 +106,11 @@ async def update_case(case_id: int, case_update: CaseUpdate):
         conn.commit()
         
         # Fetch updated case
-        cursor.execute('''
-            SELECT id, name, case_number, business_name, investigator_name, 
-                   client_name, client_location, client_contact, description, 
-                   status, priority, created_at 
-            FROM cases 
-            WHERE id = ?
-        ''', (case_id,))
+        cursor.execute('SELECT * FROM cases WHERE id = ?', (case_id,))
         row = cursor.fetchone()
         conn.close()
         
-        return Case(
-            id=row[0],
-            name=row[1],
-            case_number=row[2],
-            business_name=row[3],
-            investigator_name=row[4],
-            client_name=row[5],
-            client_location=row[6],
-            client_contact=row[7],
-            description=row[8],
-            status=row[9],
-            priority=row[10],
-            created_at=row[11]
-        )
+        return Case.model_validate(dict(row))
     except HTTPException:
         raise
     except Exception as e:

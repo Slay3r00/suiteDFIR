@@ -25,19 +25,21 @@ async def get_tasks(case_id: Optional[int] = None):
 @router.post("/tasks", response_model=Task)
 async def create_task(task: TaskCreate):
     conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     cursor.execute("INSERT INTO tasks (content, description, priority, case_id) VALUES (?, ?, ?, ?)", (task.content, task.description, task.priority, task.case_id))
     task_id = cursor.lastrowid
     conn.commit()
     
     cursor.execute("SELECT * FROM tasks WHERE id = ?", (task_id,))
-    new_task = dict(sqlite3.Row(cursor, cursor.fetchone()))
+    new_task = dict(cursor.fetchone())
     conn.close()
     return new_task
 
 @router.put("/tasks/{task_id}", response_model=Task)
 async def toggle_task(task_id: int):
     conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     
     # Get current status
@@ -47,12 +49,12 @@ async def toggle_task(task_id: int):
         conn.close()
         raise HTTPException(status_code=404, detail="Task not found")
         
-    new_status = not result[0]
+    new_status = not result['completed']
     cursor.execute("UPDATE tasks SET completed = ? WHERE id = ?", (new_status, task_id))
     conn.commit()
     
     cursor.execute("SELECT * FROM tasks WHERE id = ?", (task_id,))
-    updated_task = dict(sqlite3.Row(cursor, cursor.fetchone()))
+    updated_task = dict(cursor.fetchone())
     conn.close()
     return updated_task
 
@@ -81,13 +83,14 @@ async def get_notes(case_id: Optional[int] = None):
 @router.post("/notes", response_model=Note)
 async def create_note(note: NoteCreate):
     conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     cursor.execute("INSERT INTO notes (content, description, case_id) VALUES (?, ?, ?)", (note.content, note.description, note.case_id))
     note_id = cursor.lastrowid
     conn.commit()
     
     cursor.execute("SELECT * FROM notes WHERE id = ?", (note_id,))
-    new_note = dict(sqlite3.Row(cursor, cursor.fetchone()))
+    new_note = dict(cursor.fetchone())
     conn.close()
     return new_note
 

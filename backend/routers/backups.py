@@ -380,29 +380,16 @@ async def stop_backup(backup_id: int):
 async def get_backups(case_id: Optional[int] = None):
     """Get list of backups"""
     conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     if case_id:
         cursor.execute("SELECT id, name, device_udid, device_name, path, created_at, status, size, progress, type FROM backups WHERE case_id = ? ORDER BY created_at DESC", (case_id,))
     else:
         cursor.execute("SELECT id, name, device_udid, device_name, path, created_at, status, size, progress, type FROM backups ORDER BY created_at DESC")
-    rows = cursor.fetchall()
+    
+    backups = [dict(row) for row in cursor.fetchall()]
     conn.close()
     
-    backups = []
-    for row in rows:
-        backups.append({
-            "id": row[0],
-            "name": row[1],
-            "device_udid": row[2],
-            "device_name": row[3],
-            "path": row[4],
-            "created_at": row[5],
-            "status": row[6],
-            "size": row[7],
-            "progress": row[8] if len(row) > 8 else 0,
-            "type": row[9] if len(row) > 9 else 'ios'
-        })
-        
     return backups
 
 @router.delete("/backups/{backup_id}")
