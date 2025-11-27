@@ -26,6 +26,21 @@ export default function ActiveDevicesWidget() {
 
     useEffect(() => {
         let isMounted = true;
+
+        // Initial fetch
+        const fetchDevices = async () => {
+            try {
+                const res = await fetch('http://localhost:8000/api/dashboard/devices');
+                if (res.ok && isMounted) {
+                    const data = await res.json();
+                    setDevices(data);
+                }
+            } catch (error) {
+                console.error('Failed to fetch initial devices:', error);
+            }
+        };
+        fetchDevices();
+
         // Connect to unified SSE stream
         const eventSource = new EventSource('http://localhost:8000/api/stream');
 

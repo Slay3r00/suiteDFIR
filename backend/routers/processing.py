@@ -1,14 +1,20 @@
 from fastapi import APIRouter, HTTPException, BackgroundTasks
 from fastapi.responses import StreamingResponse
-import asyncio
-import json
-import os
-import sys
-import sys
-import uuid
-import sqlite3
-from typing import Optional
 from pydantic import BaseModel
+from typing import List, Optional, Dict
+import asyncio
+import subprocess
+import os
+import shutil
+import uuid
+import json
+import sys
+import sqlite3
+from datetime import datetime
+import logging
+from database import get_db_connection
+
+logger = logging.getLogger(__name__)
 from models import ProcessRequest
 from database import DB_PATH
 from config import TOOLS_CONFIG
@@ -23,7 +29,7 @@ router = APIRouter(
 @router.post("/start")
 async def start_processing(request: ProcessRequest, background_tasks: BackgroundTasks):
     """Start processing with selected modules"""
-    tool = request.tool
+    tool = request.tool.value
     if tool not in TOOLS_CONFIG:
         raise HTTPException(status_code=404, detail=f"Tool '{tool}' not found")
         
@@ -60,9 +66,9 @@ async def start_processing(request: ProcessRequest, background_tasks: Background
                     "format_version": 1,
                     "plugins": modules_to_run
                 }, f)
-            print(f"DEBUG: Created temp profile at {profile_path} with {len(modules_to_run)} modules")
+            logger.debug(f"Created temp profile at {profile_path} with {len(modules_to_run)} modules")
         except Exception as e:
-            print(f"Error creating temp profile: {e}")
+            logger.error(f"Error creating temp profile: {e}")
             # Fallback? If we fail to create profile, we might run all modules which is not desired.
             raise HTTPException(status_code=500, detail=f"Failed to create processing profile: {e}")
 
@@ -112,7 +118,7 @@ async def start_processing(request: ProcessRequest, background_tasks: Background
             
     cmd.extend(["-t", input_type])
     
-    print(f"DEBUG: Executing command: {' '.join(cmd)}")
+    logger.debug(f"Executing command: {' '.join(cmd)}")
 
     if request.password:
         cmd.extend(["--itunes_password", request.password])
@@ -187,7 +193,7 @@ async def run_processing_job(task_id, cmd, tool, case_name, output_dir, case_id,
         if status == "error":
             stderr = await process.stderr.read()
             error_msg = stderr.decode()
-            print(f"DEBUG: Process failed with error: {error_msg}")
+            logger.debug(f"Process failed with error: {error_msg}")
         
         # Identify the new report directory
         new_report_path = None
@@ -214,13 +220,13 @@ async def run_processing_job(task_id, cmd, tool, case_name, output_dir, case_id,
                         (report_name, new_report_path, tool, case_id)
                     )
                     conn.commit()
-                    print(f"DEBUG: Saved report {report_name} to database")
+                    logger.debug(f"Saved report {report_name} to database")
                 except sqlite3.IntegrityError:
-                    print(f"DEBUG: Report {report_name} already exists in database")
+                    logger.debug(f"Report {report_name} already exists in database")
                 finally:
                     conn.close()
             else:
-                print("DEBUG: No new report directory found after success")
+                logger.debug("No new report directory found after success")
         
         elif status in ["cancelled", "error"]:
             # Cleanup partial report
@@ -228,17 +234,17 @@ async def run_processing_job(task_id, cmd, tool, case_name, output_dir, case_id,
                 try:
                     import shutil
                     shutil.rmtree(new_report_path)
-                    print(f"DEBUG: Removed partial report directory: {new_report_path}")
+                    logger.debug(f"Removed partial report directory: {new_report_path}")
                 except Exception as e:
-                    print(f"Error removing partial report {new_report_path}: {e}")
+                    logger.error(f"Error removing partial report {new_report_path}: {e}")
             
             # Cleanup parent case directory if empty
             if os.path.exists(output_dir) and not os.listdir(output_dir):
                 try:
                     os.rmdir(output_dir)
-                    print(f"DEBUG: Removed empty case directory: {output_dir}")
+                    logger.debug(f"Removed empty case directory: {output_dir}")
                 except Exception as e:
-                    print(f"Error removing empty case directory {output_dir}: {e}")
+                    logger.error(f"Error removing empty case directory {output_dir}: {e}")
 
         # Notify completion
         if task_id in processing_tasks:
@@ -253,7 +259,7 @@ async def run_processing_job(task_id, cmd, tool, case_name, output_dir, case_id,
         })
             
     except Exception as e:
-        print(f"Error running processing job: {e}")
+        logger.error(f"Error running processing job: {e}")
         if task_id in processing_tasks:
              await processing_tasks[task_id]["queue"].put(f"Error: {str(e)}")
              processing_tasks[task_id]["status"] = "error"
@@ -269,9 +275,9 @@ async def run_processing_job(task_id, cmd, tool, case_name, output_dir, case_id,
         if profile_path and os.path.exists(profile_path):
             try:
                 os.remove(profile_path)
-                print(f"DEBUG: Removed temp profile {profile_path}")
+                logger.debug(f"Removed temp profile {profile_path}")
             except Exception as e:
-                print(f"Error removing temp profile {profile_path}: {e}")
+                logger.error(f"Error removing temp profile {profile_path}: {e}")
 
 @router.get("/stream/{task_id}")
 async def stream_processing_logs(task_id: str):
@@ -343,8 +349,8 @@ async def stop_processing(request: StopRequest = None):
     if "process" in task and task["process"]:
         try:
             task["process"].terminate()
-            print(f"DEBUG: Terminated process for task {task_id}")
+            logger.debug(f"Terminated process for task {task_id}")
         except Exception as e:
-            print(f"Error terminating process: {e}")
+            logger.error(f"Error terminating process: {e}")
             
     return {"message": "Processing stop requested", "task_id": task_id}

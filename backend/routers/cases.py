@@ -5,6 +5,9 @@ from models import Case, CaseCreate, CaseUpdate
 from database import DB_PATH
 import os
 import shutil
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/api/cases",
@@ -214,7 +217,7 @@ async def delete_case(case_id: int):
                     else:
                         os.remove(path)
                 except Exception as e:
-                    print(f"Error deleting backup {path}: {e}")
+                    logger.error(f"Error deleting backup {path}: {e}")
                     errors.append(f"Failed to delete backup {os.path.basename(path)}")
 
         # Track parent directories to check for cleanup
@@ -231,7 +234,7 @@ async def delete_case(case_id: int):
                     else:
                         os.remove(path)
                 except Exception as e:
-                    print(f"Error deleting report {path}: {e}")
+                    logger.error(f"Error deleting report {path}: {e}")
                     errors.append(f"Failed to delete report {os.path.basename(path)}")
         
         # Cleanup empty parent directories (e.g. Case Name folders)
@@ -247,7 +250,7 @@ async def delete_case(case_id: int):
                         rel = os.path.relpath(parent_dir, REPORTS_DIR)
                         # If relative path is '.' (root) or has no directory separators (immediate child like 'ileapp-reports'), skip
                         if rel == '.' or os.path.dirname(rel) == '':
-                            # print(f"Skipping cleanup of root/tool directory: {parent_dir}")
+                            # logger.debug(f"Skipping cleanup of root/tool directory: {parent_dir}")
                             continue
                     except ValueError:
                         # Path is not under REPORTS_DIR, skip to be safe
@@ -256,12 +259,12 @@ async def delete_case(case_id: int):
                     # Only delete if empty
                     if not os.listdir(parent_dir):
                         os.rmdir(parent_dir)
-                        print(f"Removed empty directory: {parent_dir}")
+                        logger.info(f"Removed empty directory: {parent_dir}")
                 except Exception as e:
-                    print(f"Error cleaning up directory {parent_dir}: {e}")
+                    logger.error(f"Error cleaning up directory {parent_dir}: {e}")
 
         if errors:
-            print(f"Case deleted with filesystem errors: {errors}")
+            logger.error(f"Case deleted with filesystem errors: {errors}")
 
         return {"message": "Case and associated data deleted successfully"}
         

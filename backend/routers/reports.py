@@ -6,11 +6,14 @@ from typing import List, Optional
 import sqlite3
 import os
 import shutil
+import logging
 from models import Report
 from database import DB_PATH
 from utils import get_size_format
 
 from config import REPORTS_DIR
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/api/reports",
@@ -43,16 +46,16 @@ async def get_reports(case_id: Optional[int] = None):
                 if 'aLEAPP-reports' in path:
                     alt_path = path.replace('aLEAPP-reports', 'aleapp-reports')
                     if os.path.exists(alt_path):
-                        # print(f"DEBUG: Found report at alternate path: {alt_path}")
+                        # logger.debug(f"Found report at alternate path: {alt_path}")
                         path = alt_path
                     else:
-                        # print(f"DEBUG: Report path not found: {path}")
+                        # logger.debug(f"Report path not found: {path}")
                         continue
                 else:
                     # print(f"DEBUG: Report path not found: {path}")
                     continue
             
-            # print(f"DEBUG: Found report: {name} ({tool}) at {path}")
+            # logger.debug(f"Found report: {name} ({tool}) at {path}")
                 
             try:
                 # Calculate size and file count
@@ -80,11 +83,11 @@ async def get_reports(case_id: Optional[int] = None):
                     artifact_count=file_count
                 ))
             except Exception as e:
-                print(f"Error processing report {name}: {e}")
+                logger.error(f"Error processing report {name}: {e}")
                 continue
                 
     except Exception as e:
-        print(f"Error fetching reports: {e}")
+        logger.error(f"Error fetching reports: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to fetch reports: {str(e)}")
 
     return reports

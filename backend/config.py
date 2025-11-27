@@ -16,7 +16,7 @@ TOOLS_CONFIG = {
         "script": "aleapp.py",
         "profile_ext": ".alprofile",
         "description": "Android Logs, Events, And Protobuf Parser",
-        "excluded_modules": set()  # No known modules to exclude for aLEAPP yet
+        "excluded_modules": {'googleMapsSearches'}
     }
 }
 

@@ -1,19 +1,42 @@
 from pydantic import BaseModel
 from typing import List, Optional
+from enum import Enum
 
-class Profile(BaseModel):
-    id: int
+# ENUMS
+
+class CaseStatus(str, Enum):
+    ACTIVE = "Active"
+    ARCHIVED = "Archived"
+    CLOSED = "Closed"
+
+class Priority(str, Enum):
+    LOW = "Low"
+    MEDIUM = "Medium"
+    HIGH = "High"
+    CRITICAL = "Critical"
+
+class ToolName(str, Enum):
+    ILEAPP = "ileapp"
+    ALEAPP = "aleapp"
+
+# PROFILE MODELS
+
+class ProfileBase(BaseModel):
     name: str
-    tool: str
+    tool: ToolName
     modules: List[str]
 
-class ProfileCreate(BaseModel):
-    name: str
-    modules: List[str]
-    tool: str
+class ProfileCreate(ProfileBase):
+    """Payload for creating a new tool configuration profile."""
+    pass
 
-class Case(BaseModel):
+class Profile(ProfileBase):
+    """Response model for a tool configuration profile."""
     id: int
+
+# CASE MODELS
+
+class CaseBase(BaseModel):
     name: str
     case_number: Optional[str] = None
     business_name: Optional[str] = None
@@ -22,23 +45,15 @@ class Case(BaseModel):
     client_location: Optional[str] = None
     client_contact: Optional[str] = None
     description: Optional[str] = None
-    status: str = "Active"
-    priority: str = "Medium"
-    created_at: str
+    status: CaseStatus = CaseStatus.ACTIVE
+    priority: Priority = Priority.MEDIUM
 
-class CaseCreate(BaseModel):
-    name: str
-    case_number: Optional[str] = None
-    business_name: Optional[str] = None
-    investigator_name: Optional[str] = None
-    client_name: Optional[str] = None
-    client_location: Optional[str] = None
-    client_contact: Optional[str] = None
-    description: Optional[str] = None
-    status: str = "Active"
-    priority: str = "Medium"
+class CaseCreate(CaseBase):
+    """Payload for creating a new case."""
+    pass
 
 class CaseUpdate(BaseModel):
+    """Payload for updating an existing case. All fields are optional."""
     name: Optional[str] = None
     case_number: Optional[str] = None
     business_name: Optional[str] = None
@@ -47,19 +62,27 @@ class CaseUpdate(BaseModel):
     client_location: Optional[str] = None
     client_contact: Optional[str] = None
     description: Optional[str] = None
-    status: Optional[str] = None
-    priority: Optional[str] = None
+    status: Optional[CaseStatus] = None
+    priority: Optional[Priority] = None
+
+class Case(CaseBase):
+    """Response model for a case."""
+    id: int
+    created_at: str
+
+# PROCESSING MODELS
 
 class ProcessRequest(BaseModel):
-    tool: str
+    """Payload for initiating a forensic tool processing job."""
+    tool: ToolName
     input_path: str
-    output_folder: Optional[str] = None
     selected_modules: List[str]
+    case_name: str
+    case_id: Optional[int] = None
+    output_folder: Optional[str] = None
     timezone_offset: str = "UTC"
     report_name: Optional[str] = None
-    case_name: str
     password: Optional[str] = None
-    case_id: Optional[int] = None
 
 class ValidateBackupRequest(BaseModel):
     input_path: str
@@ -69,43 +92,53 @@ class FilePathResponse(BaseModel):
     success: bool
     message: str
 
+# REPORT MODELS
+
 class Report(BaseModel):
+    """Response model for a generated report."""
     name: str
     path: str
     url: str
-    tool: str
+    tool: ToolName
     created_at: str
     size: str
     artifact_count: int
 
-class Task(BaseModel):
-    id: int
+# TASK/NOTEMODELS
+
+class TaskBase(BaseModel):
     content: str
     description: Optional[str] = None
-    priority: str
+    priority: Priority = Priority.MEDIUM
+    case_id: Optional[int] = None
+
+class TaskCreate(TaskBase):
+    """Payload for creating a new task."""
+    pass
+
+class Task(TaskBase):
+    """Response model for a task."""
+    id: int
     completed: bool
     created_at: str
-    case_id: Optional[int] = None
 
-class TaskCreate(BaseModel):
+class NoteBase(BaseModel):
     content: str
     description: Optional[str] = None
-    priority: str = "medium"
     case_id: Optional[int] = None
 
-class Note(BaseModel):
+class NoteCreate(NoteBase):
+    """Payload for creating a new note."""
+    pass
+
+class Note(NoteBase):
+    """Response model for a note."""
     id: int
-    content: str
-    description: Optional[str] = None
     created_at: str
-    case_id: Optional[int] = None
 
-class NoteCreate(BaseModel):
-    content: str
-    description: Optional[str] = None
-    case_id: Optional[int] = None
-
+# BACKUP MODELS
 class BackupRequest(BaseModel):
+    """Payload for triggering a device backup."""
     udid: str
     name: str
     password: Optional[str] = None

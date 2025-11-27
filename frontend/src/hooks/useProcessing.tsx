@@ -10,6 +10,7 @@ interface ProcessingContextType {
   stopProcessing: () => Promise<void>;
   clearLogs: () => void;
   tool: string;
+  encryptionDetected: boolean;
 }
 
 const ProcessingContext = createContext<ProcessingContextType | undefined>(undefined);
@@ -19,6 +20,7 @@ export function ProcessingProvider({ children, tool }: { children: ReactNode; to
   const [isProcessing, setIsProcessing] = useState(false);
   const [taskId, setTaskId] = useState<string | null>(null);
   const [progress, setProgress] = useState({ current: 0, total: 0 });
+  const [encryptionDetected, setEncryptionDetected] = useState(false);
 
   const api = createLeappApi(tool);
 
@@ -33,9 +35,19 @@ export function ProcessingProvider({ children, tool }: { children: ReactNode; to
     // Clear logs and progress at the start
     setLogs([]);
     setProgress({ current: 0, total: 0 });
+    setEncryptionDetected(false);
     setIsProcessing(true);
 
     try {
+      // If we are restarting with a password, stop the previous task first
+      if (taskId) {
+        try {
+          await api.processing.stop(taskId);
+        } catch (e) {
+          console.warn("Failed to stop previous task", e);
+        }
+      }
+
       const response = await api.processing.start(inputFile, outputFolder, selectedModules, reportName, password, caseId);
       setTaskId(response.task_id);
 
@@ -46,6 +58,12 @@ export function ProcessingProvider({ children, tool }: { children: ReactNode; to
         const message = event.data;
         if (message && message !== 'Stream ended') {
           setLogs((prev) => [...prev, message]);
+
+          // Check for encryption detection
+          // Only trigger if we didn't provide a password
+          if (message.includes("Detected encrypted iTunes backup") && !password) {
+            setEncryptionDetected(true);
+          }
 
           // Parse progress from log message: [x/y]
           const match = message.match(/\[(\d+)\/(\d+)\]/);
@@ -102,6 +120,7 @@ export function ProcessingProvider({ children, tool }: { children: ReactNode; to
         stopProcessing,
         clearLogs,
         tool,
+        encryptionDetected,
       }}
     >
       {children}

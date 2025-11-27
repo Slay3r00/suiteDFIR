@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException, BackgroundTasks
 from fastapi.responses import StreamingResponse
 import asyncio
 import os
+import logging
 import shutil
 import sqlite3
 from datetime import datetime
@@ -10,6 +11,8 @@ from models import BackupRequest, ValidateBackupRequest
 from database import DB_PATH
 from state import backup_tasks, active_backups
 from utils import broadcast_event, get_connected_devices
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/api",
@@ -42,7 +45,7 @@ async def validate_backup(request: ValidateBackupRequest):
         
         if "error" in result:
              # Instead of failing, return unknown status so processing can proceed
-             print(f"Validation error: {result['error']}")
+             logger.warning(f"Validation error: {result['error']}")
              return {
                  "encrypted": False,
                  "type": "unknown",

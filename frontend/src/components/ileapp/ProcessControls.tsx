@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, Input } from '../ui';
 import { useProcessing } from '../../hooks/useProcessing';
 import { useModules } from '../../hooks/useModules';
@@ -15,12 +15,19 @@ interface ProcessControlsProps {
 
 export default function ProcessControls({ inputFile, outputFolder, reportName, caseId }: ProcessControlsProps) {
   const { selectedModules } = useModules();
-  const { isProcessing, startProcessing, stopProcessing, progress } = useProcessing();
+  const { isProcessing, startProcessing, stopProcessing, progress, encryptionDetected } = useProcessing();
   const { toast } = useToast();
 
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
   const [password, setPassword] = useState('');
   const [isValidating, setIsValidating] = useState(false);
+
+  // Watch for runtime encryption detection
+  useEffect(() => {
+    if (encryptionDetected) {
+      setShowPasswordDialog(true);
+    }
+  }, [encryptionDetected]);
 
   const handleStart = async () => {
     if (!inputFile) {

@@ -1,3 +1,14 @@
+import os
+import json
+import logging
+import asyncio
+import importlib.util
+from state import event_clients
+from config import TOOLS_CONFIG
+from plugin_manager import safe_tool_execution
+
+logger = logging.getLogger(__name__)
+
 def get_size_format(b, factor=1024, suffix="B"):
     """Scale bytes to its proper format"""
     for unit in ["", "K", "M", "G", "T", "P", "E", "Z"]:
@@ -5,9 +16,6 @@ def get_size_format(b, factor=1024, suffix="B"):
             return f"{b:.2f}{unit}{suffix}"
         b /= factor
     return f"{b:.2f}Y{suffix}"
-
-import json
-from state import event_clients
 
 async def broadcast_event(event_type: str, data: dict):
     """Broadcast event to all connected clients"""
@@ -21,13 +29,11 @@ async def broadcast_event(event_type: str, data: dict):
         try:
             await queue.put(message)
         except Exception as e:
-            print(f"DEBUG: Queue error: {e}")
+            logger.debug(f"Queue error: {e}")
             disconnected_clients.add(queue)
             
     for client in disconnected_clients:
         event_clients.remove(client)
-
-import asyncio
 
 async def get_device_details(udid: str):
     """Fetch detailed info for an iOS device asynchronously"""
@@ -76,7 +82,7 @@ async def get_device_details(udid: str):
                 device_info["is_encrypted"] = True
                 
     except Exception as e:
-        print(f"Error fetching details for {udid}: {e}")
+        logger.error(f"Error fetching details for {udid}: {e}")
         
     return device_info
 
@@ -101,7 +107,7 @@ async def get_connected_devices():
                     devices.append(details)
                     
     except Exception as e:
-        print(f"Error checking for devices: {e}")
+        logger.error(f"Error checking for devices: {e}")
         
     return devices
 
@@ -110,53 +116,48 @@ def check_backup_encryption(path):
     Check if an iTunes backup is encrypted using iLEAPP modules.
     Returns dict with keys: encrypted, type, supported, message (or error)
     """
-    import sys
-    import os
-    
-    # Setup iLEAPP path
-    # utils.py is in backend/, so we go to backend/forensic-tools/leapp-tools/iLEAPP
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    ileapp_path = os.path.join(current_dir, 'forensic-tools', 'leapp-tools', 'iLEAPP')
-    
-    # Add to path if not present
-    if ileapp_path not in sys.path:
-        sys.path.insert(0, ileapp_path)
+    # Use configuration instead of hardcoded paths
+    ileapp_config = TOOLS_CONFIG.get("ileapp")
+    if not ileapp_config:
+        return {"error": "iLEAPP configuration not found"}
         
+    ileapp_path = ileapp_config["path"]
+    
     try:
-        # Import iLEAPP modules using importlib to avoid namespace collision with ALEAPP
-        # Both tools use 'scripts' package which causes conflicts in sys.modules
-        import importlib.util
-        
-        # 1. Force load iLEAPP's ilapfuncs first, as search_files depends on it
-        ilapfuncs_path = os.path.join(ileapp_path, 'scripts', 'ilapfuncs.py')
-        spec_funcs = importlib.util.spec_from_file_location("scripts.ilapfuncs", ilapfuncs_path)
-        ilapfuncs = importlib.util.module_from_spec(spec_funcs)
-        sys.modules["scripts.ilapfuncs"] = ilapfuncs # Inject into sys.modules so search_files finds THIS version
-        spec_funcs.loader.exec_module(ilapfuncs)
-        
-        # Silence logging
-        ilapfuncs.logfunc = lambda x: None
+        # Use safe context manager for tool execution
+        with safe_tool_execution(ileapp_path):
+            # 1. Force load iLEAPP's ilapfuncs first
+            ilapfuncs_path = os.path.join(ileapp_path, 'scripts', 'ilapfuncs.py')
+            spec_funcs = importlib.util.spec_from_file_location("scripts.ilapfuncs", ilapfuncs_path)
+            ilapfuncs = importlib.util.module_from_spec(spec_funcs)
+            # Inject into sys.modules so search_files finds THIS version
+            sys.modules["scripts.ilapfuncs"] = ilapfuncs 
+            spec_funcs.loader.exec_module(ilapfuncs)
+            
+            # Silence logging
+            ilapfuncs.logfunc = lambda x: None
 
-        # 2. Now load search_files
-        search_files_path = os.path.join(ileapp_path, 'scripts', 'search_files.py')
-        spec = importlib.util.spec_from_file_location("ileapp_search_files", search_files_path)
-        search_files = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(search_files)
-        
-        get_itunes_backup_type = search_files.get_itunes_backup_type
-        check_itunes_backup_status = search_files.check_itunes_backup_status
-        
-        backup_type = get_itunes_backup_type(path)
-        if not backup_type:
-            return {"encrypted": False, "type": "unknown", "supported": False}
-        
-        supported, encrypted, message = check_itunes_backup_status(path, backup_type)
-        
-        return {
-            "encrypted": encrypted,
-            "type": backup_type,
-            "supported": supported,
-            "message": message
-        }
+            # 2. Now load search_files
+            search_files_path = os.path.join(ileapp_path, 'scripts', 'search_files.py')
+            spec = importlib.util.spec_from_file_location("ileapp_search_files", search_files_path)
+            search_files = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(search_files)
+            
+            get_itunes_backup_type = search_files.get_itunes_backup_type
+            check_itunes_backup_status = search_files.check_itunes_backup_status
+            
+            backup_type = get_itunes_backup_type(path)
+            if not backup_type:
+                return {"encrypted": False, "type": "unknown", "supported": False}
+            
+            supported, encrypted, message = check_itunes_backup_status(path, backup_type)
+            
+            return {
+                "encrypted": encrypted,
+                "type": backup_type,
+                "supported": supported,
+                "message": message
+            }
     except Exception as e:
+        logger.error(f"Error checking backup encryption: {e}")
         return {"error": str(e)}

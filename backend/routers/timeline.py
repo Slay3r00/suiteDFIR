@@ -2,9 +2,10 @@ from fastapi import APIRouter, HTTPException, Query
 from typing import List, Optional, Dict, Any
 import sqlite3
 import os
-import json
-from database import DB_PATH
+import logging
+from database import get_db_connection, DB_PATH
 
+logger = logging.getLogger(__name__)
 router = APIRouter(
     prefix="/api/cases/{case_id}/timeline",
     tags=["timeline"]
@@ -101,6 +102,9 @@ async def get_timeline(
                     END
                 """
                 
+                # Escape single quotes for SQL
+                escaped_name = db['name'].replace("'", "''")
+
                 # Build WHERE clause for this DB
                 where_clauses = []
                 params = []
@@ -112,7 +116,7 @@ async def get_timeline(
                         (
                             activity LIKE '{search_term}' OR 
                             datalist LIKE '{search_term}' OR 
-                            '{db['name']}' LIKE '{search_term}' OR
+                            '{escaped_name}' LIKE '{search_term}' OR
                             {timestamp_extract} LIKE '{search_term}'
                         )
                     """)
@@ -131,7 +135,7 @@ async def get_timeline(
                     elif col_id == 'description':
                         where_clauses.append(f"datalist LIKE '{val_term}'")
                     elif col_id == 'source':
-                        where_clauses.append(f"'{db['name']}' LIKE '{val_term}'")
+                        where_clauses.append(f"'{escaped_name}' LIKE '{val_term}'")
                     elif col_id == 'date':
                         where_clauses.append(f"{timestamp_extract} LIKE '{val_term}'")
 
@@ -141,7 +145,7 @@ async def get_timeline(
 
                 select_parts.append(f"""
                     SELECT 
-                        '{db['name']}' as source_report,
+                        '{escaped_name}' as source_report,
                         activity as artifact,
                         datalist as description_json,
                         {timestamp_extract} as event_date,
@@ -150,7 +154,7 @@ async def get_timeline(
                     {where_sql}
                 """)
             except sqlite3.OperationalError as e:
-                print(f"Error attaching {db['path']}: {e}")
+                logger.error(f"Error attaching {db['path']}: {e}")
                 continue
 
         if not select_parts:
@@ -226,5 +230,5 @@ async def get_timeline(
         }
 
     except Exception as e:
-        print(f"Error fetching timeline: {e}")
+        logger.error(f"Error fetching timeline: {e}")
         raise HTTPException(status_code=500, detail=str(e))

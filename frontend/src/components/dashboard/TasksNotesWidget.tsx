@@ -12,7 +12,7 @@ interface Task {
     id: number
     content: string
     description?: string
-    priority: 'low' | 'medium' | 'high'
+    priority: 'Low' | 'Medium' | 'High'
     completed: boolean
     created_at: string
     case_id?: number
@@ -33,7 +33,7 @@ export default function TasksNotesWidget() {
     const [notes, setNotes] = useState<Note[]>([])
     const [inputValue, setInputValue] = useState('')
     const [descriptionValue, setDescriptionValue] = useState('')
-    const [priority, setPriority] = useState<'low' | 'medium' | 'high'>('medium')
+    const [priority, setPriority] = useState<'Low' | 'Medium' | 'High'>('Medium')
     const [isLoading, setIsLoading] = useState(false)
     const { toast } = useToast()
 
@@ -89,7 +89,7 @@ export default function TasksNotesWidget() {
             }
             setInputValue('')
             setDescriptionValue('')
-            setPriority('medium') // Reset priority
+            setPriority('Medium') // Reset priority
         } catch (error) {
             toast({
                 title: "Error",
@@ -160,9 +160,9 @@ export default function TasksNotesWidget() {
 
     const getPriorityColor = (p: string) => {
         switch (p) {
-            case 'high': return 'text-red-400 border-red-400/30 bg-red-400/10'
-            case 'medium': return 'text-yellow-400 border-yellow-400/30 bg-yellow-400/10'
-            case 'low': return 'text-blue-400 border-blue-400/30 bg-blue-400/10'
+            case 'High': return 'text-red-400 border-red-400/30 bg-red-400/10'
+            case 'Medium': return 'text-yellow-400 border-yellow-400/30 bg-yellow-400/10'
+            case 'Low': return 'text-blue-400 border-blue-400/30 bg-blue-400/10'
             default: return 'text-gray-400 border-gray-400/30 bg-gray-400/10'
         }
     }
@@ -223,9 +223,9 @@ export default function TasksNotesWidget() {
                                     onChange={(e) => setPriority(e.target.value as any)}
                                     className="h-9 bg-[#171717] border border-[#333333] text-white text-xs rounded-md px-2 outline-none focus:ring-1 focus:ring-gray-500 w-24"
                                 >
-                                    <option value="low">Low</option>
-                                    <option value="medium">Medium</option>
-                                    <option value="high">High</option>
+                                    <option value="Low">Low</option>
+                                    <option value="Medium">Medium</option>
+                                    <option value="High">High</option>
                                 </select>
                             )}
                         </div>
