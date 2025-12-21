@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+@plugin "@tailwindcss/typography";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -78,45 +79,174 @@
   --sidebar-ring: oklch(0.708 0 0);
 }
 
-  .dark {
-    --background: oklch(0.145 0 0);
-    --foreground: oklch(0.985 0 0);
-    --card: oklch(0.205 0 0);
-    --card-foreground: oklch(0.985 0 0);
-    --popover: oklch(0.205 0 0);
-    --popover-foreground: oklch(0.985 0 0);
-    --primary: oklch(0.922 0 0);
-    --primary-foreground: oklch(0.205 0 0);
-    --secondary: oklch(0.269 0 0);
-    --secondary-foreground: oklch(0.985 0 0);
-    --muted: oklch(0.269 0 0);
-    --muted-foreground: oklch(0.708 0 0);
-    --accent: oklch(0.269 0 0);
-    --accent-foreground: oklch(0.985 0 0);
-    --destructive: oklch(0.704 0.191 22.216);
-    --border: oklch(1 0 0 / 10%);
-    --input: oklch(1 0 0 / 15%);
-    --ring: oklch(0.556 0 0);
-    --chart-1: oklch(0.488 0.243 264.376);
-    --chart-2: oklch(0.696 0.17 162.48);
-    --chart-3: oklch(0.769 0.188 70.08);
-    --chart-4: oklch(0.627 0.265 303.9);
-    --chart-5: oklch(0.645 0.246 16.439);
-    --sidebar: #171717;
-    --sidebar-foreground: #ffffff;
-    --sidebar-primary: oklch(0.488 0.243 264.376);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: #262626;
-    --sidebar-accent-foreground: #ffffff;
-    --sidebar-border: rgba(255, 255, 255, 0.1);
-    --sidebar-ring: oklch(0.556 0 0);
-  }
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+  --chart-1: oklch(0.488 0.243 264.376);
+  --chart-2: oklch(0.696 0.17 162.48);
+  --chart-3: oklch(0.769 0.188 70.08);
+  --chart-4: oklch(0.627 0.265 303.9);
+  --chart-5: oklch(0.645 0.246 16.439);
+  --sidebar: #171717;
+  --sidebar-foreground: #ffffff;
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: #262626;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: rgba(255, 255, 255, 0.1);
+  --sidebar-ring: oklch(0.556 0 0);
+}
 
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
     @apply bg-background text-foreground;
   }
+}
+
+/* Custom prose styles for agent chat markdown - CAPSTONE Style */
+.prose {
+  --tw-prose-body: #ececec;
+  --tw-prose-headings: #ececec;
+  --tw-prose-bold: #ececec;
+  --tw-prose-code: #ececec;
+  --tw-prose-links: #4A90E2;
+  line-height: 1.5;
+}
+
+.prose h1,
+.prose h2,
+.prose h3 {
+  font-weight: 600;
+  margin-top: 0;
+  margin-bottom: 0.5em;
+  color: #ececec;
+}
+
+.prose h1 {
+  font-size: 1.25rem;
+}
+
+.prose h2 {
+  font-size: 1.1rem;
+}
+
+.prose h3 {
+  font-size: 1rem;
+}
+
+.prose p {
+  margin-top: 0;
+  margin-bottom: 0.5em;
+}
+
+.prose code {
+  background: #171717;
+  padding: 0.15rem 0.4rem;
+  border-radius: 0.25rem;
+  font-size: 0.9em;
+  font-family: 'Courier New', monospace;
+}
+
+.prose pre {
+  background: #171717;
+  border-radius: 25px;
+  padding: 1rem;
+  overflow-x: auto;
+  margin: 0.5rem 0;
+}
+
+.prose pre code {
+  background: transparent;
+  padding: 0;
+  font-size: 0.85em;
+}
+
+.prose ul,
+.prose ol {
+  padding-left: 1.5rem;
+  margin: 0.5rem 0;
+}
+
+.prose li {
+  margin: 0.25rem 0;
+}
+
+.prose strong {
+  font-weight: 600;
+  color: #ececec;
+}
+
+.prose table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1rem 0;
+  background: #171717;
+  border-radius: 25px;
+  overflow: hidden;
+}
+
+.prose th,
+.prose td {
+  padding: 8px 12px;
+  text-align: left;
+  border-bottom: 1px solid #444444;
+}
+
+.prose th {
+  font-weight: 600;
+  color: #ececec;
+  padding-top: 20px;
+  padding-bottom: 20px;
+}
+
+.prose td {
+  color: #808080;
+}
+
+.prose tr:last-child td {
+  border-bottom: none;
+}
+
+.prose blockquote {
+  border-left: 3px solid #808080;
+  margin: 0.5rem 0;
+  padding-left: 1rem;
+  color: #808080;
+}
+
+.prose a {
+  color: #4A90E2;
+  text-decoration: none;
+}
+
+.prose a:hover {
+  text-decoration: underline;
+}
+
+.prose hr {
+  border: none;
+  height: 1px;
+  background: #808080;
+  opacity: 0.3;
+  margin: 1em 0;
 }

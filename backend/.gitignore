@@ -69,3 +69,5 @@ reports/aleapp-reports/*
 reports/ileapp-reports/*
 backups/*
 vdf_tools.db
+vdf_tools.db-wal
+vdf_tools.db-shm

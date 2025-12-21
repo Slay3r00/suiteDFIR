@@ -148,3 +148,23 @@ class BackupRequest(BaseModel):
     name: str
     password: Optional[str] = None
     case_id: Optional[int] = None
+
+# AGENT MODELS
+class AgentChatRequest(BaseModel):
+    message: str
+    session_id: str
+    chat_history: Optional[List[dict]] = None
+    model: Optional[str] = "anthropic/claude-3.5-sonnet"
+
+class AgentChatResponse(BaseModel):
+    response: str
+    session_id: str
+
+class ChatSession(BaseModel):
+    session_id: str
+    message_count: int
+    title: Optional[str] = None
+
+class ChatMessage(BaseModel):
+    role: str
+    content: str
