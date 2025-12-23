@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { createLeappApi } from '../services/leappApi';
-import { Profile } from '../app/ileapp/types';
+import { Profile } from '@/app/(main)/ileapp/types';
 
 export function useProfiles(tool: string) {
   const [profiles, setProfiles] = useState<Profile[]>([]);

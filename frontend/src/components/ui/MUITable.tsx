@@ -295,16 +295,6 @@ const EnhancedTable = ({
                     timeout: 0,
                 },
             },
-            MuiGrow: {
-                styleOverrides: {
-                    root: {
-                        transition: 'none !important',
-                    },
-                },
-                defaultProps: {
-                    timeout: 0,
-                },
-            },
         },
     });
 

@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
 import { Button, Input, Dropdown } from '../ui';
 import { useModules, useProfiles, useDropdown, useProcessing } from '../../hooks';
-import { Module } from '../../app/ileapp/types';
+import { Module } from '@/app/(main)/ileapp/types';
 
 const slowModules = new Set([
   'photosMetadata',

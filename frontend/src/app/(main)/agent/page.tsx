@@ -355,13 +355,12 @@ export default function AgentChatPage() {
                             onKeyDown={(e) => {
                                 if (e.key === "Enter" && !e.shiftKey) {
                                     e.preventDefault();
-                                    handleSend();
+                                    if (!loading) handleSend();
                                 }
                             }}
                             placeholder="Type a message..."
                             className="w-full bg-transparent border-none resize-none outline-none text-sm min-h-[40px] max-h-[150px] leading-6 placeholder:text-muted-foreground px-2 py-2"
                             style={{ height: 'auto' }}
-                            disabled={loading}
                             rows={1}
                         />
                         <div className="flex justify-end">

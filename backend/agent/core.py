@@ -1,9 +1,14 @@
 import os
 from dotenv import load_dotenv
-from deepagents import create_deep_agent
-from langchain_community.agent_toolkits import FileManagementToolkit
+from langgraph.prebuilt import create_react_agent
+from langchain_community.tools.file_management import (
+    ReadFileTool,
+    ListDirectoryTool,
+    FileSearchTool,
+)
 from langchain_openai import ChatOpenAI
-from langchain_core.messages import HumanMessage, AIMessage
+from langchain_core.messages import HumanMessage
+from .tools import forensic_tree_view, forensic_grep
 from .memory import get_session_history
 
 load_dotenv()
@@ -14,12 +19,14 @@ SANDBOX_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "re
 # Ensure sandbox directory exists
 os.makedirs(SANDBOX_PATH, exist_ok=True)
 
-# Set up file management toolkit
-file_toolkit = FileManagementToolkit(
-    root_dir=SANDBOX_PATH,
-    selected_tools=["read_file", "list_directory", "file_search"]
-)
-file_tools = file_toolkit.get_tools()
+# Set up tools individually for strict read-only access
+file_tools = [
+    ReadFileTool(root_dir=SANDBOX_PATH),
+    ListDirectoryTool(root_dir=SANDBOX_PATH),
+    FileSearchTool(root_dir=SANDBOX_PATH),
+    forensic_tree_view,
+    forensic_grep,
+]
 
 # Configure LLM with OpenRouter
 llm = ChatOpenAI(
@@ -29,14 +36,29 @@ llm = ChatOpenAI(
     streaming=True,
 )
 
-AGENT_SYSTEM_PROMPT = """You are a helpful forensic agent. Specifically your job is to analyze iLEAPP and aLEAPP reports to best answer user questions. There are two sub directories in your directory 1. aleapp-reports 2. ileapp-reports
+AGENT_SYSTEM_PROMPT = """You are a highly skilled Forensic Analyst. Your task is to analyze iLEAPP and aLEAPP reports to answer user questions with precision.
+
+You operate in a strictly READ-ONLY environment. You cannot create, modify, or delete any files.
+
+Available Tools:
+1. `list_directory`: Lists files in a specific folder.
+2. `file_search`: Searches for files matching a glob pattern (e.g., `**/*.html`). Use this to find specific artifact files.
+3. `read_file`: Reads the full content of a file. Use for smaller JSON or text files.
+4. `forensic_tree_view`: Shows the entire directory hierarchy. Start here if you are lost.
+5. `forensic_grep`: Searches for specific text/patterns within a file. BEST for large HTML reports.
+
+Workflow:
+- Start by exploring the directory structure with `forensic_tree_view`.
+- Use `file_search` or `list_directory` to find relevant reports.
+- Use `forensic_grep` to find specific keywords (e.g., "WhatsApp", "Messages", "Accounts") in large reports.
+- Provide detailed, evidence-based answers.
 """
 
-# Create agent with file tools and custom model
-agent = create_deep_agent(
+# Create the LangGraph ReAct agent
+agent = create_react_agent(
     model=llm,
     tools=file_tools,
-    system_prompt=AGENT_SYSTEM_PROMPT
+    prompt=AGENT_SYSTEM_PROMPT
 )
 
 
@@ -50,32 +72,16 @@ def get_agent_executor():
 def invoke_agent_with_history(message: str, session_id: str) -> str:
     """
     Invoke the agent with conversation history from the session.
-    Automatically saves both user message and AI response to history.
     """
-    # Get session history
     history = get_session_history(session_id)
     
-    # Build messages list with history
-    messages = []
-    for msg in history.messages:
-        messages.append(msg)
+    # LangGraph ReAct agent expects a list of messages in the 'messages' key
+    input_state = {"messages": history.messages + [HumanMessage(content=message)]}
     
-    # Add current user message
-    messages.append(HumanMessage(content=message))
+    result = agent.invoke(input_state)
     
-    # Invoke agent
-    result = agent.invoke({"messages": messages})
-    
-    # Extract response
-    final_response = ""
-    if "messages" in result and result["messages"]:
-        last_message = result["messages"][-1]
-        if hasattr(last_message, 'content'):
-            final_response = last_message.content
-        else:
-            final_response = str(last_message)
-    else:
-        final_response = str(result)
+    # The result is the final state, where result["messages"] contains the conversation
+    final_response = result["messages"][-1].content
     
     # Save to history
     history.add_user_message(message)
@@ -87,31 +93,22 @@ def invoke_agent_with_history(message: str, session_id: str) -> str:
 async def stream_agent_with_history(message: str, session_id: str):
     """
     Stream agent response with conversation history.
-    Yields chunks as they come in from the agent.
-    Saves the complete response to history after streaming completes.
     """
-    from langchain_core.messages import AIMessageChunk, HumanMessage
-    
-    # Get session history
     history = get_session_history(session_id)
     
-    # Build messages list with history
-    messages = []
-    for msg in history.messages:
-        messages.append(msg)
-    
-    # Add current user message
-    messages.append(HumanMessage(content=message))
+    # Build input state
+    input_state = {"messages": history.messages + [HumanMessage(content=message)]}
     
     # Save user message immediately
     history.add_user_message(message)
     
-    # Collect full response for saving to history
     full_response = ""
     
-    async for event in agent.astream_events({"messages": messages}, version="v2"):
-        # on_chat_model_stream event yields tokens directly from the LLM
+    # Use astream_events with version v2
+    async for event in agent.astream_events(input_state, version="v2"):
+        # We want to yield tokens from the 'agent' node's model stream
         if event["event"] == "on_chat_model_stream":
+            # Ensure we are catching the model stream, not something else
             chunk = event["data"]["chunk"]
             if hasattr(chunk, 'content') and chunk.content:
                 content = chunk.content
