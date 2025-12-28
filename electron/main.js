@@ -161,10 +161,6 @@ function createWindow() {
     mainWindow.show();
   });
 
-  // Open DevTools in development only
-  if (isDev) {
-    mainWindow.webContents.openDevTools();
-  }
 
   mainWindow.on('closed', () => {
     mainWindow = null;

@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html>
+
 <head>
   <meta charset="UTF-8">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline';">
@@ -24,7 +25,7 @@
       position: relative;
     }
 
-    /* Subtle gradient overlay */
+    /* Subtle white overlay */
     body::before {
       content: '';
       position: absolute;
@@ -32,7 +33,7 @@
       left: 0;
       right: 0;
       bottom: 0;
-      background: radial-gradient(ellipse at top, rgba(99, 102, 241, 0.08) 0%, transparent 50%);
+      background: radial-gradient(ellipse at top, rgba(255, 255, 255, 0.05) 0%, transparent 50%);
       pointer-events: none;
     }
 
@@ -60,43 +61,21 @@
       text-transform: uppercase;
     }
 
-    /* Modern loading indicator */
+    /* Loading indicator */
     .loader {
-      position: relative;
-      width: 48px;
-      height: 48px;
+      width: 40px;
+      height: 40px;
       margin: 0 auto 32px;
-    }
-
-    .loader::before,
-    .loader::after {
-      content: '';
-      position: absolute;
-      inset: 0;
+      border: 3px solid rgba(255, 255, 255, 0.1);
       border-radius: 50%;
-      animation: pulse 2s ease-in-out infinite;
+      border-top-color: #ffffff;
+      animation: spin 1s linear infinite;
     }
 
-    .loader::before {
-      background: conic-gradient(from 0deg, transparent 0deg, #6366f1 120deg, transparent 240deg);
-      animation: rotate 1.5s linear infinite;
-      opacity: 0.6;
-    }
-
-    .loader::after {
-      background: radial-gradient(circle, #6366f1 0%, transparent 70%);
-      animation: pulse 2s ease-in-out infinite;
-      opacity: 0.3;
-    }
-
-    @keyframes rotate {
-      from { transform: rotate(0deg); }
-      to { transform: rotate(360deg); }
-    }
-
-    @keyframes pulse {
-      0%, 100% { opacity: 0.3; transform: scale(0.95); }
-      50% { opacity: 0.6; transform: scale(1.05); }
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
     }
 
     .status {
@@ -128,11 +107,11 @@
       left: 0;
       right: 0;
       height: 1px;
-      background: linear-gradient(90deg, transparent 0%, #6366f1 50%, transparent 100%);
-      opacity: 0.3;
+      background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.2) 50%, transparent 100%);
     }
   </style>
 </head>
+
 <body>
   <div class="container">
     <div class="logo">VDF Tools</div>
@@ -167,4 +146,5 @@
     });
   </script>
 </body>
+
 </html>
