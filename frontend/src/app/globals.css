@@ -121,6 +121,15 @@
   body {
     @apply bg-background text-foreground;
   }
+
+  /* Disable outline on charts and SVG elements */
+  .recharts-wrapper,
+  .recharts-responsive-container,
+  [class*="recharts-"],
+  svg,
+  svg * {
+    outline: none !important;
+  }
 }
 
 /* Custom prose styles for agent chat markdown - CAPSTONE Style */
@@ -249,4 +258,70 @@
   background: #808080;
   opacity: 0.3;
   margin: 1em 0;
+}
+/* Disable focus outlines on Recharts elements */
+.recharts-pie-sector,
+.recharts-bar-rectangle,
+.recharts-line-curve,
+.recharts-area-curve,
+.recharts-surface,
+.recharts-legend-wrapper {
+    outline: none !important;
+}
+
+.recharts-pie-sector:focus,
+.recharts-bar-rectangle:focus,
+.recharts-line-curve:focus,
+.recharts-area-curve:focus,
+.recharts-surface:focus {
+    outline: none !important;
+}
+
+.recharts-pie-sector:focus-visible,
+.recharts-bar-rectangle:focus-visible,
+.recharts-line-curve:focus-visible,
+.recharts-area-curve:focus-visible,
+.recharts-surface:focus-visible {
+    outline: none !important;
+}
+
+/* Disable focus outlines on all chart containers and wrappers */
+.recharts-wrapper,
+.recharts-responsive-container,
+[class*="recharts-"] {
+    outline: none !important;
+}
+
+.recharts-wrapper:focus,
+.recharts-responsive-container:focus,
+[class*="recharts-"]:focus {
+    outline: none !important;
+}
+
+/* Also disable outline on ResponsiveContainer div */
+div[style*="position: relative"],
+div.recharts-wrapper {
+    outline: none !important;
+}
+
+/* Extra: Disable all outlines on SVG and chart elements specifically */
+svg:focus,
+svg *:focus,
+svg:focus-visible,
+svg *:focus-visible {
+  outline: none !important;
+  outline-style: none !important;
+  box-shadow: none !important;
+}
+
+/* Remove any ring effects */
+.ring,
+.ring-offset,
+ring-2,
+ring-offset-2 {
+  box-shadow: none !important;
+}
+
+svg * {
+  box-shadow: none !important;
 }

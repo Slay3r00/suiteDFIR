@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "iLEAPP - iOS Logs, Events, And Plist Parser",
-  description: "Web interface for iLEAPP forensic analysis tool",
+  title: "VDF Tools",
+  description: "Digital Forensic Analysis Tools",
 };
 
 import { CaseProvider } from "@/context/CaseContext";

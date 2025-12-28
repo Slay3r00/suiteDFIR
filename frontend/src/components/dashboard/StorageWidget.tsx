@@ -95,9 +95,19 @@ export default function StorageWidget({ className }: StorageWidgetProps) {
                 </div>
 
                 <div className="flex-1 min-h-0 flex items-center justify-center gap-8">
-                    <div className="h-full aspect-square relative max-h-[220px]">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <PieChart>
+                    <div className="h-full aspect-square relative max-h-[220px]" style={{ outline: 'none', outlineStyle: 'none' }}>
+                        <style jsx>{`
+                            .recharts-wrapper,
+                            .recharts-responsive-container {
+                                outline: none !important;
+                            }
+                            .recharts-wrapper:focus,
+                            .recharts-responsive-container:focus {
+                                outline: none !important;
+                            }
+                        `}</style>
+                        <ResponsiveContainer width="100%" height="100%" style={{ outline: 'none' }}>
+                            <PieChart style={{ outline: 'none' }}>
                                 <Pie
                                     data={displayBreakdown}
                                     cx="50%"
@@ -107,9 +117,13 @@ export default function StorageWidget({ className }: StorageWidgetProps) {
                                     paddingAngle={2}
                                     dataKey="value"
                                     stroke="none"
+                                    isAnimationActive={false}
                                 >
                                     {displayBreakdown.map((entry, index) => (
-                                        <Cell key={`cell-${index}`} fill={entry.color} />
+                                        <Cell
+                                            key={`cell-${index}`}
+                                            fill={entry.color}
+                                        />
                                     ))}
                                 </Pie>
 

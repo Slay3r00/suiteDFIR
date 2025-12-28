@@ -1,5 +1,6 @@
 import os
 import sys
+import gc
 import logging
 import contextlib
 from config import TOOLS_CONFIG
@@ -30,11 +31,19 @@ def safe_tool_execution(tool_path):
         # 2. Change to tool directory
         os.chdir(tool_path)
 
-        # 3. Clear conflicting modules (scripts package)
-        # We do this BEFORE usage to ensure we load the correct version for this tool
-        modules_to_remove = [m for m in sys.modules if m == 'scripts' or m.startswith('scripts.')]
+        # 3. Clear conflicting modules BEFORE importing
+        # This ensures we load a fresh copy for each tool
+        modules_to_remove = [
+            m for m in sys.modules
+            if m == 'scripts' or m.startswith('scripts.')
+            or m == 'google' or m.startswith('google.')
+            or m == 'protobuf' or m.startswith('protobuf.')
+        ]
         for m in modules_to_remove:
             del sys.modules[m]
+
+        # Force garbage collection to clean up any leftover references
+        gc.collect()
 
         yield
 
@@ -76,30 +85,96 @@ def load_plugins():
                 # These imports MUST happen inside the context where sys.path is set
                 import scripts.plugin_loader as plugin_loader
                 import scripts.modules_to_exclude as modules_to_exclude
-                
-                # Load modules
+
+                # Monkey-patch the plugin_loader to be fault-tolerant
+                original_load_plugins = plugin_loader.PluginLoader._load_plugins
+
+                def fault_tolerant_load_plugins(self):
+                    """Load plugins but skip problematic ones instead of crashing"""
+                    import traceback
+                    for py_file in self._plugin_path.glob("*.py"):
+                        try:
+                            mod = plugin_loader.PluginLoader.load_module_lazy(py_file)
+                            mod_artifacts = getattr(mod, '__artifacts_v2__', None) or getattr(mod, '__artifacts__', None)
+                            if mod_artifacts is None:
+                                continue  # no artifacts defined in this plugin
+
+                            version = 2 if '__artifacts_v2__' in dir(mod) else 1  # determine the version
+
+                            for name, artifact in mod_artifacts.items():
+                                if version == 2:
+                                    category = artifact.get('category')
+                                    search = artifact.get('paths')
+
+                                    func = None
+                                    # 1. Look for a wrapped function with the name of the dictionary
+                                    for item_name in dir(mod):
+                                        item = getattr(mod, item_name)
+                                        if callable(item) and item_name == name and hasattr(item, '__wrapped__'):
+                                            func = item
+                                            break
+
+                                    # 2. If no wrapped function, look for declared function
+                                    if func is None:
+                                        func_name = artifact.get('function')
+                                        if func_name:
+                                            func = getattr(mod, func_name, None)
+
+                                    # 3. If neither above work, log the failure
+                                    if func is None:
+                                        print(f"Warning: No matching function found for artifact '{name}' in module '{py_file.stem}'")
+                                        continue
+
+                                    # Store the entire artifact dictionary as artifact_info
+                                    artifact_info = artifact
+                                    if func:
+                                        func.artifact_info = artifact_info  # Attach artifact_info to the function
+
+                                else:
+                                    # 4. If no v2, then use v1
+                                    category, search, func = artifact
+                                    artifact_info = {'category': category, 'paths': search}
+
+                                if name in self._plugins:
+                                    raise KeyError(f"Duplicate plugin: '{name}' in module '{py_file.stem}'")
+
+                                # Add artifact_info to PluginSpec
+                                self._plugins[name] = plugin_loader.PluginSpec(name, py_file.stem, category, search, func, artifact_info)
+
+                        except Exception as e:
+                            # Log the error but continue loading other plugins
+                            logger.warning(f"Skipping plugin file {py_file.name} due to error: {str(e)[:100]}")
+                            continue
+
+                # Replace the load method temporarily
+                plugin_loader.PluginLoader._load_plugins = fault_tolerant_load_plugins
+
+                # Load modules with fault-tolerant loader
                 loader = plugin_loader.PluginLoader()
                 plugin_loaders[tool_id] = loader
-                
+
+                # Restore original method
+                plugin_loader.PluginLoader._load_plugins = original_load_plugins
+
                 # Process plugins into a dictionary
                 tool_modules = {}
                 excluded_modules = config['excluded_modules']
-                
-                # loader.plugins is a list of plugin objects
+
+                # loader.plugins is a property that yields from dict values
                 for plugin in loader.plugins:
                     if plugin.module_name in excluded_modules:
                         continue
-                        
+
                     # Check if module is enabled in modules_to_exclude
                     plugin_enabled = True
                     if hasattr(modules_to_exclude, 'modules_to_exclude'):
                         plugin_enabled = plugin.module_name not in modules_to_exclude.modules_to_exclude
-                    
+
                     # Get display name
                     plugin_display_name = plugin.name
                     if hasattr(plugin, 'artifact_info'):
                         plugin_display_name = plugin.artifact_info.get('name', plugin.name)
-                        
+
                     tool_modules[plugin.name] = {
                         "name": plugin.name,
                         "category": plugin.category,
@@ -108,7 +183,7 @@ def load_plugins():
                         "enabled": plugin_enabled,
                         "selected": plugin_enabled # Default to selected
                     }
-                
+
                 available_modules[tool_id] = tool_modules
                 logger.info(f"Loaded {len(tool_modules)} {config['name']} modules")
 

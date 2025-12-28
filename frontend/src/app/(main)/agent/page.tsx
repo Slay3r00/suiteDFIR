@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Send, Bot, Loader2, MessageSquarePlus, Trash2 } from "lucide-react";
+import { Send, Loader2, MessageSquarePlus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import ReactMarkdown from "react-markdown";
@@ -118,8 +118,10 @@ export default function AgentChatPage() {
 
         const currentScrollTop = scrollRef.current.scrollTop;
 
-        if (currentScrollTop < lastScrollTop.current) {
-            // User scrolled up
+        // Only track "scrolled up" if we have content and user moves away from bottom
+        // This prevents false positives during initial load or when content is empty
+        if (messages.length > 0 && currentScrollTop < lastScrollTop.current) {
+            // User scrolled up (only when we have actual content)
             userScrolledUp.current = true;
         } else if (isNearBottom()) {
             // User scrolled back to bottom
@@ -129,6 +131,10 @@ export default function AgentChatPage() {
         lastScrollTop.current = currentScrollTop;
     };
 
+    // Performance optimization: Track primitive dependencies instead of array reference
+    // This prevents unnecessary effect re-runs when the array reference changes but content doesn't
+    const lastMsgContent = messages[messages.length - 1]?.content;
+
     useEffect(() => {
         if (scrollRef.current) {
             // Only auto-scroll if user hasn't scrolled up
@@ -136,7 +142,7 @@ export default function AgentChatPage() {
                 scrollToBottom();
             }
         }
-    }, [messages]);
+    }, [messages.length, lastMsgContent]);
 
     // Initial scroll
     useEffect(() => {
@@ -307,7 +313,6 @@ export default function AgentChatPage() {
                     <div className="max-w-4xl mx-auto px-6 py-10 space-y-8">
                         {messages.length === 0 && (
                             <div className="flex flex-col items-center justify-center min-h-[400px] text-muted-foreground opacity-30">
-                                <Bot className="w-16 h-16 mb-4" />
                                 <p className="text-lg">How can I help you today?</p>
                             </div>
                         )}

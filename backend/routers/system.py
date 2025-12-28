@@ -491,3 +491,17 @@ async def get_kml_data(path: str):
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/shutdown")
+async def shutdown():
+    """Gracefully shutdown the backend server"""
+    import signal
+    import os
+
+    # Log shutdown
+    print("Shutdown requested via API")
+
+    # Send SIGINT to trigger graceful shutdown
+    os.kill(os.getpid(), signal.SIGINT)
+
+    return {"message": "Shutting down..."}

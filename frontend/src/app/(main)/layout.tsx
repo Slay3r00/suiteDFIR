@@ -1,14 +1,23 @@
-import { cookies } from "next/headers";
+"use client";
+
+import { useEffect, useState } from "react";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 
-export default async function MainLayout({
+export default function MainLayout({
     children,
 }: Readonly<{
     children: React.ReactNode;
 }>) {
-    const cookieStore = await cookies();
-    const defaultOpen = cookieStore.get("sidebar_state")?.value === "true";
+    const [defaultOpen, setDefaultOpen] = useState(true);
+
+    useEffect(() => {
+        // Read sidebar state from localStorage instead of cookies
+        const storedState = localStorage.getItem("sidebar_state");
+        if (storedState !== null) {
+            setDefaultOpen(storedState === "true");
+        }
+    }, []);
 
     return (
         <SidebarProvider defaultOpen={defaultOpen} className="h-screen overflow-hidden">

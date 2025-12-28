@@ -144,7 +144,10 @@ export default function MapControls({ onSearch, onLayerChange, onDataUpload, onK
                         variant="secondary"
                         size="icon"
                         className="!bg-background border border-border shadow-lg hover:bg-accent"
-                        onClick={() => setShowLayerMenu(!showLayerMenu)}
+                        onClick={() => {
+                            setShowLayerMenu(!showLayerMenu)
+                            setShowKmlMenu(false)
+                        }}
                     >
                         <Layers className="h-4 w-4" />
                     </Button>
@@ -210,7 +213,10 @@ export default function MapControls({ onSearch, onLayerChange, onDataUpload, onK
                         variant="secondary"
                         size="icon"
                         className="!bg-background border border-border shadow-lg hover:bg-accent"
-                        onClick={() => setShowKmlMenu(!showKmlMenu)}
+                        onClick={() => {
+                            setShowKmlMenu(!showKmlMenu)
+                            setShowLayerMenu(false)
+                        }}
                         title="Browse KML Exports"
                     >
                         <Folder className="h-4 w-4" />

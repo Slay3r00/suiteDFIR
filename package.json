@@ -1,0 +1,19 @@
+{
+  "name": "vdf-tools",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "cd frontend && npm run dev",
+    "electron": "cd electron && npm start",
+    "dev:electron": "concurrently \"npm run dev\" \"npm run electron\" --kill-others",
+    "install:all": "npm install && cd frontend && npm install && cd ../electron && npm install",
+    "build:frontend": "cd frontend && npm run build:static",
+    "build:backend": "cd backend && ./build.sh",
+    "build:all": "npm run build:backend && npm run build:frontend",
+    "package": "cd electron && electron-forge package",
+    "build:mac": "./build-mac.sh"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

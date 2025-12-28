@@ -122,15 +122,27 @@ def get_all_sessions() -> list[dict]:
 
 
 def delete_session(session_id: str) -> bool:
-    """Delete all messages for a specific session."""
+    """Delete a session and all its messages."""
     import sqlite3
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    
+
     try:
+        # Delete messages (if any exist)
         cursor.execute("DELETE FROM chat_messages WHERE session_id = ?", (session_id,))
+        messages_deleted = cursor.rowcount > 0
+
+        # Delete session record from chat_sessions table
+        cursor.execute("DELETE FROM chat_sessions WHERE session_id = ?", (session_id,))
+        session_deleted = cursor.rowcount > 0
+
         conn.commit()
-        return cursor.rowcount > 0
+
+        # Return True if either:
+        # - Session record was deleted (even with 0 messages)
+        # - Messages were deleted (legacy sessions without chat_sessions record)
+        return session_deleted or messages_deleted
+
     except sqlite3.OperationalError:
         return False
     finally:
