@@ -18,11 +18,11 @@ interface LeappPageProps {
 }
 
 function LeappContent({ logoPath, tool }: { logoPath: string; tool: string }) {
-    const defaultOutputPath = '';
+    const outputFolder = '';
 
     const [inputFile, setInputFile] = useState('');
     const [reportName, setReportName] = useState('');
-    const [outputFolder, setOutputFolder] = useState(defaultOutputPath);
+    // const { setTool } = useLeappStore();
     const { logs, isProcessing, clearLogs } = useProcessing();
     const { selectedCaseId } = useCase();
 
@@ -40,6 +40,7 @@ function LeappContent({ logoPath, tool }: { logoPath: string; tool: string }) {
                 <div className="flex-1 h-full flex flex-col gap-6 min-h-0">
                     {/* Logo */}
                     <div className="flex items-center h-16">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img src={logoPath} alt="Tool Logo" className={logoHeight} />
                     </div>
                     {/* Input & Report Name Row */}
@@ -111,7 +112,7 @@ function LeappContent({ logoPath, tool }: { logoPath: string; tool: string }) {
     );
 }
 
-export default function LeappPage({ tool, logoPath, toolName }: LeappPageProps) {
+export default function LeappPage({ tool, logoPath }: LeappPageProps) {
     return (
         <ProcessingProvider tool={tool}>
             <ModulesProvider tool={tool}>

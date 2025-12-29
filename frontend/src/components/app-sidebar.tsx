@@ -8,7 +8,6 @@ import {
     Clock,
     Settings,
     PanelLeft,
-    Bot,
     Archive,
     ChevronLeft
 } from "lucide-react"
@@ -60,13 +59,7 @@ const data = {
             icon: Archive,
         },
     ],
-    ai: [
-        {
-            title: "Agent",
-            url: "/agent",
-            icon: Bot,
-        },
-    ],
+
     visualization: [
         {
             title: "Timeline",
@@ -141,23 +134,7 @@ export function AppSidebar() {
                         </SidebarMenu>
                     </SidebarGroupContent>
                 </SidebarGroup>
-                <SidebarGroup>
-                    <SidebarGroupLabel>AI</SidebarGroupLabel>
-                    <SidebarGroupContent>
-                        <SidebarMenu>
-                            {data.ai.map((item) => (
-                                <SidebarMenuItem key={item.title}>
-                                    <SidebarMenuButton asChild tooltip={item.title} isActive={pathname === item.url}>
-                                        <a href={item.url}>
-                                            <item.icon />
-                                            <span>{item.title}</span>
-                                        </a>
-                                    </SidebarMenuButton>
-                                </SidebarMenuItem>
-                            ))}
-                        </SidebarMenu>
-                    </SidebarGroupContent>
-                </SidebarGroup>
+
                 <SidebarGroup>
                     <SidebarGroupLabel>Visualization</SidebarGroupLabel>
                     <SidebarGroupContent>

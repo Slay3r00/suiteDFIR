@@ -1,10 +1,10 @@
 
 "use client"
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { createLeappApi } from '@/services/leappApi'
-import { RefreshCw, Archive, HardDrive, Smartphone, Trash2, ChevronDown, FolderOpen, Download, FileText } from 'lucide-react'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/Card"
+import { RefreshCw, Smartphone, Trash2, ChevronDown, FolderOpen, Download, FileText, HardDrive } from 'lucide-react'
+import { Card, CardContent } from "@/components/ui/Card"
 import { Button } from "@/components/ui/Button"
 import { Input } from "@/components/ui/Input"
 import { Dropdown } from "@/components/ui"
@@ -47,23 +47,27 @@ export default function BackupPage() {
     const { toast } = useToast()
     const { selectedCaseId } = useCase()
 
-    const api = createLeappApi('ios')
+    const api = useMemo(() => createLeappApi('ios'), []);
+    const selectedDeviceRef = useRef(selectedDevice);
 
-    const fetchDevices = async () => {
+    // Keep ref in sync with state
+    useEffect(() => {
+        selectedDeviceRef.current = selectedDevice;
+    }, [selectedDevice]);
+
+    const fetchDevices = useCallback(async () => {
         setIsLoadingDevices(true)
         try {
             const data = await api.backup.getDevices()
             setDevices(data)
 
-            // Auto-select logic
+            // Auto-select logic (using ref to avoid stale closure)
             if (data.length > 0) {
-                // If current selected device is not in the new list, select the first one
-                const currentDeviceStillConnected = data.find((d: Device) => d.udid === selectedDevice)
-                if (!selectedDevice || !currentDeviceStillConnected) {
+                const currentDeviceStillConnected = data.find((d: Device) => d.udid === selectedDeviceRef.current)
+                if (!selectedDeviceRef.current || !currentDeviceStillConnected) {
                     setSelectedDevice(data[0].udid)
                 }
             } else {
-                // No devices, clear selection
                 setSelectedDevice('')
             }
         } catch (error) {
@@ -76,16 +80,16 @@ export default function BackupPage() {
         } finally {
             setIsLoadingDevices(false)
         }
-    }
+    }, [api, toast]);
 
-    const fetchBackups = async () => {
+    const fetchBackups = useCallback(async () => {
         try {
             const data = await api.backup.getBackups(selectedCaseId ? parseInt(selectedCaseId) : undefined)
             setBackups(data)
         } catch (error) {
             console.error('Failed to fetch backups:', error)
         }
-    }
+    }, [api, selectedCaseId]);
 
     useEffect(() => {
         let isMounted = true;
@@ -105,15 +109,13 @@ export default function BackupPage() {
                     const data = message.data;
                     setDevices(data);
 
-                    // Auto-select logic
+                    // Auto-select logic (using ref to avoid infinite loop)
                     if (data.length > 0) {
-                        // If current selected device is not in the new list, select the first one
-                        const currentDeviceStillConnected = data.find((d: Device) => d.udid === selectedDevice)
-                        if (!selectedDevice || !currentDeviceStillConnected) {
+                        const currentDeviceStillConnected = data.find((d: Device) => d.udid === selectedDeviceRef.current)
+                        if (!selectedDeviceRef.current || !currentDeviceStillConnected) {
                             setSelectedDevice(data[0].udid)
                         }
                     } else {
-                        // No devices, clear selection
                         setSelectedDevice('')
                     }
                 } else if (message.type === 'backup_update') {
@@ -137,32 +139,9 @@ export default function BackupPage() {
             isMounted = false;
             eventSource.close()
         }
-    }, [selectedCaseId])
+    }, [fetchBackups, fetchDevices])
 
-    // Reconnect to log stream if backup is in progress on mount/refresh
-    useEffect(() => {
-        const activeBackup = backups.find(b => b.status === 'in_progress')
-        if (activeBackup) {
-            setIsBackingUp(true)
-            // Only connect if we haven't already (or if it's a different backup)
-            // We check logs.length > 2 to allow for the initial "Initializing..." messages
-            // But we need a way to track WHICH backup we are connected to.
-            // For now, let's just check if we are already backing up.
-            // Actually, the issue is that this effect runs when 'backups' updates (polling),
-            // and calls connectToLogStream, which defaults keepExistingLogs=false.
-
-            // We should track the current backup ID in a ref or state to avoid reconnecting
-            // But for now, let's just pass true to keep logs if we are already backing up
-            connectToLogStream(activeBackup.id, true)
-        } else if (isBackingUp) {
-            // If we think we're backing up but the list says otherwise, check if we just finished
-            // This handles the case where the backup finishes/fails/cancels and we need to reset UI
-            // But we should be careful not to reset if we just started and the list hasn't updated yet
-            // The 'close' event from SSE usually handles this, but this is a fallback
-        }
-    }, [backups])
-
-    const connectToLogStream = (backupId: number, keepExistingLogs = false) => {
+    const connectToLogStream = useCallback((backupId: number, keepExistingLogs = false) => {
         if (!keepExistingLogs) {
             setLogs([]) // Clear previous logs only if requested
         }
@@ -198,7 +177,30 @@ export default function BackupPage() {
         }
 
         return eventSource
-    }
+    }, [fetchBackups])
+
+    // Reconnect to log stream if backup is in progress on mount/refresh
+    useEffect(() => {
+        const activeBackup = backups.find(b => b.status === 'in_progress')
+        if (activeBackup) {
+            setIsBackingUp(true)
+            // Only connect if we haven't already (or if it's a different backup)
+            // We check logs.length > 2 to allow for the initial "Initializing..." messages
+            // But we need a way to track WHICH backup we are connected to.
+            // For now, let's just check if we are already backing up.
+            // Actually, the issue is that this effect runs when 'backups' updates (polling),
+            // and calls connectToLogStream, which defaults keepExistingLogs=false.
+
+            // We should track the current backup ID in a ref or state to avoid reconnecting
+            // But for now, let's just pass true to keep logs if we are already backing up
+            connectToLogStream(activeBackup.id, true)
+        } else if (isBackingUp) {
+            // If we think we're backing up but the list says otherwise, check if we just finished
+            // This handles the case where the backup finishes/fails/cancels and we need to reset UI
+            // But we should be careful not to reset if we just started and the list hasn't updated yet
+            // The 'close' event from SSE usually handles this, but this is a fallback
+        }
+    }, [backups, connectToLogStream, isBackingUp])
 
     const handleStartBackup = async () => {
         if (!selectedDevice || !backupName) return

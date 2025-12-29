@@ -55,6 +55,7 @@ export function useProfiles(tool: string) {
 
   useEffect(() => {
     fetchProfiles();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tool]); // Refetch when tool changes
 
   return {

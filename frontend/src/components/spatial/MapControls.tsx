@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, useEffect } from "react"
+import React, { useState, useRef, useEffect } from "react"
 import { Search, Layers, Upload, Loader2, Map as MapIcon, Satellite, Globe, Folder, Check } from "lucide-react"
 import { Input } from "@/components/ui/Input"
 import { Button } from "@/components/ui/Button"
@@ -17,6 +17,7 @@ interface KmlFile {
 interface MapControlsProps {
     onSearch: (lat: number, lon: number) => void
     onLayerChange: (layer: 'normal' | 'satellite' | 'hybrid') => void
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     onDataUpload: (data: any) => void
     onKmlSelect: (kmlUrl: string, selected: boolean) => void
     currentLayer: 'normal' | 'satellite' | 'hybrid'
@@ -33,13 +34,7 @@ export default function MapControls({ onSearch, onLayerChange, onDataUpload, onK
     const [selectedKmls, setSelectedKmls] = useState<Set<string>>(new Set())
     const fileInputRef = useRef<HTMLInputElement>(null)
 
-    useEffect(() => {
-        if (showKmlMenu) {
-            fetchKmlFiles()
-        }
-    }, [showKmlMenu, selectedCaseId])
-
-    const fetchKmlFiles = async () => {
+    const fetchKmlFiles = React.useCallback(async () => {
         try {
             const url = selectedCaseId
                 ? `http://localhost:8000/api/spatial/kml-files?case_id=${selectedCaseId}`
@@ -52,7 +47,13 @@ export default function MapControls({ onSearch, onLayerChange, onDataUpload, onK
         } catch (error) {
             console.error("Failed to fetch KML files:", error)
         }
-    }
+    }, [selectedCaseId])
+
+    useEffect(() => {
+        if (showKmlMenu) {
+            fetchKmlFiles()
+        }
+    }, [showKmlMenu, selectedCaseId, fetchKmlFiles])
 
     const toggleKmlSelection = (file: KmlFile) => {
         const newSelected = new Set(selectedKmls)

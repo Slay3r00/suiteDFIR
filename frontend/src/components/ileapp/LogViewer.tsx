@@ -1,5 +1,5 @@
 import { useAutoScroll } from '../../hooks/useAutoScroll';
-import { useMemo } from 'react';
+// import { useMemo } from 'react';
 
 interface LogViewerProps {
   logs: string[];

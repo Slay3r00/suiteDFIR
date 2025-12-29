@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Card, CardContent } from "@/components/ui/Card"
 import { Button } from "@/components/ui/Button"
 import { Input } from "@/components/ui/Input"
@@ -37,16 +37,7 @@ export default function TasksNotesWidget() {
     const [isLoading, setIsLoading] = useState(false)
     const { toast } = useToast()
 
-    useEffect(() => {
-        if (selectedCaseId) {
-            fetchData()
-        } else {
-            setTasks([])
-            setNotes([])
-        }
-    }, [selectedCaseId])
-
-    const fetchData = async () => {
+    const fetchData = useCallback(async () => {
         if (!selectedCaseId) return
 
         try {
@@ -60,7 +51,16 @@ export default function TasksNotesWidget() {
         } catch (error) {
             console.error('Failed to fetch data:', error)
         }
-    }
+    }, [selectedCaseId])
+
+    useEffect(() => {
+        if (selectedCaseId) {
+            fetchData()
+        } else {
+            setTasks([])
+            setNotes([])
+        }
+    }, [selectedCaseId, fetchData])
 
     const handleAdd = async () => {
         if (!inputValue.trim() || !selectedCaseId) return
@@ -90,7 +90,7 @@ export default function TasksNotesWidget() {
             setInputValue('')
             setDescriptionValue('')
             setPriority('Medium') // Reset priority
-        } catch (error) {
+        } catch {
             toast({
                 title: "Error",
                 description: "Failed to create item",
@@ -115,7 +115,7 @@ export default function TasksNotesWidget() {
             // Update with server response to be sure
             const updatedTask = await res.json()
             setTasks(prev => prev.map(t => t.id === id ? updatedTask : t))
-        } catch (error) {
+        } catch {
             // Revert on error
             fetchData()
             toast({
@@ -140,7 +140,7 @@ export default function TasksNotesWidget() {
             })
 
             if (!res.ok) throw new Error('Failed to delete item')
-        } catch (error) {
+        } catch {
             // Revert on error
             fetchData()
             toast({
@@ -220,7 +220,7 @@ export default function TasksNotesWidget() {
                             {activeTab === 'tasks' && (
                                 <select
                                     value={priority}
-                                    onChange={(e) => setPriority(e.target.value as any)}
+                                    onChange={(e) => setPriority(e.target.value as 'Low' | 'Medium' | 'High')}
                                     className="h-9 bg-[#171717] border border-[#333333] text-white text-xs rounded-md px-2 outline-none focus:ring-1 focus:ring-gray-500 w-24"
                                 >
                                     <option value="Low">Low</option>

@@ -3,6 +3,9 @@ import {
     useMaterialReactTable,
     type MRT_Row,
     createMRTColumnHelper,
+    type MRT_PaginationState,
+    type MRT_SortingState,
+    type MRT_ColumnFiltersState,
 } from 'material-react-table';
 import { Box, Button, ThemeProvider, createTheme } from '@mui/material';
 import FileDownloadIcon from '@mui/icons-material/FileDownload';
@@ -61,13 +64,13 @@ interface EnhancedTableProps {
     isLoading?: boolean;
     totalCount?: number;
     pagination?: { pageIndex: number; pageSize: number };
-    sorting?: { id: string; desc: boolean }[];
-    onPaginationChange?: (pagination: any) => void;
-    onSortingChange?: (sorting: any) => void;
+    sorting?: MRT_SortingState;
+    onPaginationChange?: (pagination: MRT_PaginationState) => void;
+    onSortingChange?: (sorting: MRT_SortingState) => void;
     globalFilter?: string;
-    onGlobalFilterChange?: (globalFilter: any) => void;
-    columnFilters?: { id: string; value: unknown }[];
-    onColumnFiltersChange?: (columnFilters: any) => void;
+    onGlobalFilterChange?: (globalFilter: string) => void;
+    columnFilters?: MRT_ColumnFiltersState;
+    onColumnFiltersChange?: (columnFilters: MRT_ColumnFiltersState) => void;
     onExportAll?: () => Promise<TimelineEvent[]>;
 }
 const EnhancedTable = ({
@@ -86,6 +89,7 @@ const EnhancedTable = ({
 }: EnhancedTableProps) => {
     const handleExportRows = (rows: MRT_Row<TimelineEvent>[]) => {
         const rowData = rows.map((row) => row.original);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const csv = generateCsv(csvConfig)(rowData as any);
         download(csvConfig)(csv);
     };
@@ -94,7 +98,7 @@ const EnhancedTable = ({
         if (onExportAll) {
             const allData = await onExportAll();
             if (allData && allData.length > 0) {
-                const csv = generateCsv(csvConfig)(allData as any);
+                const csv = generateCsv(csvConfig)(allData as Record<string, unknown>[]);
                 download(csvConfig)(csv);
             }
         }

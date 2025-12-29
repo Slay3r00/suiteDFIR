@@ -1,6 +1,6 @@
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { Button, Input, Dropdown } from '../ui';
-import { useModules, useProfiles, useDropdown, useProcessing } from '../../hooks';
+import { useModules, useProfiles, useDropdown } from '../../hooks';
 import { Module } from '@/app/(main)/ileapp/types';
 
 const slowModules = new Set([
@@ -34,10 +34,10 @@ interface ModuleSelectorProps {
   isProcessing?: boolean;
 }
 
-export default function ModuleSelector({ isProcessing = false }: ModuleSelectorProps) {
+export default function ModuleSelector({ isProcessing }: ModuleSelectorProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [profileNameInput, setProfileNameInput] = useState('');
-  const searchInputRef = useRef<HTMLInputElement>(null);
+
   const loadProfileDropdown = useDropdown();
   const saveProfileDropdown = useDropdown();
 
@@ -46,7 +46,7 @@ export default function ModuleSelector({ isProcessing = false }: ModuleSelectorP
 
   const handleLoadProfile = async (profileId: number) => {
     try {
-      const message = await loadProfile(profileId);
+      await loadProfile(profileId);
       // Refresh modules to get updated selection state
       await fetchModules();
       // Profile loaded successfully
@@ -64,7 +64,7 @@ export default function ModuleSelector({ isProcessing = false }: ModuleSelectorP
     }
 
     try {
-      const name = await saveProfile(trimmedName, Array.from(selectedModules));
+      await saveProfile(trimmedName, Array.from(selectedModules));
       setProfileNameInput('');
       saveProfileDropdown.close();
     } catch (error) {
@@ -102,6 +102,7 @@ export default function ModuleSelector({ isProcessing = false }: ModuleSelectorP
           <div className="relative">
             <Button
               ref={loadProfileDropdown.buttonRef as React.RefObject<HTMLButtonElement>}
+              // eslint-disable-next-line react-hooks/refs
               onClick={loadProfileDropdown.handleClick}
               disabled={isProcessing}
               variant="secondary"
@@ -111,6 +112,7 @@ export default function ModuleSelector({ isProcessing = false }: ModuleSelectorP
               Load Profile
             </Button>
 
+            {/* eslint-disable-next-line react-hooks/refs */}
             <Dropdown isOpen={loadProfileDropdown.isOpen} onClose={loadProfileDropdown.close} align="left" buttonRef={loadProfileDropdown.buttonRef as React.RefObject<HTMLButtonElement>}>
               {profiles.length > 0 ? (
                 profiles.map((profile) => (
@@ -148,7 +150,9 @@ export default function ModuleSelector({ isProcessing = false }: ModuleSelectorP
 
           <div className="relative">
             <Button
+
               ref={saveProfileDropdown.buttonRef as React.RefObject<HTMLButtonElement>}
+              // eslint-disable-next-line react-hooks/refs
               onClick={saveProfileDropdown.handleClick}
               disabled={isProcessing}
               variant="secondary"
@@ -158,6 +162,7 @@ export default function ModuleSelector({ isProcessing = false }: ModuleSelectorP
               Save Profile
             </Button>
 
+            {/* eslint-disable-next-line react-hooks/refs */}
             <Dropdown isOpen={saveProfileDropdown.isOpen} onClose={saveProfileDropdown.close} align="left" buttonRef={saveProfileDropdown.buttonRef as React.RefObject<HTMLButtonElement>}>
               <div className="p-4">
                 <input

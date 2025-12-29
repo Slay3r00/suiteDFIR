@@ -16,6 +16,7 @@ export function CaseProvider({ children }: { children: React.ReactNode }) {
         // Load from localStorage on mount
         const savedId = localStorage.getItem('selectedCaseId')
         if (savedId) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setSelectedCaseId(savedId)
         }
     }, [])

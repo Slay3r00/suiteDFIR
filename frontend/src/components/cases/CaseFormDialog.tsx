@@ -49,7 +49,7 @@ export function CaseFormDialog({ open, onOpenChange, caseData, onSuccess }: Case
     useEffect(() => {
         if (open) {
             if (caseData) {
-                setFormData({ ...caseData })
+                setFormData({ ...caseData }) // eslint-disable-line react-hooks/set-state-in-effect
             } else {
                 setFormData({
                     status: 'Active',

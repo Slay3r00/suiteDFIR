@@ -93,6 +93,7 @@ export function ModulesProvider({ children, tool }: { children: ReactNode; tool:
     setIsLoading(true);
 
     fetchModules();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tool]); // Refetch when tool changes
 
   return (

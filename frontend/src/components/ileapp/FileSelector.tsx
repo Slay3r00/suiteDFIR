@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Dropdown from '../ui/Dropdown';
 import { Input, Button } from '../ui';
 import { useDropdown } from '../../hooks/useDropdown';
@@ -22,10 +22,12 @@ interface Backup {
   id: number;
   name: string;
   path: string;
-  tool: string;
   device_name: string;
   device_udid: string;
   created_at: string;
+  status: string;
+  size?: string;
+  progress?: number;
   type: string;
 }
 
@@ -41,13 +43,7 @@ export default function FileSelector({
   const fileDropdown = useDropdown();
   const [backups, setBackups] = useState<Backup[]>([]);
 
-  useEffect(() => {
-    if (fileDropdown.isOpen && tool) {
-      fetchBackups();
-    }
-  }, [fileDropdown.isOpen, tool, caseId]);
-
-  const fetchBackups = async () => {
+  const fetchBackups = useCallback(async () => {
     try {
       console.log('Fetching backups for tool:', tool);
       const url = caseId
@@ -61,14 +57,20 @@ export default function FileSelector({
         // ileapp -> ios, aleapp -> android
         const targetType = tool === 'ileapp' ? 'ios' : 'android';
         console.log('Target type:', targetType);
-        const filtered = json.filter((b: any) => b.type === targetType && b.status === 'completed');
+        const filtered = json.filter((b: Backup) => b.type === targetType && b.status === 'completed');
         console.log('Filtered backups:', filtered);
         setBackups(filtered);
       }
     } catch (error) {
       console.error('Failed to fetch backups:', error);
     }
-  };
+  }, [tool, caseId]);
+
+  useEffect(() => {
+    if (fileDropdown.isOpen && tool) {
+      fetchBackups();
+    }
+  }, [fileDropdown.isOpen, tool, caseId, fetchBackups]);
 
   const handleBrowseFiles = async () => {
     try {
@@ -106,6 +108,7 @@ export default function FileSelector({
       <div className="relative">
         <Button
           ref={fileDropdown.buttonRef as React.RefObject<HTMLButtonElement>}
+          // eslint-disable-next-line react-hooks/refs
           onClick={fileDropdown.handleClick}
           disabled={disabled}
           variant="secondary"
@@ -114,8 +117,11 @@ export default function FileSelector({
         </Button>
 
         <Dropdown
+          // eslint-disable-next-line react-hooks/refs
           isOpen={fileDropdown.isOpen}
+          // eslint-disable-next-line react-hooks/refs
           onClose={fileDropdown.close}
+          // eslint-disable-next-line react-hooks/refs
           buttonRef={fileDropdown.buttonRef as React.RefObject<HTMLButtonElement>}
           className="w-80 bg-[#1A1A1A] border border-[#333] rounded-lg shadow-xl overflow-hidden"
         >

@@ -37,6 +37,7 @@ export function useCases() {
         };
 
         fetchCases();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     return {

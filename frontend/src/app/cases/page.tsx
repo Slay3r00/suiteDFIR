@@ -8,33 +8,21 @@ import {
     LayoutGrid,
     List as ListIcon,
     Plus,
-    Filter,
-    MoreVertical,
     Briefcase,
     MapPin,
     User,
-    Phone,
     Calendar,
-    Shield,
     Trash2,
     Edit2,
-    Building,
-    ArrowRight
+    Building
 } from "lucide-react"
 import { Button } from "@/components/ui/Button"
 import { Input } from "@/components/ui/Input"
 import { Card, CardContent } from "@/components/ui/Card"
 import { cn } from "@/lib/utils"
-import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-    DialogFooter,
-    DialogDescription
-} from "@/components/ui/Dialog"
 
-import { CaseFormDialog, Case, CaseStatus, CasePriority } from "@/components/cases/CaseFormDialog"
+
+import { CaseFormDialog, Case, CaseStatus } from "@/components/cases/CaseFormDialog"
 
 export default function CaseManagementPage() {
     const router = useRouter()
@@ -174,7 +162,7 @@ export default function CaseManagementPage() {
                     <select
                         className="h-9 bg-[#1A1A1A] border border-[#333333] text-sm rounded-md px-3 outline-none focus:border-gray-500 transition-colors text-gray-300"
                         value={statusFilter}
-                        onChange={(e) => setStatusFilter(e.target.value as any)}
+                        onChange={(e) => setStatusFilter(e.target.value as CaseStatus | 'All')}
                     >
                         <option value="All">All Status</option>
                         <option value="Active">Active</option>

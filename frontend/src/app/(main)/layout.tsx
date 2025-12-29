@@ -15,7 +15,7 @@ export default function MainLayout({
         // Read sidebar state from localStorage instead of cookies
         const storedState = localStorage.getItem("sidebar_state");
         if (storedState !== null) {
-            setDefaultOpen(storedState === "true");
+            setDefaultOpen(storedState === "true"); // eslint-disable-line react-hooks/set-state-in-effect
         }
     }, []);
 

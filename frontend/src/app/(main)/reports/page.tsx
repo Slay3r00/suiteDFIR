@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Search, FileText, FolderOpen, Download, Trash2, HardDrive, X, Maximize2 } from 'lucide-react';
+import { Search, FileText, FolderOpen, Download, Trash2, X, Maximize2 } from 'lucide-react';
 import { Button } from '@/components/ui';
 import { useCase } from "@/context/CaseContext";
 
@@ -35,7 +35,7 @@ export default function Reports() {
     const [thumbWidth, setThumbWidth] = useState(20);
     const [isScrollbarDragging, setIsScrollbarDragging] = useState(false);
 
-    const fetchReports = async () => {
+    const fetchReports = useCallback(async () => {
         try {
             const url = selectedCaseId
                 ? `http://localhost:8000/api/reports?case_id=${selectedCaseId}`
@@ -65,13 +65,13 @@ export default function Reports() {
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [selectedCaseId]);
 
     useEffect(() => {
         // Clear selection when switching cases to prevent showing old case's report
         setSelectedReport(null);
         fetchReports();
-    }, [selectedCaseId]);
+    }, [selectedCaseId, fetchReports]);
 
     // Track scroll position for custom scrollbar
     useEffect(() => {
@@ -300,7 +300,7 @@ export default function Reports() {
                             </div>
                             <select
                                 value={sort}
-                                onChange={(e) => setSort(e.target.value as any)}
+                                onChange={(e) => setSort(e.target.value as 'newest' | 'oldest' | 'name')}
                                 className="bg-[#1A1A1A] border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-white/20 appearance-none cursor-pointer text-center"
                             >
                                 <option value="newest">Newest First</option>
@@ -335,6 +335,7 @@ export default function Reports() {
                                     >
                                         {/* Icon */}
                                         <div className="h-10 w-10 flex-shrink-0 bg-[#1a1a1a] rounded flex items-center justify-center p-0.5">
+                                            {/* eslint-disable-next-line @next/next/no-img-element */}
                                             <img
                                                 src={report.tool === 'ileapp' ? '/apple-logo.svg' : '/android-logo.svg'}
                                                 alt={report.tool}

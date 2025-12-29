@@ -1,6 +1,6 @@
 "use client"
 
-import { Card, CardContent } from "@/components/ui/Card"
+// import { Card, CardContent } from "@/components/ui/Card"
 import TasksNotesWidget from "@/components/dashboard/TasksNotesWidget"
 import StorageWidget from "@/components/dashboard/StorageWidget"
 import ActiveDevicesWidget from "@/components/dashboard/ActiveDevicesWidget"

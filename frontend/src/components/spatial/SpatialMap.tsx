@@ -1,10 +1,11 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { MapContainer, TileLayer, Marker, Popup, useMap, GeoJSON } from "react-leaflet"
+import { MapContainer, TileLayer, useMap, GeoJSON } from "react-leaflet"
 import "leaflet/dist/leaflet.css"
 import L from "leaflet"
 import MapControls from "./MapControls"
+import type { Feature, GeoJsonObject } from 'geojson'
 
 // Fix for default marker icons in Next.js
 const iconUrl = 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png'
@@ -34,10 +35,12 @@ function MapUpdater({ center, zoom }: { center: [number, number], zoom: number }
 }
 
 // Component to fit bounds to GeoJSON data
-function AutoFitBounds({ data }: { data: any }) {
+
+function AutoFitBounds({ data }: { data: GeoJsonObject | null }) {
     const map = useMap()
     useEffect(() => {
         if (data) {
+            // @ts-expect-error: Leaflet types mismatch
             const geoJsonLayer = L.geoJSON(data)
             if (geoJsonLayer.getLayers().length > 0) {
                 map.flyToBounds(geoJsonLayer.getBounds(), { padding: [50, 50], duration: 1.5 })
@@ -53,8 +56,8 @@ export default function SpatialMap() {
     const [center, setCenter] = useState<[number, number]>([40.7128, -74.0060]) // NYC default
     const [zoom, setZoom] = useState(13)
     const [layer, setLayer] = useState<'normal' | 'satellite' | 'hybrid'>('normal')
-    const [geoJsonData, setGeoJsonData] = useState<any>(null)
-    const [browsedKmls, setBrowsedKmls] = useState<Record<string, any>>({})
+    const [geoJsonData, setGeoJsonData] = useState<GeoJsonObject | null>(null)
+    const [browsedKmls, setBrowsedKmls] = useState<Record<string, GeoJsonObject>>({})
     const { selectedCaseId } = useCase()
 
     const handleSearch = (lat: number, lon: number) => {
@@ -77,7 +80,7 @@ export default function SpatialMap() {
                 const text = await res.text()
                 const parser = new DOMParser()
                 const kml = parser.parseFromString(text, 'text/xml')
-                // @ts-ignore
+                // @ts-expect-error: External library types mismatch
                 const toGeoJSON = await import("@mapbox/togeojson")
                 const geojson = toGeoJSON.kml(kml)
 
@@ -102,7 +105,7 @@ export default function SpatialMap() {
         switch (layer) {
             case 'satellite':
                 return (
-                    // @ts-ignore
+                    // @ts-expect-error: External library types mismatch
                     <TileLayer
                         attribution='&copy; Google Maps'
                         url="https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}"
@@ -112,14 +115,14 @@ export default function SpatialMap() {
             case 'hybrid':
                 return (
                     <>
-                        {/* @ts-ignore */}
+                        {/* @ts-expect-error: External library types mismatch */}
                         <TileLayer
                             attribution='&copy; Google Maps'
                             url="https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}"
                             subdomains={['mt0', 'mt1', 'mt2', 'mt3']}
                             opacity={0.5}
                         />
-                        {/* @ts-ignore */}
+                        {/* @ts-expect-error: External library types mismatch */}
                         <TileLayer
                             attribution='&copy; Google Maps'
                             url="https://{s}.google.com/vt/lyrs=h&x={x}&y={y}&z={z}"
@@ -130,7 +133,7 @@ export default function SpatialMap() {
             case 'normal':
             default:
                 return (
-                    // @ts-ignore
+                    // @ts-expect-error: External library types mismatch
                     <TileLayer
                         attribution='&copy; Google Maps'
                         url="https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}"
@@ -140,13 +143,14 @@ export default function SpatialMap() {
         }
     }
 
-    const onEachFeature = (feature: any, layer: L.Layer) => {
+    function onEachFeature(feature: Feature, layer: L.Layer) {
         if (feature.properties) {
-            const { name, description } = feature.properties
             let content = ''
-            let artifactName = 'Feature'
-            let metadata: Record<string, string> = {}
+            let artifactName = feature.properties.name || 'Artifact'
+            const description = feature.properties.description
 
+            const metadata: Record<string, string> = {}
+            const name = feature.properties.name
             // Parse description HTML if available
             if (description) {
                 const parser = new DOMParser()
@@ -179,7 +183,7 @@ export default function SpatialMap() {
                                             hour12: true
                                         })
                                     }
-                                } catch (e) {
+                                } catch {
                                     // Keep original value if parsing fails
                                 }
                             }
@@ -228,7 +232,7 @@ export default function SpatialMap() {
                 selectedCaseId={selectedCaseId}
             />
 
-            {/* @ts-ignore */}
+            {/* @ts-expect-error: External library types mismatch */}
             <MapContainer
                 center={center}
                 zoom={zoom}
@@ -246,7 +250,7 @@ export default function SpatialMap() {
 
                 {/* Uploaded Data */}
                 {geoJsonData && (
-                    /* @ts-ignore */
+                    /* @ts-expect-error: External library types mismatch */
                     <GeoJSON
                         data={geoJsonData}
                         onEachFeature={onEachFeature}
@@ -261,7 +265,7 @@ export default function SpatialMap() {
 
                 {/* Browsed KML Data */}
                 {Object.entries(browsedKmls).map(([url, data]) => (
-                    /* @ts-ignore */
+                    /* @ts-expect-error: External library types mismatch */
                     <GeoJSON
                         key={url}
                         data={data}

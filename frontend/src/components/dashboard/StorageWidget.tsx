@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import { Card, CardContent } from "@/components/ui/Card"
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts'
-import { Database, HardDrive } from 'lucide-react'
+import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts'
+import { Database } from 'lucide-react'
 import { useCase } from "@/context/CaseContext"
 
 interface StorageData {
@@ -71,7 +71,7 @@ export default function StorageWidget({ className }: StorageWidgetProps) {
         </Card>
     )
 
-    const usedPercentage = ((data.total - data.free) / data.total) * 100
+    // const usedPercentage = ((data.total - data.free) / data.total) * 100
 
     // Filter breakdown to only show Backups and Reports
     const displayBreakdown = data.breakdown.filter(item =>
