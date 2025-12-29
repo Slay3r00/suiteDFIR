@@ -13,7 +13,7 @@ from database import init_database
 from config import TOOLS_CONFIG, REPORTS_DIR
 from monitor import monitor_devices_task
 from plugin_manager import load_plugins
-from routers import cases, reports, profiles, tasks, processing, backups, system, timeline, agent
+from routers import cases, reports, profiles, tasks, processing, backups, system, timeline
 
 # Setup logging
 setup_logging()
@@ -43,7 +43,7 @@ app.include_router(tasks.router)
 app.include_router(processing.router)
 app.include_router(backups.router)
 app.include_router(timeline.router)
-app.include_router(agent.router)
+
 
 # Configure CORS
 app.add_middleware(
