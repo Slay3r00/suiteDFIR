@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { SidebarProvider } from "@/components/ui/sidebar";
+import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 
 export default function MainLayout({
@@ -22,9 +22,9 @@ export default function MainLayout({
     return (
         <SidebarProvider defaultOpen={defaultOpen} className="h-screen overflow-hidden">
             <AppSidebar />
-            <main className="flex-1 overflow-hidden">
+            <SidebarInset className="bg-[#151515] flex flex-col overflow-hidden">
                 {children}
-            </main>
+            </SidebarInset>
         </SidebarProvider>
     );
 }

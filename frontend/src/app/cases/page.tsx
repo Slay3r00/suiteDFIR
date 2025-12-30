@@ -22,13 +22,20 @@ import { Card, CardContent } from "@/components/ui/Card"
 import { cn } from "@/lib/utils"
 
 
+import {
+    Select,
+    SelectTrigger,
+    SelectValue,
+    SelectContent,
+    SelectItem
+} from "@/components/ui/Select"
 import { CaseFormDialog, Case, CaseStatus } from "@/components/cases/CaseFormDialog"
 
 export default function CaseManagementPage() {
     const router = useRouter()
     const { setSelectedCaseId } = useCase()
     const [cases, setCases] = useState<Case[]>([])
-    const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
+    const [viewMode, setViewMode] = useState<'grid' | 'list'>('list')
     const [searchQuery, setSearchQuery] = useState('')
     const [statusFilter, setStatusFilter] = useState<CaseStatus | 'All'>('All')
     const [isLoading, setIsLoading] = useState(true)
@@ -115,39 +122,33 @@ export default function CaseManagementPage() {
 
     // --- Helpers ---
     const getStatusColor = (status: string) => {
-        switch (status) {
-            case 'Active': return 'bg-green-500/10 text-green-500 border-green-500/20'
-            case 'Closed': return 'bg-gray-500/10 text-gray-400 border-gray-500/20'
-            case 'Archived': return 'bg-blue-500/10 text-blue-400 border-blue-500/20'
-            default: return 'bg-gray-500/10 text-gray-400 border-gray-500/20'
-        }
+        return 'bg-gray-500/5 text-gray-400 border-gray-500/10'
     }
 
     const getPriorityColor = (priority: string) => {
-        switch (priority) {
-            case 'High': return 'text-red-400'
-            case 'Medium': return 'text-yellow-400'
-            case 'Low': return 'text-blue-400'
-            default: return 'text-gray-400'
-        }
+        return 'text-gray-500'
     }
 
     return (
-        <div className="h-full w-full bg-[#0A0A0A] text-white flex flex-col overflow-hidden">
+        <div className="h-full w-full bg-[#151515] text-white flex flex-col overflow-hidden">
             {/* Header */}
-            <div className="px-8 py-6 border-b border-[#222222] bg-[#0F0F0F] flex justify-between items-center shrink-0">
+            <div className="px-8 py-6 bg-[#151515] flex justify-between items-center shrink-0">
                 <div>
-                    <h1 className="text-2xl font-bold tracking-tight">Case Management</h1>
-                    <p className="text-gray-400 text-sm mt-1">Manage and track all active investigations</p>
+                    <h1 className="text-2xl font-bold tracking-tight">VDF Tools</h1>
+                    <p className="text-gray-400 text-xs mt-1 uppercase tracking-widest font-medium">FORENSIC TOOLKIT</p>
                 </div>
-                <Button onClick={handleOpenCreate} className="bg-white text-black hover:bg-gray-200 gap-2">
-                    <Plus size={16} />
+                <Button
+                    size="sm"
+                    onClick={handleOpenCreate}
+                    className="bg-white text-black hover:bg-gray-200 gap-1.5 text-[11px] font-bold uppercase tracking-wider h-8 px-3"
+                >
+                    <Plus size={14} />
                     New Case
                 </Button>
             </div>
 
             {/* Toolbar */}
-            <div className="px-8 py-4 border-b border-[#222222] bg-[#111111] flex gap-4 items-center shrink-0">
+            <div className="px-8 py-4 bg-[#151515] flex gap-4 items-center shrink-0">
                 <div className="relative flex-1 max-w-md">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={16} />
                     <Input
@@ -159,29 +160,23 @@ export default function CaseManagementPage() {
                 </div>
 
                 <div className="flex items-center gap-2 ml-auto">
-                    <select
-                        className="h-9 bg-[#1A1A1A] border border-[#333333] text-sm rounded-md px-3 outline-none focus:border-gray-500 transition-colors text-gray-300"
-                        value={statusFilter}
-                        onChange={(e) => setStatusFilter(e.target.value as CaseStatus | 'All')}
-                    >
-                        <option value="All">All Status</option>
-                        <option value="Active">Active</option>
-                        <option value="Closed">Closed</option>
-                        <option value="Archived">Archived</option>
-                    </select>
+                    <Select value={statusFilter} onValueChange={(val) => setStatusFilter(val as CaseStatus | 'All')}>
+                        <SelectTrigger className="w-[130px] h-9 bg-[#1A1A1A] border-[#333333] text-gray-300 justify-center gap-2 px-3 focus:ring-0 focus:ring-offset-0">
+                            <SelectValue>
+                                {statusFilter === 'All' ? 'All Status' : statusFilter}
+                            </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent className="bg-[#1A1A1A] border-[#333333] text-gray-300">
+                            <SelectItem value="All">All Status</SelectItem>
+                            <SelectItem value="Active">Active</SelectItem>
+                            <SelectItem value="Closed">Closed</SelectItem>
+                            <SelectItem value="Archived">Archived</SelectItem>
+                        </SelectContent>
+                    </Select>
 
                     <div className="h-9 w-[1px] bg-[#333333] mx-2" />
 
                     <div className="flex bg-[#1A1A1A] rounded-md border border-[#333333] p-1">
-                        <button
-                            onClick={() => setViewMode('grid')}
-                            className={cn(
-                                "p-1.5 rounded transition-colors",
-                                viewMode === 'grid' ? "bg-[#333333] text-white" : "text-gray-500 hover:text-gray-300"
-                            )}
-                        >
-                            <LayoutGrid size={16} />
-                        </button>
                         <button
                             onClick={() => setViewMode('list')}
                             className={cn(
@@ -190,6 +185,15 @@ export default function CaseManagementPage() {
                             )}
                         >
                             <ListIcon size={16} />
+                        </button>
+                        <button
+                            onClick={() => setViewMode('grid')}
+                            className={cn(
+                                "p-1.5 rounded transition-colors",
+                                viewMode === 'grid' ? "bg-[#333333] text-white" : "text-gray-500 hover:text-gray-300"
+                            )}
+                        >
+                            <LayoutGrid size={16} />
                         </button>
                     </div>
                 </div>
@@ -214,7 +218,7 @@ export default function CaseManagementPage() {
                             <Card
                                 key={caseItem.id}
                                 onClick={() => handleSelectCase(caseItem.id)}
-                                className="bg-[#151515] border-[#333333] hover:border-[#555555] transition-all cursor-pointer group flex flex-col hover:shadow-lg hover:bg-[#1A1A1A]"
+                                className="bg-[#1A1A1A] border-[#333333] hover:border-[#555555] transition-all cursor-pointer group flex flex-col hover:shadow-lg hover:bg-[#1E1E1E]"
                             >
                                 <CardContent className="p-5 flex-1 flex flex-col">
                                     <div className="flex justify-between items-start mb-4">
@@ -277,7 +281,7 @@ export default function CaseManagementPage() {
                     </div>
                 ) : (
                     // List View
-                    <div className="border border-[#333333] rounded-lg overflow-hidden bg-[#151515]">
+                    <div className="border border-[#333333] rounded-lg overflow-hidden bg-[#1A1A1A]">
                         <table className="w-full text-sm text-left">
                             <thead className="bg-[#1A1A1A] text-gray-400 font-medium border-b border-[#333333]">
                                 <tr>

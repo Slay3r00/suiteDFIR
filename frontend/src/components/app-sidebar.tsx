@@ -50,7 +50,7 @@ const data = {
         },
         {
             title: "Android",
-            url: "/android",
+            url: "/aleapp",
             icon: Smartphone,
         },
         {
