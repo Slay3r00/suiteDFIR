@@ -100,6 +100,35 @@
       text-transform: uppercase;
     }
 
+    .log-link {
+      margin-top: 24px;
+      font-size: 10px;
+      color: #404040;
+      cursor: pointer;
+      transition: color 0.2s ease;
+    }
+
+    .log-link:hover {
+      color: #737373;
+    }
+
+    .log-path {
+      display: none;
+      margin-top: 8px;
+      font-size: 9px;
+      color: #525252;
+      font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+      word-break: break-all;
+      max-width: 300px;
+      background: rgba(255, 255, 255, 0.05);
+      padding: 8px 12px;
+      border-radius: 4px;
+    }
+
+    .log-path.visible {
+      display: block;
+    }
+
     /* Bottom accent */
     .accent {
       position: absolute;
@@ -119,31 +148,46 @@
     <div class="loader"></div>
     <div class="status" id="status">Starting application...</div>
     <div class="retry-info" id="retryInfo"></div>
+    <div class="log-link" id="logLink">View Logs</div>
+    <div class="log-path" id="logPath"></div>
   </div>
   <div class="accent"></div>
 
   <script>
-    const { ipcRenderer } = require('electron');
+    // Use the preload API (contextIsolation is enabled)
+    if (window.electronAPI) {
+      // Update status text
+      window.electronAPI.onUpdateStatus((message) => {
+        const statusEl = document.getElementById('status');
+        statusEl.textContent = message;
 
-    // Update status text
-    ipcRenderer.on('update-status', (event, message) => {
-      const statusEl = document.getElementById('status');
-      statusEl.textContent = message;
+        // Add 'ready' class for positive status
+        if (message === 'Ready') {
+          statusEl.classList.add('ready');
+        } else {
+          statusEl.classList.remove('ready');
+        }
+      });
 
-      // Add 'ready' class for positive status
-      if (message === 'Ready') {
-        statusEl.classList.add('ready');
-      } else {
-        statusEl.classList.remove('ready');
-      }
-    });
+      // Update retry info
+      window.electronAPI.onUpdateRetryInfo((attempt, maxAttempts) => {
+        if (attempt > 0) {
+          document.getElementById('retryInfo').textContent = `Attempt ${attempt} of ${maxAttempts}`;
+        }
+      });
 
-    // Update retry info
-    ipcRenderer.on('update-retry-info', (event, attempt, maxAttempts) => {
-      if (attempt > 0) {
-        document.getElementById('retryInfo').textContent = `Attempt ${attempt} of ${maxAttempts}`;
-      }
-    });
+      // Log link click handler
+      document.getElementById('logLink').addEventListener('click', async () => {
+        const logPathEl = document.getElementById('logPath');
+        if (logPathEl.classList.contains('visible')) {
+          logPathEl.classList.remove('visible');
+        } else {
+          const path = await window.electronAPI.getLogPath();
+          logPathEl.textContent = path || 'Log path not available';
+          logPathEl.classList.add('visible');
+        }
+      });
+    }
   </script>
 </body>
 

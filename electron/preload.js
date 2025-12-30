@@ -8,5 +8,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Backend health check controls
   retryBackendCheck: () => ipcRenderer.invoke('retry-backend-check'),
-  quitApp: () => ipcRenderer.invoke('quit-app')
+  quitApp: () => ipcRenderer.invoke('quit-app'),
+
+  // Logging
+  getLogPath: () => ipcRenderer.invoke('get-log-path'),
+
+  // IPC listeners for splash screen
+  onUpdateStatus: (callback) => ipcRenderer.on('update-status', (event, msg) => callback(msg)),
+  onUpdateRetryInfo: (callback) => ipcRenderer.on('update-retry-info', (event, attempt, max) => callback(attempt, max))
 });

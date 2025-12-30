@@ -20,6 +20,7 @@ from database import DB_PATH
 from config import TOOLS_CONFIG
 from state import plugin_loaders, available_modules, processing_tasks
 from utils import broadcast_event
+from tool_manager import tool_manager
 
 router = APIRouter(
     prefix="/api/process",
@@ -72,11 +73,19 @@ async def start_processing(request: ProcessRequest, background_tasks: Background
             # Fallback? If we fail to create profile, we might run all modules which is not desired.
             raise HTTPException(status_code=500, detail=f"Failed to create processing profile: {e}")
 
-    # Construct command
+    # Construct command using ToolManager path if available
+    tool_path = tool_manager.get_tool_path(tool)
+    if not tool_path:
+        # Fallback to config path (development)
+        tool_script_path = os.path.join(config["path"], config["script"])
+    else:
+        tool_script_path = os.path.join(str(tool_path), config["script"])
+
     cmd = [
         sys.executable,
         "-u",
-        os.path.join(config["path"], config["script"]),
+        "--wrapper",
+        tool_script_path,
         "--input_path", request.input_path,
         "--output_path", output_dir
     ]
@@ -96,15 +105,8 @@ async def start_processing(request: ProcessRequest, background_tasks: Background
             input_type = "gz"
         else:
             # iLEAPP supports 'file', aLEAPP might not. 
-            # For now, default to 'file' if it's iLEAPP, otherwise 'fs' or error?
-            # Based on aLEAPP help, it only supports fs, tar, zip, gz.
             if tool == "ileapp":
                 input_type = "file"
-            else:
-                # Fallback for aLEAPP or others - maybe it's a single file artifact?
-                # But aLEAPP usually expects a folder or archive.
-                # We'll stick to 'fs' or assume the user selected a supported archive.
-                pass 
     elif os.path.isdir(request.input_path):
         if tool == "ileapp":
             # Check for iTunes backup indicators
@@ -118,7 +120,7 @@ async def start_processing(request: ProcessRequest, background_tasks: Background
             
     cmd.extend(["-t", input_type])
     
-    logger.debug(f"Executing command: {' '.join(cmd)}")
+    logger.info(f"Executing {tool} command: {' '.join(cmd)}")
 
     if request.password:
         cmd.extend(["--itunes_password", request.password])
@@ -135,7 +137,6 @@ async def start_processing(request: ProcessRequest, background_tasks: Background
     }
     
     # Start processing in background
-    # Pass profile_path to be cleaned up
     background_tasks.add_task(run_processing_job, task_id, cmd, tool, request.case_name, output_dir, request.case_id, profile_path, request.report_name)
     
     return {"message": f"Started {config['name']} processing", "case": request.case_name, "task_id": task_id}
@@ -148,10 +149,16 @@ async def run_processing_job(task_id, cmd, tool, case_name, output_dir, case_id,
         existing_dirs = set(os.listdir(output_dir))
 
     try:
+        # Prepare environment with unbuffered output
+        env = os.environ.copy()
+        env["PYTHONUNBUFFERED"] = "1"
+        env["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python"
+
         process = await asyncio.create_subprocess_exec(
             *cmd,
             stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE
+            stderr=asyncio.subprocess.PIPE,
+            env=env
         )
         
         # Store process for stopping
@@ -191,9 +198,9 @@ async def run_processing_job(task_id, cmd, tool, case_name, output_dir, case_id,
         error_msg = None
         
         if status == "error":
-            stderr = await process.stderr.read()
-            error_msg = stderr.decode()
-            logger.debug(f"Process failed with error: {error_msg}")
+            stderr_data = await process.stderr.read()
+            error_msg = stderr_data.decode()
+            logger.error(f"Execution failed for {tool} on {case_name}: {error_msg}")
         
         # Identify the new report directory
         new_report_path = None

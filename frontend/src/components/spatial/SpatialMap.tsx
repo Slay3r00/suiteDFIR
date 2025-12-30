@@ -40,7 +40,6 @@ function AutoFitBounds({ data }: { data: GeoJsonObject | null }) {
     const map = useMap()
     useEffect(() => {
         if (data) {
-            // @ts-expect-error: Leaflet types mismatch
             const geoJsonLayer = L.geoJSON(data)
             if (geoJsonLayer.getLayers().length > 0) {
                 map.flyToBounds(geoJsonLayer.getBounds(), { padding: [50, 50], duration: 1.5 })
@@ -80,9 +79,8 @@ export default function SpatialMap() {
                 const text = await res.text()
                 const parser = new DOMParser()
                 const kml = parser.parseFromString(text, 'text/xml')
-                // @ts-expect-error: External library types mismatch
                 const toGeoJSON = await import("@mapbox/togeojson")
-                const geojson = toGeoJSON.kml(kml)
+                const geojson = toGeoJSON.kml(kml) as GeoJsonObject & { features: unknown[] }
 
                 if (geojson.features.length === 0) {
                     console.warn('No features found in KML')
@@ -105,7 +103,6 @@ export default function SpatialMap() {
         switch (layer) {
             case 'satellite':
                 return (
-                    // @ts-expect-error: External library types mismatch
                     <TileLayer
                         attribution='&copy; Google Maps'
                         url="https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}"
@@ -115,14 +112,12 @@ export default function SpatialMap() {
             case 'hybrid':
                 return (
                     <>
-                        {/* @ts-expect-error: External library types mismatch */}
                         <TileLayer
                             attribution='&copy; Google Maps'
                             url="https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}"
                             subdomains={['mt0', 'mt1', 'mt2', 'mt3']}
                             opacity={0.5}
                         />
-                        {/* @ts-expect-error: External library types mismatch */}
                         <TileLayer
                             attribution='&copy; Google Maps'
                             url="https://{s}.google.com/vt/lyrs=h&x={x}&y={y}&z={z}"
@@ -133,7 +128,6 @@ export default function SpatialMap() {
             case 'normal':
             default:
                 return (
-                    // @ts-expect-error: External library types mismatch
                     <TileLayer
                         attribution='&copy; Google Maps'
                         url="https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}"
@@ -232,7 +226,6 @@ export default function SpatialMap() {
                 selectedCaseId={selectedCaseId}
             />
 
-            {/* @ts-expect-error: External library types mismatch */}
             <MapContainer
                 center={center}
                 zoom={zoom}
@@ -250,7 +243,6 @@ export default function SpatialMap() {
 
                 {/* Uploaded Data */}
                 {geoJsonData && (
-                    /* @ts-expect-error: External library types mismatch */
                     <GeoJSON
                         data={geoJsonData}
                         onEachFeature={onEachFeature}
@@ -265,7 +257,6 @@ export default function SpatialMap() {
 
                 {/* Browsed KML Data */}
                 {Object.entries(browsedKmls).map(([url, data]) => (
-                    /* @ts-expect-error: External library types mismatch */
                     <GeoJSON
                         key={url}
                         data={data}

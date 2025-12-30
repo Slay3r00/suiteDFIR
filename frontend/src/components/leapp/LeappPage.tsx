@@ -1,15 +1,18 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useProcessing, ProcessingProvider } from '../../hooks/useProcessing';
 import { ModulesProvider } from '../../hooks/useModules';
 import FileSelector from '../../components/ileapp/FileSelector';
 import ModuleSelector from '../../components/ileapp/ModuleSelector';
 import ProcessControls from '../../components/ileapp/ProcessControls';
 import LogViewer from '../../components/ileapp/LogViewer';
+import ToolNotInstalled from '../../components/ui/ToolNotInstalled';
 
 import { Button, Input } from '../../components/ui';
 import { useCase } from '@/context/CaseContext';
+
+import { getToolsStatus } from '@/lib/api/tools';
 
 interface LeappPageProps {
     tool: 'ileapp' | 'aleapp';
@@ -112,7 +115,41 @@ function LeappContent({ logoPath, tool }: { logoPath: string; tool: string }) {
     );
 }
 
-export default function LeappPage({ tool, logoPath }: LeappPageProps) {
+function LeappPageWithCheck({ tool, logoPath }: LeappPageProps) {
+    const [toolInstalled, setToolInstalled] = useState<boolean | null>(null);
+
+    useEffect(() => {
+
+        const checkTool = async () => {
+            try {
+                const status = await getToolsStatus();
+                const toolStatus = status[tool];
+                setToolInstalled(toolStatus?.installed ?? false);
+            } catch (error) {
+                console.error('Failed to check tool status:', error);
+                // Assume installed on error to avoid blocking
+                setToolInstalled(true);
+            }
+        };
+
+        checkTool();
+    }, [tool]);
+
+    // Loading state
+    if (toolInstalled === null) {
+        return (
+            <div className="h-full w-full flex items-center justify-center bg-[#151515] text-white">
+                <div className="text-sm text-gray-500">Loading...</div>
+            </div>
+        );
+    }
+
+    // Tool not installed - show blocking screen
+    if (!toolInstalled) {
+        return <ToolNotInstalled tool={tool} />;
+    }
+
+    // Tool installed - show normal content
     return (
         <ProcessingProvider tool={tool}>
             <ModulesProvider tool={tool}>
@@ -121,3 +158,8 @@ export default function LeappPage({ tool, logoPath }: LeappPageProps) {
         </ProcessingProvider>
     );
 }
+
+export default function LeappPage({ tool, logoPath, toolName }: LeappPageProps) {
+    return <LeappPageWithCheck tool={tool} logoPath={logoPath} toolName={toolName} />;
+}
+

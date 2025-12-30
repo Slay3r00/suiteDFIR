@@ -17,7 +17,7 @@ echo "Building Python backend..."
 cd backend
 source venv/bin/activate
 rm -rf build dist
-pyinstaller build.spec.py --name "VDF Tools Backend"
+pyinstaller build.spec
 cd ..
 echo "Backend built"
 

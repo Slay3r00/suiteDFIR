@@ -7,6 +7,7 @@ import {
     type MRT_SortingState,
     type MRT_ColumnFiltersState,
 } from 'material-react-table';
+import type { Updater } from '@tanstack/react-table';
 import { Box, Button, ThemeProvider, createTheme } from '@mui/material';
 import FileDownloadIcon from '@mui/icons-material/FileDownload';
 import { mkConfig, generateCsv, download } from 'export-to-csv';
@@ -65,12 +66,12 @@ interface EnhancedTableProps {
     totalCount?: number;
     pagination?: { pageIndex: number; pageSize: number };
     sorting?: MRT_SortingState;
-    onPaginationChange?: (pagination: MRT_PaginationState) => void;
-    onSortingChange?: (sorting: MRT_SortingState) => void;
+    onPaginationChange?: (updaterOrValue: Updater<MRT_PaginationState>) => void;
+    onSortingChange?: (updaterOrValue: Updater<MRT_SortingState>) => void;
     globalFilter?: string;
     onGlobalFilterChange?: (globalFilter: string) => void;
     columnFilters?: MRT_ColumnFiltersState;
-    onColumnFiltersChange?: (columnFilters: MRT_ColumnFiltersState) => void;
+    onColumnFiltersChange?: (updaterOrValue: Updater<MRT_ColumnFiltersState>) => void;
     onExportAll?: () => Promise<TimelineEvent[]>;
 }
 const EnhancedTable = ({
@@ -98,7 +99,8 @@ const EnhancedTable = ({
         if (onExportAll) {
             const allData = await onExportAll();
             if (allData && allData.length > 0) {
-                const csv = generateCsv(csvConfig)(allData as Record<string, unknown>[]);
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const csv = generateCsv(csvConfig)(allData as any);
                 download(csvConfig)(csv);
             }
         }

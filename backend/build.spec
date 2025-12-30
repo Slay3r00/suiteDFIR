@@ -9,15 +9,18 @@ from PyInstaller.utils.hooks import collect_data_files, collect_submodules
 
 block_cipher = None
 
-# Backend directory
-backend_dir = os.path.dirname(os.path.abspath(SPEC))
+# Backend directory - SPECPATH is provided by PyInstaller for spec files
+backend_dir = SPECPATH
 
-# Collect all data from forensic-tools
+# Data files to include (minimal - user data will be created/downloaded at runtime)
 datas = [
-    (os.path.join(backend_dir, 'forensic-tools'), 'forensic-tools'),
-    (os.path.join(backend_dir, 'reports'), 'reports'),
-    (os.path.join(backend_dir, 'vdf_tools.db'), '.'),
+    ('bin', 'bin'),
+    # Only include the database schema if it exists
+    # (os.path.join(backend_dir, 'vdf_tools.db'), '.'),
 ]
+datas += collect_data_files('google.protobuf')
+datas += collect_data_files('grpc')
+
 
 # Collect hidden imports
 hiddenimports = [
@@ -43,26 +46,54 @@ hiddenimports = [
     'starlette.responses',
     'starlette.middleware',
     'starlette.middleware.cors',
-    'langchain',
-    'langchain.schema',
-    'langchain_core',
-    'langchain_openai',
-    'langgraph',
-    'langgraph.prebuilt',
     'aiofiles',
     'websockets',
     'sqlite3',
-    'sqlalchemy',
-    'pillow',
-    'PIL',
     'bs4',
-    'beautifulsoup4',
     'lxml',
     'xmltodict',
-    'openpyxl',  # If you use Excel files
+    'bencoding',
+    'blackboxprotobuf',
+    'nska_deserialize',
+    'biplist',
+    'pandas',
+    'numpy',
+    'astc_decomp_faster',
+    'ijson',
+    'mmh3',
+    'mdplistlib',
+    'pillow_heif',
+    'Crypto',
+    'xlsxwriter',
+    'polyline',
+    'geopy',
+    'fitdecode',
+    'simplekml',
+    'pgpy',
+    'liblzfse',
+    'mdplist',
+    'folium',
+    'imghdr',
+    'google',
+    'google.protobuf',
+    'google.protobuf.descriptor',
 ]
 
-# Collect all submodules for key packages
+# Collect all submodules for key forensic packages to ensure they are fully bundled
+hiddenimports += collect_submodules('pandas')
+hiddenimports += collect_submodules('numpy')
+hiddenimports += collect_submodules('PIL')
+hiddenimports += collect_submodules('Crypto')
+hiddenimports += collect_submodules('simplekml')
+hiddenimports += collect_submodules('nska_deserialize')
+hiddenimports += collect_submodules('blackboxprotobuf')
+hiddenimports += collect_submodules('pgpy')
+hiddenimports += collect_submodules('liblzfse')
+hiddenimports += collect_submodules('folium')
+hiddenimports += collect_submodules('mdplist')
+hiddenimports += collect_submodules('google')
+hiddenimports += collect_submodules('google.protobuf')
+
 binaries = []
 zipfiles = []
 
@@ -76,7 +107,10 @@ a = Analysis(
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=['tkinter', 'matplotlib', 'numpy', 'pandas'],  # Exclude heavy unused libs
+    excludes=[
+        'tkinter', 
+        'matplotlib',
+    ],  # Exclude heavy unused libs
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
     cipher=block_cipher,

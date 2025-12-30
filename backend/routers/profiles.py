@@ -119,10 +119,36 @@ async def delete_profile(profile_id: int):
 @router.get("/api/profiles/modules")
 async def get_modules(tool: str):
     """Get available modules for a specific tool"""
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    logger.info(f"get_modules called for tool: {tool}")
+    logger.info(f"available_modules keys: {list(available_modules.keys())}")
+    
+    # If tool not in available_modules, try to load plugins (might have just been installed)
+    if tool not in available_modules or len(available_modules.get(tool, {})) == 0:
+        logger.info(f"Tool '{tool}' not in available_modules, attempting to reload plugins...")
+        
+        # Check if tool is actually installed
+        try:
+            from tool_manager import tool_manager
+            tool_path = tool_manager.get_tool_path(tool)
+            logger.info(f"Tool '{tool}' path from ToolManager: {tool_path}")
+            
+            if tool_path:
+                logger.info(f"Tool is installed, reloading plugins...")
+                from plugin_manager import load_plugins
+                load_plugins()
+                logger.info(f"After reload, available_modules keys: {list(available_modules.keys())}")
+        except Exception as e:
+            logger.error(f"Error reloading plugins: {e}")
+    
     if tool not in available_modules:
-        raise HTTPException(status_code=404, detail=f"Tool '{tool}' not found")
+        logger.warning(f"Tool '{tool}' still not in available_modules after reload")
+        raise HTTPException(status_code=404, detail=f"Tool '{tool}' not found or not loaded")
     
     modules = list(available_modules[tool].values())
+    logger.info(f"Returning {len(modules)} modules for {tool}")
     return {"modules": modules, "total": len(modules)}
 
 @router.post("/api/profiles/modules/select")

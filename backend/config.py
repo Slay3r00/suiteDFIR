@@ -4,6 +4,8 @@ import os
 TOOLS_CONFIG = {
     "ileapp": {
         "name": "iLEAPP",
+        "subdir": "iLEAPP",
+        "github_url": "https://github.com/abrignoni/iLEAPP",
         "path": os.path.join(os.path.dirname(__file__), "forensic-tools", "leapp-tools", "iLEAPP"),
         "script": "ileapp.py",
         "profile_ext": ".ilprofile",
@@ -12,6 +14,8 @@ TOOLS_CONFIG = {
     },
     "aleapp": {
         "name": "aLEAPP",
+        "subdir": "ALEAPP",
+        "github_url": "https://github.com/abrignoni/ALEAPP",
         "path": os.path.join(os.path.dirname(__file__), "forensic-tools", "leapp-tools", "ALEAPP"),
         "script": "aleapp.py",
         "profile_ext": ".alprofile",

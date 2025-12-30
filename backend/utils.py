@@ -1,4 +1,5 @@
 import os
+import sys
 import json
 import logging
 import asyncio
@@ -16,6 +17,20 @@ def get_size_format(b, factor=1024, suffix="B"):
             return f"{b:.2f}{unit}{suffix}"
         b /= factor
     return f"{b:.2f}Y{suffix}"
+
+def get_binary_path(binary_name):
+    """Resolve path to a binary, preferring bundled versions"""
+    # Check if we are running in a bundled app
+    if getattr(sys, 'frozen', False):
+        # In bundled app, binaries are in the _internal/bin folder
+        # sys._MEIPASS is the temp folder for PyInstaller onefile, but for onedir it's adjacent
+        base_path = sys._MEIPASS if hasattr(sys, '_MEIPASS') else os.path.dirname(os.path.abspath(__file__))
+        bundled_path = os.path.join(base_path, 'bin', binary_name)
+        if os.path.exists(bundled_path):
+            return bundled_path
+            
+    # Fallback to system path (just the name)
+    return binary_name
 
 async def broadcast_event(event_type: str, data: dict):
     """Broadcast event to all connected clients"""
@@ -52,9 +67,11 @@ async def get_device_details(udid: str):
         # Run ideviceinfo -x (XML) or simple key lookups
         # We'll do key lookups as they are simpler to parse without xmltodict
         
+        ideviceinfo_cmd = get_binary_path("ideviceinfo")
+        
         # Get Device Name
         proc_name = await asyncio.create_subprocess_exec(
-            "ideviceinfo", "-u", udid, "-k", "DeviceName",
+            ideviceinfo_cmd, "-u", udid, "-k", "DeviceName",
             stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
         )
         stdout_name, _ = await proc_name.communicate()
@@ -63,7 +80,7 @@ async def get_device_details(udid: str):
 
         # Get Product Type
         proc_type = await asyncio.create_subprocess_exec(
-            "ideviceinfo", "-u", udid, "-k", "ProductType",
+            ideviceinfo_cmd, "-u", udid, "-k", "ProductType",
             stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
         )
         stdout_type, _ = await proc_type.communicate()
@@ -72,7 +89,7 @@ async def get_device_details(udid: str):
 
         # Check Encryption (com.apple.mobile.backup Domain)
         proc_enc = await asyncio.create_subprocess_exec(
-            "ideviceinfo", "-u", udid, "-q", "com.apple.mobile.backup",
+            ideviceinfo_cmd, "-u", udid, "-q", "com.apple.mobile.backup",
             stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
         )
         stdout_enc, _ = await proc_enc.communicate()
@@ -92,8 +109,9 @@ async def get_connected_devices():
     
     # Check for iOS devices using idevice_id
     try:
+        idevice_id_cmd = get_binary_path("idevice_id")
         proc = await asyncio.create_subprocess_exec(
-            "idevice_id", "-l",
+            idevice_id_cmd, "-l",
             stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
         )
         stdout, _ = await proc.communicate()

@@ -71,9 +71,35 @@ def load_plugins():
     Loads forensic tool plugins based on configuration.
     Uses safe_tool_execution to isolate tool environments.
     """
+    import sys
+    logger.info("=== load_plugins() called ===")
+    logger.info(f"sys.frozen: {getattr(sys, 'frozen', False)}")
+    
+    # Import ToolManager to get actual installed tool paths
+    try:
+        from tool_manager import tool_manager
+        logger.info(f"ToolManager imported, tools_dir: {tool_manager.tools_dir}")
+    except ImportError as e:
+        tool_manager = None
+        logger.warning(f"Failed to import tool_manager: {e}")
+    
     for tool_id, config in TOOLS_CONFIG.items():
         try:
-            tool_path = config["path"]
+            logger.info(f"--- Processing tool: {tool_id} ---")
+            
+            # Try ToolManager first (for downloaded tools), then fall back to config path
+            tool_path = None
+            if tool_manager:
+                tool_path = tool_manager.get_tool_path(tool_id)
+                logger.info(f"ToolManager.get_tool_path('{tool_id}'): {tool_path}")
+                if tool_path:
+                    tool_path = str(tool_path)
+            
+            # Fall back to config path (development mode)
+            if not tool_path:
+                tool_path = config["path"]
+                logger.info(f"Using config path: {tool_path}")
+            
             if not os.path.exists(tool_path):
                 logger.warning(f"{config['name']} path not found: {tool_path}")
                 continue
