@@ -42,21 +42,23 @@ const data = {
             icon: FileText,
         },
     ],
-    mobile: [
+    ios: [
         {
-            title: "IOS",
+            title: "Analysis (iLEAPP)",
             url: "/ileapp",
             icon: Smartphone,
         },
         {
-            title: "Android",
-            url: "/aleapp",
-            icon: Smartphone,
-        },
-        {
-            title: "Backup",
+            title: "Backup (libimobile)",
             url: "/backup",
             icon: Archive,
+        },
+    ],
+    android: [
+        {
+            title: "Analysis (aLEAPP)",
+            url: "/aleapp",
+            icon: Smartphone,
         },
     ],
 
@@ -115,19 +117,42 @@ export function AppSidebar() {
                 </SidebarGroup>
                 <SidebarGroup>
                     <SidebarGroupLabel>Mobile Tools</SidebarGroupLabel>
-                    <SidebarGroupContent>
-                        <SidebarMenu>
-                            {data.mobile.map((item) => (
-                                <SidebarMenuItem key={item.title}>
-                                    <SidebarMenuButton asChild tooltip={item.title} isActive={pathname === item.url}>
-                                        <a href={item.url}>
-                                            <item.icon />
-                                            <span>{item.title}</span>
-                                        </a>
-                                    </SidebarMenuButton>
-                                </SidebarMenuItem>
-                            ))}
-                        </SidebarMenu>
+                    <SidebarGroupContent className="space-y-4">
+                        <div className="flex flex-col group-data-[state=expanded]:pl-4">
+                            <div className="px-2 py-1.5 text-[10px] font-medium text-sidebar-foreground/70 uppercase group-data-[state=collapsed]:hidden">
+                                iOS
+                            </div>
+                            <SidebarMenu>
+                                {data.ios.map((item) => (
+                                    <SidebarMenuItem key={item.title}>
+                                        <SidebarMenuButton asChild tooltip={item.title} isActive={pathname === item.url}>
+                                            <a href={item.url}>
+                                                <item.icon />
+                                                <span>{item.title}</span>
+                                            </a>
+                                        </SidebarMenuButton>
+                                    </SidebarMenuItem>
+                                ))}
+                            </SidebarMenu>
+                        </div>
+
+                        <div className="flex flex-col group-data-[state=expanded]:pl-4">
+                            <div className="px-2 py-1.5 text-[10px] font-medium text-sidebar-foreground/70 uppercase group-data-[state=collapsed]:hidden">
+                                Android
+                            </div>
+                            <SidebarMenu>
+                                {data.android.map((item) => (
+                                    <SidebarMenuItem key={item.title}>
+                                        <SidebarMenuButton asChild tooltip={item.title} isActive={pathname === item.url}>
+                                            <a href={item.url}>
+                                                <item.icon />
+                                                <span>{item.title}</span>
+                                            </a>
+                                        </SidebarMenuButton>
+                                    </SidebarMenuItem>
+                                ))}
+                            </SidebarMenu>
+                        </div>
                     </SidebarGroupContent>
                 </SidebarGroup>
 
@@ -150,7 +175,7 @@ export function AppSidebar() {
                 </SidebarGroup>
             </SidebarContent>
             <SidebarFooter>
-                <SidebarMenu className="flex-row gap-0 group-data-[state=collapsed]:flex-col">
+                <SidebarMenu className="flex-row gap-1 group-data-[state=collapsed]:flex-col">
                     <SidebarMenuItem className="flex-[2]">
                         <SidebarMenuButton
                             tooltip="Back to Cases"

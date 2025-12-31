@@ -75,9 +75,6 @@ export default function PreferencesPage() {
                 <div className="flex flex-col gap-0.5">
                     <div className="flex items-center gap-2">
                         <span className="text-sm font-medium text-white">{tool.name}</span>
-                        {tool.installed && tool.version && (
-                            <span className="text-xs text-white/30 font-mono">{tool.version}</span>
-                        )}
                     </div>
                     <p className="text-xs text-white/50">{tool.description}</p>
                 </div>
@@ -94,19 +91,8 @@ export default function PreferencesPage() {
                             <span className="text-[10px] text-white/50 uppercase tracking-wider font-medium">{installProgress.message}</span>
                         </div>
                     ) : tool.installed ? (
-                        <div className="flex items-center gap-3">
-                            <span className="text-xs text-white/40 font-medium tracking-wide flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 border border-white/5">
-                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500/80 shadow-[0_0_8px_rgba(16,185,129,0.4)]"></span>
-                                INSTALLED
-                            </span>
-                            {tool.update_available && (
-                                <button
-                                    className="h-8 px-4 text-xs font-medium bg-white/10 hover:bg-white/20 text-white rounded-md transition-all duration-200"
-                                    onClick={() => handleInstall(toolKey)}
-                                >
-                                    Update
-                                </button>
-                            )}
+                        <div className="flex items-center gap-4">
+                            <span className="text-xs text-white font-medium tracking-wide">Installed</span>
                             <button
                                 className="h-8 w-8 flex items-center justify-center text-white/40 hover:text-red-400 hover:bg-red-500/10 rounded-md transition-all duration-200"
                                 title="Uninstall"
