@@ -104,6 +104,7 @@ export default function SpatialMap() {
             case 'satellite':
                 return (
                     <TileLayer
+                        key="satellite"
                         attribution='&copy; Google Maps'
                         url="https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}"
                         subdomains={['mt0', 'mt1', 'mt2', 'mt3']}
@@ -113,6 +114,7 @@ export default function SpatialMap() {
             case 'hybrid':
                 return (
                     <TileLayer
+                        key="hybrid"
                         attribution='&copy; Google Maps'
                         url="https://{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}&scale=2"
                         subdomains={['mt0', 'mt1', 'mt2', 'mt3']}
@@ -123,6 +125,7 @@ export default function SpatialMap() {
             default:
                 return (
                     <TileLayer
+                        key="normal"
                         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
                         url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
                         subdomains='abcd'

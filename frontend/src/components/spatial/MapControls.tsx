@@ -34,6 +34,22 @@ export default function MapControls({ onSearch, onLayerChange, onDataUpload, onK
     const [selectedKmls, setSelectedKmls] = useState<Set<string>>(new Set())
     const fileInputRef = useRef<HTMLInputElement>(null)
 
+    const layerMenuRef = useRef<HTMLDivElement>(null)
+    const kmlMenuRef = useRef<HTMLDivElement>(null)
+
+    useEffect(() => {
+        function handleClickOutside(event: MouseEvent) {
+            if (layerMenuRef.current && !layerMenuRef.current.contains(event.target as Node)) {
+                setShowLayerMenu(false)
+            }
+            if (kmlMenuRef.current && !kmlMenuRef.current.contains(event.target as Node)) {
+                setShowKmlMenu(false)
+            }
+        }
+        document.addEventListener("mousedown", handleClickOutside)
+        return () => document.removeEventListener("mousedown", handleClickOutside)
+    }, [])
+
     const fetchKmlFiles = React.useCallback(async () => {
         try {
             const url = selectedCaseId
@@ -140,7 +156,7 @@ export default function MapControls({ onSearch, onLayerChange, onDataUpload, onK
             {/* Right Controls */}
             <div className="flex gap-2 pointer-events-auto">
                 {/* Layer Switcher */}
-                <div className="relative">
+                <div className="relative" ref={layerMenuRef}>
                     <Button
                         variant="secondary"
                         size="icon-sm"
@@ -159,7 +175,7 @@ export default function MapControls({ onSearch, onLayerChange, onDataUpload, onK
                                 Map Layers
                             </div>
                             <button
-                                onClick={() => { onLayerChange('normal'); setShowLayerMenu(false) }}
+                                onClick={() => { onLayerChange('normal') }}
                                 className={cn(
                                     "flex items-center gap-2 px-3 py-2 text-xs font-medium transition-colors hover:bg-[#2a2a2a] border-b border-[#262626]",
                                     currentLayer === 'normal' ? "text-white bg-[#262626]" : "text-gray-300 hover:text-white"
@@ -169,7 +185,7 @@ export default function MapControls({ onSearch, onLayerChange, onDataUpload, onK
                                 Standard
                             </button>
                             <button
-                                onClick={() => { onLayerChange('satellite'); setShowLayerMenu(false) }}
+                                onClick={() => { onLayerChange('satellite') }}
                                 className={cn(
                                     "flex items-center gap-2 px-3 py-2 text-xs font-medium transition-colors hover:bg-[#2a2a2a] border-b border-[#262626]",
                                     currentLayer === 'satellite' ? "text-white bg-[#262626]" : "text-gray-300 hover:text-white"
@@ -179,7 +195,7 @@ export default function MapControls({ onSearch, onLayerChange, onDataUpload, onK
                                 Satellite
                             </button>
                             <button
-                                onClick={() => { onLayerChange('hybrid'); setShowLayerMenu(false) }}
+                                onClick={() => { onLayerChange('hybrid') }}
                                 className={cn(
                                     "flex items-center gap-2 px-3 py-2 text-xs font-medium transition-colors hover:bg-[#2a2a2a] last:border-b-0",
                                     currentLayer === 'hybrid' ? "text-white bg-[#262626]" : "text-gray-300 hover:text-white"
@@ -212,7 +228,7 @@ export default function MapControls({ onSearch, onLayerChange, onDataUpload, onK
                 />
 
                 {/* KML Browser Button */}
-                <div className="relative">
+                <div className="relative" ref={kmlMenuRef}>
                     <Button
                         variant="secondary"
                         size="icon-sm"
