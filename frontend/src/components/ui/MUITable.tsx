@@ -131,7 +131,8 @@ const EnhancedTable = ({
             MuiTableHead: {
                 styleOverrides: {
                     root: {
-                        backgroundColor: '#212121',
+                        backgroundColor: '#212121 !important',
+                        opacity: '1 !important',
                     },
                 },
             },
@@ -159,8 +160,9 @@ const EnhancedTable = ({
                         borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
                     },
                     head: {
-                        backgroundColor: '#212121',
+                        backgroundColor: '#212121 !important',
                         color: '#FFFFFF',
+                        opacity: '1 !important',
                     },
                 },
             },
@@ -365,8 +367,9 @@ const EnhancedTable = ({
         },
         muiTableHeadCellProps: {
             sx: {
-                backgroundColor: '#212121',
+                backgroundColor: '#212121 !important',
                 color: '#FFFFFF',
+                opacity: 1,
             },
         },
         muiSearchTextFieldProps: {
