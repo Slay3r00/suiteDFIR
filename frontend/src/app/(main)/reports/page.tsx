@@ -305,7 +305,7 @@ export default function Reports() {
 
             {/* Bottom Section - Report List (15% of available height) - Hidden in fullscreen */}
             {!isFullscreen && (
-                <div className="flex-[15] flex flex-col gap-0 min-h-0 border border-white/10 rounded-xl bg-[#1A1A1A]/30 overflow-hidden pb-2">
+                <div className="flex-[15] flex flex-col gap-0 min-h-[140px] border border-white/10 rounded-xl bg-[#1A1A1A]/30 overflow-hidden pb-2">
                     <div className="flex-1 flex flex-col gap-2 min-h-0 pb-2 pt-2 px-4">
                         {/* Header with Controls */}
                         <div className="flex items-center justify-between gap-4">
@@ -375,7 +375,7 @@ export default function Reports() {
                                     {filteredReports.map((report) => (
                                         <div
                                             key={report.path}
-                                            className={`report-card group flex-shrink-0 w-72 rounded-lg px-2.5 flex items-center gap-2 border transition-colors cursor-pointer ${selectedReport?.path === report.path ? 'bg-[#1A1A1A] border-white/40' : 'bg-[#1A1A1A] border-white/10 hover:border-white/20'
+                                            className={`report-card group flex-shrink-0 w-72 min-h-[60px] rounded-lg px-2.5 flex items-center gap-2 border transition-colors cursor-pointer ${selectedReport?.path === report.path ? 'bg-[#1A1A1A] border-white/40' : 'bg-[#1A1A1A] border-white/10 hover:border-white/20'
                                                 }`}
                                             onClick={() => handleViewReport(report)}
                                         >
@@ -395,7 +395,7 @@ export default function Reports() {
                                             </div>
 
                                             {/* Info */}
-                                            <div className="flex-1 min-w-0 flex flex-col justify-center items-center overflow-hidden">
+                                            <div className="flex-1 min-w-0 flex flex-col justify-center py-1 overflow-hidden">
                                                 <h3 className="text-white font-medium truncate text-xs w-full text-center">{report.name}</h3>
                                                 <div className="flex items-center justify-center gap-1.5 text-[10px] text-gray-400 mt-0.5 whitespace-nowrap">
                                                     <span className="flex items-center gap-0.5 shrink-0">
