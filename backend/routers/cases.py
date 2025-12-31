@@ -22,7 +22,8 @@ async def get_cases():
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         cursor.execute('''
-            SELECT * FROM cases ORDER BY created_at DESC
+            SELECT * FROM cases 
+            ORDER BY COALESCE(last_visited_at, created_at) DESC
         ''')
         cases = [Case.model_validate(dict(row)) for row in cursor.fetchall()]
         conn.close()
@@ -39,13 +40,13 @@ async def create_case(case: CaseCreate):
         cursor = conn.cursor()
         cursor.execute('''
             INSERT INTO cases (
-                name, case_number, business_name, investigator_name, 
-                client_name, client_location, client_contact, description, 
+                name, case_number, 
+                client_name, client_phone, client_email, description, 
                 status, priority
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
-            case.name, case.case_number, case.business_name, case.investigator_name,
-            case.client_name, case.client_location, case.client_contact, case.description,
+            case.name, case.case_number,
+            case.client_name, case.client_phone, case.client_email, case.description,
             case.status, case.priority
         ))
         case_id = cursor.lastrowid
@@ -115,6 +116,39 @@ async def update_case(case_id: int, case_update: CaseUpdate):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to update case: {str(e)}")
+
+@router.post("/{case_id}/visit", response_model=Case)
+async def visit_case(case_id: int):
+    """Update the last_visited_at timestamp for a case"""
+    try:
+        logger.info(f"Tracking visit for case ID: {case_id}")
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            UPDATE cases 
+            SET last_visited_at = CURRENT_TIMESTAMP 
+            WHERE id = ?
+        ''', (case_id,))
+        
+        if cursor.rowcount == 0:
+            conn.close()
+            raise HTTPException(status_code=404, detail="Case not found")
+            
+        conn.commit()
+        
+        # Fetch updated case
+        cursor.execute('SELECT * FROM cases WHERE id = ?', (case_id,))
+        row = cursor.fetchone()
+        conn.close()
+        
+        return Case.model_validate(dict(row))
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to track case visit: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to track case visit: {str(e)}")
 
 @router.delete("/{case_id}")
 async def delete_case(case_id: int):

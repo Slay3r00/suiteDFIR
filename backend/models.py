@@ -40,11 +40,9 @@ class Profile(ProfileBase):
 class CaseBase(BaseModel):
     name: str
     case_number: Optional[str] = None
-    business_name: Optional[str] = None
-    investigator_name: Optional[str] = None
     client_name: Optional[str] = None
-    client_location: Optional[str] = None
-    client_contact: Optional[str] = None
+    client_phone: Optional[str] = None
+    client_email: Optional[str] = None
     description: Optional[str] = None
     status: CaseStatus = CaseStatus.ACTIVE
     priority: Priority = Priority.MEDIUM
@@ -57,11 +55,9 @@ class CaseUpdate(BaseModel):
     """Payload for updating an existing case. All fields are optional."""
     name: Optional[str] = None
     case_number: Optional[str] = None
-    business_name: Optional[str] = None
-    investigator_name: Optional[str] = None
     client_name: Optional[str] = None
-    client_location: Optional[str] = None
-    client_contact: Optional[str] = None
+    client_phone: Optional[str] = None
+    client_email: Optional[str] = None
     description: Optional[str] = None
     status: Optional[CaseStatus] = None
     priority: Optional[Priority] = None
@@ -71,6 +67,7 @@ class Case(CaseBase):
     model_config = ConfigDict(from_attributes=True)
     id: int
     created_at: str
+    last_visited_at: Optional[str] = None
 
 # PROCESSING MODELS
 
@@ -149,22 +146,10 @@ class BackupRequest(BaseModel):
     password: Optional[str] = None
     case_id: Optional[int] = None
 
-# AGENT MODELS
-class AgentChatRequest(BaseModel):
-    message: str
-    session_id: str
-    chat_history: Optional[List[dict]] = None
-    model: Optional[str] = "anthropic/claude-3.5-sonnet"
-
-class AgentChatResponse(BaseModel):
-    response: str
-    session_id: str
-
-class ChatSession(BaseModel):
-    session_id: str
-    message_count: int
-    title: Optional[str] = None
-
-class ChatMessage(BaseModel):
-    role: str
-    content: str
+# BACKUP MODELS
+class BackupRequest(BaseModel):
+    """Payload for triggering a device backup."""
+    udid: str
+    name: str
+    password: Optional[str] = None
+    case_id: Optional[int] = None

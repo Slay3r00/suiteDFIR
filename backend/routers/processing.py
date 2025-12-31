@@ -81,14 +81,32 @@ async def start_processing(request: ProcessRequest, background_tasks: Background
     else:
         tool_script_path = os.path.join(str(tool_path), config["script"])
 
-    cmd = [
-        sys.executable,
-        "-u",
-        "--wrapper",
-        tool_script_path,
-        "--input_path", request.input_path,
-        "--output_path", output_dir
-    ]
+    # Build command based on environment:
+    # - In bundled mode (PyInstaller): sys.executable IS the backend binary which handles --wrapper
+    # - In development mode: we need to run main.py with --wrapper flag
+    is_bundled = getattr(sys, 'frozen', False)
+    
+    if is_bundled:
+        # Bundled: sys.executable is the VDF Tools Backend binary
+        cmd = [
+            sys.executable,
+            "--wrapper",
+            tool_script_path,
+            "--input_path", request.input_path,
+            "--output_path", output_dir
+        ]
+    else:
+        # Development: Run main.py with wrapper flag
+        main_py_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "main.py")
+        cmd = [
+            sys.executable,
+            "-u",
+            main_py_path,
+            "--wrapper",
+            tool_script_path,
+            "--input_path", request.input_path,
+            "--output_path", output_dir
+        ]
     
     if profile_path:
         cmd.extend(["-m", profile_path])

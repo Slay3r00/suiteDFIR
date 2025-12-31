@@ -66,15 +66,14 @@ SCHEMA = {
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
             case_number TEXT,
-            business_name TEXT,
-            investigator_name TEXT,
             client_name TEXT,
-            client_location TEXT,
-            client_contact TEXT,
+            client_phone TEXT,
+            client_email TEXT,
             description TEXT,
             status TEXT DEFAULT 'Active',
             priority TEXT DEFAULT 'Medium',
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            last_visited_at TIMESTAMP
         )
     """
 }
@@ -95,6 +94,24 @@ def init_database():
     # Create tables if they don't exist
     for table_name, create_sql in SCHEMA.items():
         cursor.execute(create_sql)
+        
+    # Migrations
+    # Add last_visited_at to cases if it doesn't exist
+    try:
+        cursor.execute("SELECT last_visited_at FROM cases LIMIT 1")
+    except sqlite3.OperationalError:
+        cursor.execute("ALTER TABLE cases ADD COLUMN last_visited_at TIMESTAMP")
+
+    # Add client_phone and client_email
+    try:
+        cursor.execute("SELECT client_phone FROM cases LIMIT 1")
+    except sqlite3.OperationalError:
+        cursor.execute("ALTER TABLE cases ADD COLUMN client_phone TEXT")
+    
+    try:
+        cursor.execute("SELECT client_email FROM cases LIMIT 1")
+    except sqlite3.OperationalError:
+        cursor.execute("ALTER TABLE cases ADD COLUMN client_email TEXT")
         
     conn.commit()
     conn.close()
