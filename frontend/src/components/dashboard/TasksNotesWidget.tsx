@@ -210,7 +210,7 @@ export default function TasksNotesWidget() {
                 </div>
             </div>
 
-            <CardContent className="flex-1 flex flex-col p-0 pt-6 min-h-0">
+            <CardContent className="flex-1 flex flex-col p-0 pt-0 min-h-0">
                 <div className="flex flex-col flex-1 min-h-0">
                     {/* Input Area */}
                     <div className="space-y-2.5 mb-4">
@@ -268,11 +268,11 @@ export default function TasksNotesWidget() {
                                 tasks.map((task) => (
                                     <div
                                         key={task.id}
-                                        className="group flex items-start gap-3 p-2.5 rounded-lg hover:bg-[#212121] transition-colors"
+                                        className="group flex items-start gap-2 p-1.5 rounded-md hover:bg-[#212121]/50 border border-transparent hover:border-[#333333]/30 transition-colors"
                                     >
                                         <button
                                             onClick={() => handleToggleTask(task.id)}
-                                            className={`mt-0.5 h-4 w-4 rounded border flex items-center justify-center transition-colors shrink-0 ${task.completed
+                                            className={`mt-1 h-3.5 w-3.5 rounded border flex items-center justify-center transition-colors shrink-0 ${task.completed
                                                 ? 'bg-green-500/10 border-green-500/20 text-green-400/70'
                                                 : 'border-gray-500/50 hover:border-gray-400'
                                                 }`}
@@ -281,18 +281,18 @@ export default function TasksNotesWidget() {
                                         </button>
 
                                         <div className="flex-1 min-w-0">
-                                            <div className="flex items-center gap-2 mb-0.5">
+                                            <div className="flex items-center gap-2">
                                                 <span className={`truncate text-sm font-medium ${task.completed ? 'text-gray-500 line-through' : 'text-gray-200'}`}>
                                                     {task.content}
                                                 </span>
                                                 {task.priority && (
-                                                    <span className={`text-[9px] px-1.5 py-px rounded border ${getPriorityColor(task.priority)} uppercase font-bold tracking-wider`}>
+                                                    <span className={`text-[8px] px-1.5 py-px rounded border ${getPriorityColor(task.priority)} uppercase font-bold tracking-wider`}>
                                                         {task.priority}
                                                     </span>
                                                 )}
                                             </div>
                                             {task.description && (
-                                                <p className={`text-xs ${task.completed ? 'text-gray-600' : 'text-gray-400'} break-words leading-relaxed`}>
+                                                <p className={`text-[11px] ${task.completed ? 'text-gray-600' : 'text-gray-400'} break-words leading-tight mt-0.5`}>
                                                     {task.description}
                                                 </p>
                                             )}
@@ -300,9 +300,9 @@ export default function TasksNotesWidget() {
 
                                         <button
                                             onClick={() => handleDelete(task.id, 'tasks')}
-                                            className="opacity-0 group-hover:opacity-100 p-1 text-gray-500 hover:text-red-400 transition-all"
+                                            className="opacity-0 group-hover:opacity-100 p-1 text-gray-500 hover:text-red-400 transition-colors"
                                         >
-                                            <Trash2 size={14} />
+                                            <Trash2 size={12} />
                                         </button>
                                     </div>
                                 ))
@@ -316,26 +316,26 @@ export default function TasksNotesWidget() {
                                 notes.map((note) => (
                                     <div
                                         key={note.id}
-                                        className="group flex items-start gap-3 p-3 rounded-lg hover:bg-[#212121] transition-colors border border-transparent hover:border-[#333333]"
+                                        className="group flex items-start gap-2 p-1.5 rounded-md hover:bg-[#212121]/50 border border-transparent hover:border-[#333333]/30 transition-colors"
                                     >
                                         <div className="flex-1 min-w-0">
-                                            <p className="text-sm font-medium text-gray-200 whitespace-pre-wrap break-words leading-relaxed">
+                                            <p className="text-sm font-medium text-gray-200 whitespace-pre-wrap break-words leading-tight">
                                                 {note.content}
                                             </p>
                                             {note.description && (
-                                                <p className="text-xs text-gray-400 mt-1 whitespace-pre-wrap break-words leading-relaxed">
+                                                <p className="text-[11px] text-gray-400 mt-0.5 whitespace-pre-wrap break-words leading-tight">
                                                     {note.description}
                                                 </p>
                                             )}
-                                            <p className="text-[10px] text-gray-600 mt-2">
+                                            <p className="text-[9px] text-gray-600 mt-1 uppercase tracking-tighter">
                                                 {new Date(note.created_at).toLocaleDateString()}
                                             </p>
                                         </div>
                                         <button
                                             onClick={() => handleDelete(note.id, 'notes')}
-                                            className="opacity-0 group-hover:opacity-100 p-1 text-gray-500 hover:text-red-400 transition-all shrink-0"
+                                            className="opacity-0 group-hover:opacity-100 p-1 text-gray-500 hover:text-red-400 transition-colors shrink-0"
                                         >
-                                            <Trash2 size={14} />
+                                            <Trash2 size={12} />
                                         </button>
                                     </div>
                                 ))

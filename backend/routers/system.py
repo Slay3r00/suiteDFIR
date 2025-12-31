@@ -17,8 +17,8 @@ from typing import Optional
 from models import FilePathResponse
 from database import DB_PATH
 from config import TOOLS_CONFIG, REPORTS_DIR
-from state import plugin_loaders, available_modules, current_devices, event_clients
-from utils import get_connected_devices
+from state import plugin_loaders, available_modules, event_clients
+
 
 router = APIRouter()
 
@@ -272,9 +272,6 @@ async def get_recent_activity(case_id: Optional[int] = None):
     
     return activity[:10] # Return top 10
 
-@router.get("/api/dashboard/devices")
-async def get_active_devices():
-    return await get_connected_devices()
 
 @router.get("/api/stream")
 async def stream_events():
@@ -284,9 +281,6 @@ async def stream_events():
         event_clients.add(queue)
         
         try:
-            # Send initial device state immediately
-            initial_data = json.dumps({"type": "device_update", "data": current_devices})
-            yield f"data: {initial_data}\n\n"
             
             while True:
                 # Wait for updates

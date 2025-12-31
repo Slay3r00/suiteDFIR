@@ -3,7 +3,7 @@
 // import { Card, CardContent } from "@/components/ui/Card"
 import TasksNotesWidget from "@/components/dashboard/TasksNotesWidget"
 import StorageWidget from "@/components/dashboard/StorageWidget"
-import ActiveDevicesWidget from "@/components/dashboard/ActiveDevicesWidget"
+
 import RecentActivityWidget from "@/components/dashboard/RecentActivityWidget"
 import CaseDetailsWidget from "@/components/dashboard/CaseDetailsWidget"
 
@@ -13,9 +13,8 @@ export default function DashboardPage() {
             {/* Left Column */}
             <div className="flex flex-col gap-4 h-full min-h-0">
                 {/* Active Devices & Activity - Short (43%) */}
-                <div className="h-[43%] min-h-0 grid grid-cols-2 gap-4">
+                <div className="h-[43%] min-h-0">
                     <RecentActivityWidget />
-                    <ActiveDevicesWidget />
                 </div>
                 {/* Case Details - Tall (Flex-1) */}
                 <div className="flex-1 min-h-0">

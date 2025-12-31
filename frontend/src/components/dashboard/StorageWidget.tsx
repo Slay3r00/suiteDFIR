@@ -92,9 +92,9 @@ export default function StorageWidget({ className }: StorageWidgetProps) {
                     System {formatBytes(data.total - data.free)} / {formatBytes(data.total)}
                 </span>
             </div>
-            <CardContent className="flex-1 p-0 pt-6 flex flex-col">
+            <CardContent className="flex-1 p-0 pt-0 flex flex-col">
 
-                <div className="flex-1 min-h-0 flex items-center justify-center gap-8">
+                <div className="flex-1 min-h-0 flex items-center justify-center gap-4 py-2 overflow-y-auto overflow-x-hidden">
                     <div className="h-full aspect-square relative max-h-[220px]" style={{ outline: 'none', outlineStyle: 'none' }}>
                         <style jsx>{`
                             .recharts-wrapper,
@@ -137,14 +137,14 @@ export default function StorageWidget({ className }: StorageWidgetProps) {
                         </div>
                     </div>
 
-                    <div className="space-y-3 min-w-[160px]">
+                    <div className="space-y-2 flex-1 min-w-0 max-w-[200px]">
                         {displayBreakdown.map((item) => (
                             <div key={item.name} className="flex items-center justify-between text-sm">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-3 h-3 rounded-full opacity-70" style={{ backgroundColor: item.color }} />
-                                    <span className="text-gray-300/80">{item.name}</span>
+                                <div className="flex items-center gap-2 min-w-0 flex-1">
+                                    <div className="w-2.5 h-2.5 rounded-full opacity-70 shrink-0" style={{ backgroundColor: item.color }} />
+                                    <span className="text-gray-300/80 truncate text-xs">{item.name}</span>
                                 </div>
-                                <span className="text-gray-500/70 font-mono">{formatBytes(item.value)}</span>
+                                <span className="text-gray-500/70 font-mono text-[10px] shrink-0">{formatBytes(item.value)}</span>
                             </div>
                         ))}
                     </div>

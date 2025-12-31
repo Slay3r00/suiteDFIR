@@ -11,7 +11,7 @@ load_dotenv()
 from logger import setup_logging
 from database import init_database
 from config import TOOLS_CONFIG, REPORTS_DIR
-from monitor import monitor_devices_task
+
 from plugin_manager import load_plugins
 from routers import cases, reports, profiles, tasks, processing, backups, system, timeline, tools
 
@@ -29,7 +29,6 @@ async def lifespan(app: FastAPI):
     # Init each tool
     load_plugins()
     
-    asyncio.create_task(monitor_devices_task())
     yield
 
 app = FastAPI(lifespan=lifespan)

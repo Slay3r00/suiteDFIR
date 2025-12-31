@@ -90,70 +90,73 @@ export default function CaseDetailsWidget({ className }: { className?: string })
                 </div>
                 <span className="text-[10px] font-mono text-gray-500">{caseData.case_number}</span>
             </div>
-            <CardContent className="flex-1 p-0 pt-6 flex flex-col min-h-0">
-                <div className="grid grid-cols-2 gap-x-12 gap-y-8 mb-8 shrink-0">
-                    {/* Case Name */}
-                    <div className="space-y-1">
-                        <div className="flex items-center gap-2 text-gray-500 mb-1">
-                            <FileText size={14} />
-                            <span className="text-[10px] font-medium uppercase tracking-wider">Case Name</span>
+            <CardContent className="flex-1 p-0 pt-0 flex flex-col min-h-0 gap-4">
+                {/* Top 60% - Details Grid */}
+                <div className="flex-[6] min-h-0 overflow-y-auto pr-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] flex flex-col justify-center">
+                    <div className="grid grid-cols-2 gap-x-6 gap-y-4">
+                        {/* Case Name */}
+                        <div className="space-y-0.5">
+                            <div className="flex items-center gap-2 text-gray-500 mb-0.5">
+                                <FileText size={12} />
+                                <span className="text-[9px] font-medium uppercase tracking-wider">Case Name</span>
+                            </div>
+                            <p className="text-sm text-gray-200 font-medium truncate">{caseData.name}</p>
                         </div>
-                        <p className="text-sm text-gray-200 font-medium">{caseData.name}</p>
-                    </div>
 
-                    {/* Client Name */}
-                    <div className="space-y-1">
-                        <div className="flex items-center gap-2 text-gray-500 mb-1">
-                            <User size={14} />
-                            <span className="text-[10px] font-medium uppercase tracking-wider">Client Name</span>
+                        {/* Client Name */}
+                        <div className="space-y-0.5">
+                            <div className="flex items-center gap-2 text-gray-500 mb-0.5">
+                                <User size={12} />
+                                <span className="text-[9px] font-medium uppercase tracking-wider">Client Name</span>
+                            </div>
+                            <p className="text-sm text-gray-200 font-medium truncate">{caseData.client_name || 'N/A'}</p>
                         </div>
-                        <p className="text-sm text-gray-200 font-medium">{caseData.client_name || 'N/A'}</p>
-                    </div>
 
-                    {/* Client Email */}
-                    <div className="space-y-1">
-                        <div className="flex items-center gap-2 text-gray-500 mb-1">
-                            <Mail size={14} />
-                            <span className="text-[10px] font-medium uppercase tracking-wider">Client Email</span>
+                        {/* Client Email */}
+                        <div className="space-y-0.5">
+                            <div className="flex items-center gap-2 text-gray-500 mb-0.5">
+                                <Mail size={12} />
+                                <span className="text-[9px] font-medium uppercase tracking-wider">Client Email</span>
+                            </div>
+                            <p className="text-sm text-gray-200 font-medium truncate">{caseData.client_email || 'N/A'}</p>
                         </div>
-                        <p className="text-sm text-gray-200 font-medium">{caseData.client_email || 'N/A'}</p>
-                    </div>
 
-                    {/* Client Phone */}
-                    <div className="space-y-1">
-                        <div className="flex items-center gap-2 text-gray-500 mb-1">
-                            <Phone size={14} />
-                            <span className="text-[10px] font-medium uppercase tracking-wider">Client Phone</span>
+                        {/* Client Phone */}
+                        <div className="space-y-0.5">
+                            <div className="flex items-center gap-2 text-gray-500 mb-0.5">
+                                <Phone size={12} />
+                                <span className="text-[9px] font-medium uppercase tracking-wider">Client Phone</span>
+                            </div>
+                            <p className="text-sm text-gray-200 font-medium truncate">{caseData.client_phone || 'N/A'}</p>
                         </div>
-                        <p className="text-sm text-gray-200 font-medium">{caseData.client_phone || 'N/A'}</p>
-                    </div>
 
-                    {/* Status */}
-                    <div className="space-y-1">
-                        <div className="flex items-center gap-2 text-gray-500 mb-1">
-                            <Activity size={14} />
-                            <span className="text-[10px] font-medium uppercase tracking-wider">Status</span>
+                        {/* Status */}
+                        <div className="space-y-0.5">
+                            <div className="flex items-center gap-2 text-gray-500 mb-0.5">
+                                <Activity size={12} />
+                                <span className="text-[9px] font-medium uppercase tracking-wider">Status</span>
+                            </div>
+                            <p className="text-sm text-gray-200 font-medium truncate">{caseData.status || 'Active'}</p>
                         </div>
-                        <p className="text-sm text-gray-200 font-medium">{caseData.status || 'Active'}</p>
-                    </div>
 
-                    {/* Priority */}
-                    <div className="space-y-1">
-                        <div className="flex items-center gap-2 text-gray-500 mb-1">
-                            <ShieldAlert size={14} />
-                            <span className="text-[10px] font-medium uppercase tracking-wider">Priority</span>
+                        {/* Priority */}
+                        <div className="space-y-0.5">
+                            <div className="flex items-center gap-2 text-gray-500 mb-0.5">
+                                <ShieldAlert size={12} />
+                                <span className="text-[9px] font-medium uppercase tracking-wider">Priority</span>
+                            </div>
+                            <p className="text-sm text-gray-200 font-medium truncate">{caseData.priority || 'Medium'}</p>
                         </div>
-                        <p className="text-sm text-gray-200 font-medium">{caseData.priority || 'Medium'}</p>
                     </div>
                 </div>
 
-                {/* Case Description - Full Width & Fill Height */}
-                <div className="flex-1 flex flex-col min-h-0 space-y-2">
-                    <div className="flex items-center gap-2 text-gray-500 shrink-0">
-                        <Info size={14} />
-                        <span className="text-[10px] font-medium uppercase tracking-wider">Case Description</span>
+                {/* Bottom 40% - Case Description */}
+                <div className="flex-[4] flex flex-col min-h-0">
+                    <div className="flex items-center gap-2 text-gray-500 shrink-0 mb-2">
+                        <Info size={12} />
+                        <span className="text-[9px] font-medium uppercase tracking-wider">Case Description</span>
                     </div>
-                    <div className="flex-1 bg-[#1f1f1f] border border-[#333333]/30 rounded-md p-4 overflow-y-auto text-sm text-gray-400 leading-relaxed">
+                    <div className="flex-1 bg-[#1f1f1f]/50 border border-[#333333]/20 rounded-md p-3 overflow-y-auto text-xs text-gray-400 leading-relaxed [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
                         <p>{caseData.description || 'No description provided.'}</p>
                     </div>
                 </div>
@@ -165,6 +168,6 @@ export default function CaseDetailsWidget({ className }: { className?: string })
                 caseData={caseData}
                 onSuccess={handleCaseSaved}
             />
-        </Card>
+        </Card >
     )
 }
