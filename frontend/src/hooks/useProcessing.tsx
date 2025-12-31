@@ -6,9 +6,11 @@ interface ProcessingContextType {
   isProcessing: boolean;
   progress: { current: number; total: number };
   taskId: string | null;
+  processingReportName: string | null;
   startProcessing: (inputFile: string, outputFolder: string, selectedModules: string[], reportName?: string, password?: string, caseId?: number) => Promise<void>;
   stopProcessing: () => Promise<void>;
   clearLogs: () => void;
+  clearProcessingReportName: () => void;
   tool: string;
   encryptionDetected: boolean;
 }
@@ -21,6 +23,7 @@ export function ProcessingProvider({ children, tool }: { children: ReactNode; to
   const [taskId, setTaskId] = useState<string | null>(null);
   const [progress, setProgress] = useState({ current: 0, total: 0 });
   const [encryptionDetected, setEncryptionDetected] = useState(false);
+  const [processingReportName, setProcessingReportName] = useState<string | null>(null);
 
   const api = createLeappApi(tool);
 
@@ -37,6 +40,7 @@ export function ProcessingProvider({ children, tool }: { children: ReactNode; to
     setProgress({ current: 0, total: 0 });
     setEncryptionDetected(false);
     setIsProcessing(true);
+    setProcessingReportName(reportName || null);
 
     try {
       // If we are restarting with a password, stop the previous task first
@@ -79,15 +83,19 @@ export function ProcessingProvider({ children, tool }: { children: ReactNode; to
       eventSource.addEventListener('close', () => {
         eventSource.close();
         setIsProcessing(false);
+        // Don't clear processingReportName here - let LeappPage handle it
+        // after the real report appears to avoid flicker
       });
 
       eventSource.onerror = () => {
         eventSource.close();
         setIsProcessing(false);
+        setProcessingReportName(null);
         setLogs((prev) => [...prev, 'Error: Connection to server lost']);
       };
     } catch (error) {
       setIsProcessing(false);
+      setProcessingReportName(null);
       setLogs((prev) => [...prev, `Error: ${error instanceof Error ? error.message : 'Unknown error'}`]);
     }
   };
@@ -97,12 +105,17 @@ export function ProcessingProvider({ children, tool }: { children: ReactNode; to
     setProgress({ current: 0, total: 0 });
   };
 
+  const clearProcessingReportName = () => {
+    setProcessingReportName(null);
+  };
+
   const stopProcessing = async () => {
     if (!taskId) return;
 
     try {
       await api.processing.stop(taskId);
       setIsProcessing(false);
+      setProcessingReportName(null);
       setLogs((prev) => [...prev, 'Processing stopped by user']);
     } catch (error) {
       console.error('Failed to stop processing:', error);
@@ -116,9 +129,11 @@ export function ProcessingProvider({ children, tool }: { children: ReactNode; to
         isProcessing,
         progress,
         taskId,
+        processingReportName,
         startProcessing,
         stopProcessing,
         clearLogs,
+        clearProcessingReportName,
         tool,
         encryptionDetected,
       }}

@@ -533,7 +533,7 @@ export default function BackupPage() {
                         <Card className="flex-1 flex flex-col bg-transparent border-none shadow-none min-h-0">
                             <CardContent className="flex-1 flex flex-col p-0 min-h-0 overflow-hidden">
                                 {backups.length === 0 ? (
-                                    <div className="h-full flex flex-col items-center justify-center text-gray-500 border border-dashed border-[#333] rounded-xl m-2 bg-[#212121]/30">
+                                    <div className="h-full flex flex-col items-center justify-center text-gray-500">
                                         <HardDrive className="h-12 w-12 mb-4 opacity-20" />
                                         <p className="text-sm font-medium">No backups found</p>
                                         <p className="text-xs text-gray-600 mt-1">Created backups will appear here</p>

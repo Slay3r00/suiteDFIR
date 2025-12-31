@@ -58,16 +58,16 @@ export default function RecentActivityWidget() {
 
     const getIcon = (type: string) => {
         return type === 'backup'
-            ? <Smartphone size={14} className="text-blue-400" />
-            : <FileText size={14} className="text-purple-400" />
+            ? <Smartphone size={14} className="text-blue-400/70" />
+            : <FileText size={14} className="text-purple-400/70" />
     }
 
     const getStatusIcon = (status: string) => {
         switch (status.toLowerCase()) {
-            case 'completed': return <CheckCircle size={12} className="text-green-500" />
-            case 'failed': return <XCircle size={12} className="text-red-500" />
-            case 'running': return <AlertCircle size={12} className="text-yellow-500" />
-            default: return <div className="w-2 h-2 rounded-full bg-gray-500" />
+            case 'completed': return <CheckCircle size={12} className="text-green-500/70" />
+            case 'failed': return <XCircle size={12} className="text-red-500/70" />
+            case 'running': return <AlertCircle size={12} className="text-yellow-500/70" />
+            default: return <div className="w-2 h-2 rounded-full bg-gray-500/50" />
         }
     }
 
@@ -96,21 +96,23 @@ export default function RecentActivityWidget() {
 
     return (
         <Card className="bg-transparent border-none shadow-none flex flex-col overflow-hidden h-full">
-            <CardContent className="flex-1 p-4 flex flex-col min-h-0">
-                <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-sm font-medium text-gray-200 flex items-center gap-2">
-                        <Clock size={16} className="text-orange-400" />
-                        Recent Activity
-                    </h3>
-                </div>
+            <div className="px-0 h-10 bg-transparent flex justify-between items-center">
+                <h3 className="text-xs font-medium text-gray-400 uppercase tracking-wider flex items-center gap-2">
+                    <Clock size={14} className="text-orange-400/70" />
+                    Recent Activity
+                </h3>
+            </div>
+            <CardContent className="flex-1 p-0 pt-6 flex flex-col min-h-0">
 
                 <div className="flex-1 overflow-y-auto pr-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-                    <div className="relative min-h-full pb-2">
-                        <div className="space-y-3">
-                            {activities.length === 0 ? (
-                                <div className="text-xs text-gray-500 text-center py-4">No recent activity</div>
-                            ) : (
-                                activities.map((activity, i) => (
+                    <div className="relative h-full pb-2">
+                        {activities.length === 0 ? (
+                            <div className="h-full flex items-center justify-center text-xs text-gray-500 py-4 font-medium">
+                                No recent activity
+                            </div>
+                        ) : (
+                            <div className="space-y-3 p-4">
+                                {activities.map((activity, i) => (
                                     <div key={`${activity.type}-${activity.id}`} className="flex gap-3 relative z-10">
                                         <div className="w-10 flex flex-col items-center shrink-0 relative">
                                             <div className="w-8 h-8 rounded-full bg-[#212121] border border-[#333333] flex items-center justify-center shadow-sm z-10 relative">
@@ -138,9 +140,9 @@ export default function RecentActivityWidget() {
                                             </div>
                                         </div>
                                     </div>
-                                ))
-                            )}
-                        </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
                 </div>
             </CardContent>

@@ -73,16 +73,16 @@ export default function ActiveDevicesWidget() {
 
     return (
         <Card className="bg-transparent border-none shadow-none flex flex-col overflow-hidden h-full">
-            <CardContent className="flex-1 p-4 flex flex-col min-h-0 relative">
-                <div className="flex items-center justify-between mb-2 z-10">
-                    <h3 className="text-sm font-medium text-gray-200 flex items-center gap-2">
-                        <Smartphone size={16} className="text-green-400" />
-                        Active Devices
-                    </h3>
-                    <span className="text-xs text-gray-500 bg-[#212121] px-2 py-0.5 rounded-full">
-                        {devices.filter(d => d.status === 'online').length} Online
-                    </span>
-                </div>
+            <div className="px-0 h-10 bg-transparent flex justify-between items-center">
+                <h3 className="text-xs font-medium text-gray-400 uppercase tracking-wider flex items-center gap-2">
+                    <Smartphone size={14} className="text-green-400/70" />
+                    Active Devices
+                </h3>
+                <span className="text-[10px] font-mono text-gray-500 bg-[#212121] px-2 py-0.5 rounded-full uppercase tracking-wider">
+                    {devices.filter(d => d.status === 'online').length} Online
+                </span>
+            </div>
+            <CardContent className="flex-1 p-0 pt-6 flex flex-col min-h-0 relative">
 
                 <div className="flex-1 flex items-center justify-center min-h-0 relative">
                     {devices.length === 0 ? (

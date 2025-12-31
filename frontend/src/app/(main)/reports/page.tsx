@@ -83,6 +83,10 @@ export default function Reports() {
             if (maxScroll > 0) {
                 setScrollProgress(container.scrollLeft / maxScroll);
                 setThumbWidth(Math.max(20, (container.clientWidth / container.scrollWidth) * 100));
+            } else {
+                // No overflow - set thumbWidth to 100 to hide scrollbar
+                setScrollProgress(0);
+                setThumbWidth(100);
             }
         };
 
@@ -90,7 +94,13 @@ export default function Reports() {
         // Initial calculation
         updateScrollProgress();
 
-        return () => container.removeEventListener('scroll', updateScrollProgress);
+        // Also recalculate on window resize
+        window.addEventListener('resize', updateScrollProgress);
+
+        return () => {
+            container.removeEventListener('scroll', updateScrollProgress);
+            window.removeEventListener('resize', updateScrollProgress);
+        };
     }, [reports]);
 
     // Scrollbar drag handlers
@@ -240,7 +250,7 @@ export default function Reports() {
                 )}
 
                 {selectedReport ? (
-                    <div className={`flex-1 bg-[#1A1A1A] border border-white/10 overflow-hidden shadow-xl ${isFullscreen ? 'rounded-none' : 'rounded-lg'}`}>
+                    <div className={`flex-1 bg-[#1A1A1A] overflow-hidden shadow-xl ${isFullscreen ? 'rounded-none' : 'rounded-lg'}`}>
                         <iframe
                             src={`http://localhost:8000${selectedReport.url}`}
                             className="w-full h-full"
@@ -248,7 +258,7 @@ export default function Reports() {
                         />
                     </div>
                 ) : (
-                    <div className="flex-1 bg-[#1A1A1A] border border-white/10 rounded-lg flex items-center justify-center text-gray-500">
+                    <div className="flex-1 bg-[#1A1A1A] rounded-lg flex items-center justify-center text-gray-500">
                         <div className="text-center">
                             <FileText size={48} className="mx-auto mb-3 opacity-30" />
                             <p className="text-lg">Select a report to view</p>
@@ -329,17 +339,17 @@ export default function Reports() {
                                 {filteredReports.map((report) => (
                                     <div
                                         key={report.path}
-                                        className={`group flex-shrink-0 w-80 rounded-lg p-2 flex items-center gap-2 border transition-colors cursor-pointer ${selectedReport?.path === report.path ? 'bg-[#1A1A1A] border-white/40' : 'bg-[#1A1A1A] border-white/10 hover:border-white/20'
+                                        className={`group flex-shrink-0 w-80 h-14 rounded-lg p-2 flex items-center gap-2 border transition-colors cursor-pointer ${selectedReport?.path === report.path ? 'bg-[#1A1A1A] border-white/40' : 'bg-[#1A1A1A] border-white/10 hover:border-white/20'
                                             }`}
                                         onClick={() => handleViewReport(report)}
                                     >
                                         {/* Icon */}
-                                        <div className="h-10 w-10 flex-shrink-0 bg-[#1a1a1a] rounded flex items-center justify-center p-0.5">
+                                        <div className="h-10 w-10 shrink-0 bg-[#1a1a1a] rounded flex items-center justify-center p-0.5">
                                             {/* eslint-disable-next-line @next/next/no-img-element */}
                                             <img
                                                 src={report.tool === 'ileapp' ? '/apple-logo.svg' : '/android-logo.svg'}
                                                 alt={report.tool}
-                                                className="max-h-full max-w-full"
+                                                className="max-h-full max-w-full object-contain"
                                                 style={{
                                                     filter: report.tool === 'ileapp'
                                                         ? 'brightness(0) invert(1)' // White for Apple
@@ -349,20 +359,20 @@ export default function Reports() {
                                         </div>
 
                                         {/* Info */}
-                                        <div className="flex-1 min-w-0 flex flex-col justify-center items-center">
+                                        <div className="flex-1 min-w-0 flex flex-col justify-center items-center overflow-hidden">
                                             <h3 className="text-white font-medium truncate text-xs w-full text-center">{report.name}</h3>
-                                            <div className="flex items-center justify-center gap-2 text-[10px] text-gray-400 mt-0.5">
-                                                <span className="flex items-center gap-0.5">
-                                                    <FileText size={9} />
-                                                    {new Date(report.created_at).toLocaleDateString()}
+                                            <div className="flex items-center justify-center gap-1.5 text-[10px] text-gray-400 mt-0.5 whitespace-nowrap">
+                                                <span className="flex items-center gap-0.5 shrink-0">
+                                                    <FileText size={9} className="shrink-0" />
+                                                    <span>{new Date(report.created_at).toLocaleDateString()}</span>
                                                 </span>
-                                                <span>•</span>
-                                                <span>{report.size}</span>
+                                                <span className="shrink-0">•</span>
+                                                <span className="shrink-0">{report.size}</span>
                                             </div>
                                         </div>
 
                                         {/* Actions */}
-                                        <div className="flex items-center gap-0.5 transition-opacity">
+                                        <div className="flex items-center gap-0.5 shrink-0">
                                             <Button
                                                 variant="ghost"
                                                 size="icon"
@@ -371,9 +381,9 @@ export default function Reports() {
                                                     handleOpen(report.path);
                                                 }}
                                                 title="Open in Finder"
-                                                className="h-7 w-7 hover:bg-white/20 text-white"
+                                                className="h-7 w-7 shrink-0 hover:bg-white/20 text-white"
                                             >
-                                                <FolderOpen size={12} />
+                                                <FolderOpen size={12} className="shrink-0" />
                                             </Button>
                                             <Button
                                                 variant="ghost"
@@ -383,9 +393,9 @@ export default function Reports() {
                                                     handleDownload(report.path);
                                                 }}
                                                 title="Download ZIP"
-                                                className="h-7 w-7 hover:bg-white/20 text-white"
+                                                className="h-7 w-7 shrink-0 hover:bg-white/20 text-white"
                                             >
-                                                <Download size={12} />
+                                                <Download size={12} className="shrink-0" />
                                             </Button>
                                             <Button
                                                 variant="ghost"
@@ -395,9 +405,9 @@ export default function Reports() {
                                                     handleDelete(report.path);
                                                 }}
                                                 title="Delete Report"
-                                                className="h-7 w-7 hover:bg-red-900/30 text-white hover:text-red-400"
+                                                className="h-7 w-7 shrink-0 hover:bg-red-900/30 text-white hover:text-red-400"
                                             >
-                                                <Trash2 size={12} />
+                                                <Trash2 size={12} className="shrink-0" />
                                             </Button>
                                         </div>
                                     </div>
@@ -406,8 +416,8 @@ export default function Reports() {
                         )}
                     </div>
 
-                    {/* Custom Minimal Scrollbar */}
-                    {filteredReports.length > 0 && (
+                    {/* Custom Minimal Scrollbar - Only show when content overflows */}
+                    {filteredReports.length > 0 && thumbWidth < 100 && (
                         <div
                             ref={scrollbarRef}
                             className="h-1.5 bg-white/5 rounded-full mx-4 mb-1 relative cursor-pointer"

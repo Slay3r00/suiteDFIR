@@ -20,7 +20,7 @@ export default function MainLayout({
     }, []);
 
     return (
-        <SidebarProvider defaultOpen={defaultOpen} className="h-screen overflow-hidden">
+        <SidebarProvider defaultOpen={defaultOpen} className="h-full overflow-hidden">
             <AppSidebar />
             <SidebarInset className="bg-[#151515] flex flex-col overflow-hidden">
                 {children}

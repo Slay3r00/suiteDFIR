@@ -38,8 +38,9 @@ export default function FileSelector({
   placeholder = 'Select input file...',
   showFolderOption = true,
   tool,
-  caseId
-}: FileSelectorProps) {
+  caseId,
+  label
+}: FileSelectorProps & { label?: string }) {
   const fileDropdown = useDropdown();
   const [backups, setBackups] = useState<Backup[]>([]);
 
@@ -97,100 +98,109 @@ export default function FileSelector({
   };
 
   return (
-    <div className="flex gap-3">
-      <Input
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        disabled={disabled}
-        placeholder={placeholder}
-        className="flex-1"
-      />
-      <div className="relative">
-        <Button
-          ref={fileDropdown.buttonRef as React.RefObject<HTMLButtonElement>}
-          // eslint-disable-next-line react-hooks/refs
-          onClick={fileDropdown.handleClick}
+    <>
+      <div className="flex-1 space-y-2 min-w-0">
+        <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider ml-1">{label || 'Input'}</label>
+        <Input
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
           disabled={disabled}
-          variant="secondary"
-        >
-          Browse
-        </Button>
+          placeholder={placeholder}
+          className="w-full h-8 text-[11px] md:text-[11px] text-muted-foreground"
+        />
+      </div>
 
-        <Dropdown
-          // eslint-disable-next-line react-hooks/refs
-          isOpen={fileDropdown.isOpen}
-          // eslint-disable-next-line react-hooks/refs
-          onClose={fileDropdown.close}
-          // eslint-disable-next-line react-hooks/refs
-          buttonRef={fileDropdown.buttonRef as React.RefObject<HTMLButtonElement>}
-          className="w-80 bg-[#1A1A1A] border border-[#333] rounded-lg shadow-xl overflow-hidden"
-        >
-          {/* Existing Backups Section */}
-          {backups.length > 0 && (
-            <div className="border-b border-[#333]">
-              <div className="px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase tracking-wider bg-[#212121]">
-                Existing Backups
-              </div>
-              <div className="max-h-[200px] overflow-y-auto custom-scrollbar">
-                {backups.map((backup) => (
-                  <div
-                    key={backup.id}
-                    onClick={() => {
-                      // For iOS backups created by idevicebackup2, the actual data is in a subdirectory named with the UDID
-                      // The path stored in DB is the parent folder
-                      let finalPath = backup.path;
-                      if (backup.type === 'ios' && backup.device_udid) {
-                        // Check if path already ends with UDID (just in case)
-                        if (!finalPath.endsWith(backup.device_udid)) {
-                          finalPath = `${finalPath}/${backup.device_udid}`;
+      <div className="shrink-0 space-y-2">
+        <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider ml-1 invisible select-none">Browse</label>
+        <div className="relative">
+          <Button
+            ref={fileDropdown.buttonRef as React.RefObject<HTMLButtonElement>}
+            // eslint-disable-next-line react-hooks/refs
+            onClick={fileDropdown.handleClick}
+            disabled={disabled}
+            variant="secondary"
+            size="sm"
+            className="text-xs"
+          >
+            Browse
+          </Button>
+
+          <Dropdown
+            // eslint-disable-next-line react-hooks/refs
+            isOpen={fileDropdown.isOpen}
+            // eslint-disable-next-line react-hooks/refs
+            onClose={fileDropdown.close}
+            // eslint-disable-next-line react-hooks/refs
+            buttonRef={fileDropdown.buttonRef as React.RefObject<HTMLButtonElement>}
+            className="min-w-[200px] whitespace-nowrap bg-[#1A1A1A] border border-[#333] rounded-lg shadow-xl overflow-hidden"
+          >
+            {/* Existing Backups Section */}
+            {backups.length > 0 && (
+              <div className="border-b border-[#333]">
+                <div className="px-3 py-2 text-[10px] font-medium text-gray-400 uppercase tracking-wider bg-[#212121]">
+                  Existing Backups
+                </div>
+                <div className="max-h-[200px] overflow-y-auto custom-scrollbar">
+                  {backups.map((backup) => (
+                    <div
+                      key={backup.id}
+                      onClick={() => {
+                        // For iOS backups created by idevicebackup2, the actual data is in a subdirectory named with the UDID
+                        // The path stored in DB is the parent folder
+                        let finalPath = backup.path;
+                        if (backup.type === 'ios' && backup.device_udid) {
+                          // Check if path already ends with UDID (just in case)
+                          if (!finalPath.endsWith(backup.device_udid)) {
+                            finalPath = `${finalPath}/${backup.device_udid}`;
+                          }
                         }
-                      }
-                      onChange(finalPath);
-                      fileDropdown.close();
-                    }}
-                    className="px-3 py-2 hover:bg-[#2a2a2a] cursor-pointer transition-colors flex items-center gap-3 border-b border-[#262626] last:border-b-0"
-                  >
-                    <div className="h-8 w-8 rounded bg-blue-500/10 flex items-center justify-center flex-shrink-0">
-                      <Smartphone size={14} className="text-blue-400" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm text-gray-200 font-medium truncate">{backup.name}</div>
-                      <div className="text-[10px] text-gray-500 flex items-center gap-1">
-                        <span>{backup.device_name}</span>
-                        <span>•</span>
-                        <span>{new Date(backup.created_at).toLocaleDateString()}</span>
+                        onChange(finalPath);
+                        fileDropdown.close();
+                      }}
+                      className="px-3 py-2 hover:bg-[#2a2a2a] cursor-pointer transition-colors flex items-center gap-3 border-b border-[#262626] last:border-b-0"
+                    >
+                      <div className="h-8 w-8 rounded bg-blue-500/10 flex items-center justify-center flex-shrink-0">
+                        <Smartphone size={14} className="text-blue-400" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm text-gray-200 font-medium truncate">{backup.name}</div>
+                        <div className="text-[10px] text-gray-500 flex items-center gap-1">
+                          <span>{backup.device_name}</span>
+                          <span>•</span>
+                          <span>{new Date(backup.created_at).toLocaleDateString()}</span>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Browse Options */}
-          <div className="bg-[#1A1A1A]">
-            <div className="px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase tracking-wider bg-[#212121] border-b border-[#333]">
-              Browse System
-            </div>
-            {showFolderOption && (
-              <div
-                onClick={handleBrowseFiles}
-                className="px-4 py-3 text-sm font-medium text-gray-300 hover:text-white hover:bg-[#2a2a2a] transition-colors cursor-pointer flex items-center gap-3"
-              >
-                <HardDrive size={16} />
-                Choose File
+                  ))}
+                </div>
               </div>
             )}
-            <div
-              onClick={handleBrowseFolders}
-              className="px-4 py-3 text-sm font-medium text-gray-300 hover:text-white hover:bg-[#2a2a2a] transition-colors cursor-pointer flex items-center gap-3"
-            >
-              <Folder size={16} />
-              Choose Folder
+
+            {/* Browse Options */}
+            <div className="bg-[#1A1A1A]">
+              <div className="px-3 py-2 text-[10px] font-medium text-gray-400 uppercase tracking-wider bg-[#212121] border-b border-[#333]">
+                Browse System
+              </div>
+              {showFolderOption && (
+                <div
+                  onClick={handleBrowseFiles}
+                  className="px-4 py-3 text-sm font-medium text-gray-300 hover:text-white hover:bg-[#2a2a2a] transition-colors cursor-pointer flex items-center gap-3"
+                >
+                  <HardDrive size={16} />
+                  Choose File
+                </div>
+              )}
+              <div
+                onClick={handleBrowseFolders}
+                className="px-4 py-3 text-sm font-medium text-gray-300 hover:text-white hover:bg-[#2a2a2a] transition-colors cursor-pointer flex items-center gap-3"
+              >
+                <Folder size={16} />
+                Choose Folder
+              </div>
             </div>
-          </div>
-        </Dropdown>
+          </Dropdown>
+        </div>
       </div>
-    </div>
+    </>
   );
 }

@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react"
 import { Card, CardContent } from "@/components/ui/Card"
 import { cn } from "@/lib/utils"
 import { useCase } from "@/context/CaseContext"
-import { User, MapPin, Phone, Building, FileText, Info } from 'lucide-react'
+import { User, Phone, Mail, FileText, Info, ShieldAlert, Activity } from 'lucide-react'
 
 import { Edit2 } from 'lucide-react'
 import { CaseFormDialog, Case } from "@/components/cases/CaseFormDialog"
@@ -73,10 +73,13 @@ export default function CaseDetailsWidget({ className }: { className?: string })
     }
 
     return (
-        <Card className={cn("bg-[#171717] border-[#333333] flex flex-col overflow-hidden h-full", className)}>
-            <div className="px-4 py-2 border-b border-[#333333] bg-[#1A1A1A] flex justify-between items-center">
+        <Card className={cn("bg-transparent border-none shadow-none flex flex-col overflow-hidden h-full", className)}>
+            <div className="px-0 h-10 bg-transparent flex justify-between items-center">
                 <div className="flex items-center gap-2">
-                    <h3 className="text-xs font-medium text-gray-400 uppercase tracking-wider">Case Overview</h3>
+                    <h3 className="text-xs font-medium text-gray-400 uppercase tracking-wider flex items-center gap-2">
+                        <FileText size={14} className="text-yellow-400/70" />
+                        Case Overview
+                    </h3>
                     <button
                         onClick={() => setIsEditModalOpen(true)}
                         className="p-1 hover:bg-[#333333] rounded text-gray-500 hover:text-white transition-colors"
@@ -87,7 +90,7 @@ export default function CaseDetailsWidget({ className }: { className?: string })
                 </div>
                 <span className="text-[10px] font-mono text-gray-500">{caseData.case_number}</span>
             </div>
-            <CardContent className="flex-1 p-6 flex flex-col min-h-0">
+            <CardContent className="flex-1 p-0 pt-6 flex flex-col min-h-0">
                 <div className="grid grid-cols-2 gap-x-12 gap-y-8 mb-8 shrink-0">
                     {/* Case Name */}
                     <div className="space-y-1">
@@ -96,24 +99,6 @@ export default function CaseDetailsWidget({ className }: { className?: string })
                             <span className="text-[10px] font-medium uppercase tracking-wider">Case Name</span>
                         </div>
                         <p className="text-sm text-gray-200 font-medium">{caseData.name}</p>
-                    </div>
-
-                    {/* Business Name */}
-                    <div className="space-y-1">
-                        <div className="flex items-center gap-2 text-gray-500 mb-1">
-                            <Building size={14} />
-                            <span className="text-[10px] font-medium uppercase tracking-wider">Business Name</span>
-                        </div>
-                        <p className="text-sm text-gray-200 font-medium">{caseData.business_name || 'N/A'}</p>
-                    </div>
-
-                    {/* Investigator */}
-                    <div className="space-y-1">
-                        <div className="flex items-center gap-2 text-gray-500 mb-1">
-                            <User size={14} />
-                            <span className="text-[10px] font-medium uppercase tracking-wider">Investigator</span>
-                        </div>
-                        <p className="text-sm text-gray-200 font-medium">{caseData.investigator_name || 'N/A'}</p>
                     </div>
 
                     {/* Client Name */}
@@ -125,22 +110,40 @@ export default function CaseDetailsWidget({ className }: { className?: string })
                         <p className="text-sm text-gray-200 font-medium">{caseData.client_name || 'N/A'}</p>
                     </div>
 
-                    {/* Client Location */}
+                    {/* Client Email */}
                     <div className="space-y-1">
                         <div className="flex items-center gap-2 text-gray-500 mb-1">
-                            <MapPin size={14} />
-                            <span className="text-[10px] font-medium uppercase tracking-wider">Client Location</span>
+                            <Mail size={14} />
+                            <span className="text-[10px] font-medium uppercase tracking-wider">Client Email</span>
                         </div>
-                        <p className="text-sm text-gray-200 font-medium">{caseData.client_location || 'N/A'}</p>
+                        <p className="text-sm text-gray-200 font-medium">{caseData.client_email || 'N/A'}</p>
                     </div>
 
-                    {/* Client Contact */}
+                    {/* Client Phone */}
                     <div className="space-y-1">
                         <div className="flex items-center gap-2 text-gray-500 mb-1">
                             <Phone size={14} />
-                            <span className="text-[10px] font-medium uppercase tracking-wider">Client Contact</span>
+                            <span className="text-[10px] font-medium uppercase tracking-wider">Client Phone</span>
                         </div>
-                        <p className="text-sm text-gray-200 font-medium">{caseData.client_contact || 'N/A'}</p>
+                        <p className="text-sm text-gray-200 font-medium">{caseData.client_phone || 'N/A'}</p>
+                    </div>
+
+                    {/* Status */}
+                    <div className="space-y-1">
+                        <div className="flex items-center gap-2 text-gray-500 mb-1">
+                            <Activity size={14} />
+                            <span className="text-[10px] font-medium uppercase tracking-wider">Status</span>
+                        </div>
+                        <p className="text-sm text-gray-200 font-medium">{caseData.status || 'Active'}</p>
+                    </div>
+
+                    {/* Priority */}
+                    <div className="space-y-1">
+                        <div className="flex items-center gap-2 text-gray-500 mb-1">
+                            <ShieldAlert size={14} />
+                            <span className="text-[10px] font-medium uppercase tracking-wider">Priority</span>
+                        </div>
+                        <p className="text-sm text-gray-200 font-medium">{caseData.priority || 'Medium'}</p>
                     </div>
                 </div>
 
@@ -150,7 +153,7 @@ export default function CaseDetailsWidget({ className }: { className?: string })
                         <Info size={14} />
                         <span className="text-[10px] font-medium uppercase tracking-wider">Case Description</span>
                     </div>
-                    <div className="flex-1 bg-[#111111] border border-[#333333] rounded-md p-3 overflow-y-auto text-sm text-gray-300 leading-relaxed">
+                    <div className="flex-1 bg-[#1f1f1f] border border-[#333333]/30 rounded-md p-4 overflow-y-auto text-sm text-gray-400 leading-relaxed">
                         <p>{caseData.description || 'No description provided.'}</p>
                     </div>
                 </div>

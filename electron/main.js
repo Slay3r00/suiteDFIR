@@ -177,6 +177,42 @@ function createWindow() {
   logger.info('Loading frontend URL:', FRONTEND_URL);
   mainWindow.loadURL(FRONTEND_URL);
 
+  // Harden zoom restrictions (75% - 125%) by intercepting keyboard shortcuts
+  mainWindow.webContents.on('before-input-event', (event, input) => {
+    if (input.type === 'keyDown' && (input.meta || input.control)) {
+      const zoomLevel = mainWindow.webContents.getZoomLevel();
+      // Limits: 75% factor is approx level -1.58, 125% factor is approx level 1.22
+      const MIN_ZOOM = -1.58;
+      const MAX_ZOOM = 1.22;
+
+      if (input.key === '=' || input.key === '+') {
+        if (zoomLevel >= MAX_ZOOM) {
+          event.preventDefault();
+          logger.debug('Zoom-in limit reached (125%)');
+        }
+      } else if (input.key === '-') {
+        if (zoomLevel <= MIN_ZOOM) {
+          event.preventDefault();
+          logger.debug('Zoom-out limit reached (75%)');
+        }
+      } else if (input.key === '0') {
+        // Reset to 100% (level 0) is always allowed
+        mainWindow.webContents.setZoomLevel(0);
+        event.preventDefault();
+        logger.debug('Zoom reset to 100%');
+      }
+    }
+  });
+
+  // Secondary backup to prevent non-keyboard zoom (e.g. Menu items)
+  mainWindow.webContents.on('will-zoom-level-change', (event, newZoomLevel) => {
+    const MIN_ZOOM = -1.58;
+    const MAX_ZOOM = 1.22;
+    if (newZoomLevel > MAX_ZOOM || newZoomLevel < MIN_ZOOM) {
+      event.preventDefault();
+    }
+  });
+
   // Navigation is handled by app:// protocol in production
 
   mainWindow.once('ready-to-show', () => {

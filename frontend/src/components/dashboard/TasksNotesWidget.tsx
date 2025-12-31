@@ -4,7 +4,8 @@ import { useState, useEffect, useCallback } from 'react'
 import { Card, CardContent } from "@/components/ui/Card"
 import { Button } from "@/components/ui/Button"
 import { Input } from "@/components/ui/Input"
-import { Plus, Trash2, CheckSquare, FileText, Check } from 'lucide-react'
+import { Plus, Trash2, CheckSquare, FileText, Check, PlusCircle, Smartphone, Database, Clock } from 'lucide-react'
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/Select"
 import { useToast } from "@/hooks/use-toast"
 import { useCase } from "@/context/CaseContext"
 
@@ -160,10 +161,10 @@ export default function TasksNotesWidget() {
 
     const getPriorityColor = (p: string) => {
         switch (p) {
-            case 'High': return 'text-red-400 border-red-400/30 bg-red-400/10'
-            case 'Medium': return 'text-yellow-400 border-yellow-400/30 bg-yellow-400/10'
-            case 'Low': return 'text-blue-400 border-blue-400/30 bg-blue-400/10'
-            default: return 'text-gray-400 border-gray-400/30 bg-gray-400/10'
+            case 'High': return 'text-red-400/70 border-red-400/20 bg-red-400/5'
+            case 'Medium': return 'text-yellow-400/70 border-yellow-400/20 bg-yellow-400/5'
+            case 'Low': return 'text-blue-400/70 border-blue-400/20 bg-blue-400/5'
+            default: return 'text-gray-400/50 border-gray-400/10 bg-gray-400/5'
         }
     }
 
@@ -178,55 +179,63 @@ export default function TasksNotesWidget() {
     }
 
     return (
-        <Card className="bg-[#171717] border-[#333333] flex flex-col overflow-hidden h-full">
-            <CardContent className="flex-1 flex flex-col p-0 min-h-0">
-                {/* Header Section */}
-                <div className="p-4 border-b border-[#333333] space-y-3 bg-[#1A1A1A]">
-                    {/* Custom Tabs */}
-                    <div className="flex p-1 bg-[#212121] rounded-lg w-full">
+        <Card className="bg-transparent border-none shadow-none flex flex-col overflow-hidden h-full">
+            {/* Header Section */}
+            <div className="px-0 h-10 bg-transparent flex justify-between items-center">
+                <div className="flex items-center gap-2 w-full">
+                    <h3 className="text-xs font-medium text-gray-400 uppercase tracking-wider flex items-center gap-2">
+                        <CheckSquare size={14} className="text-blue-400/70" />
+                        Tasks & Notes
+                    </h3>
+                    <div className="flex p-1 bg-[#212121] rounded-lg ml-auto">
                         <button
                             onClick={() => setActiveTab('tasks')}
-                            className={`flex-1 flex items-center justify-center gap-2 py-1.5 text-xs font-medium rounded-md transition-all ${activeTab === 'tasks'
-                                ? 'bg-[#333333] text-white shadow-sm'
+                            className={`px-3 py-1 text-[10px] font-medium rounded-md transition-all ${activeTab === 'tasks'
+                                ? 'bg-[#333333] text-white'
                                 : 'text-gray-400 hover:text-gray-200'
                                 }`}
                         >
-                            <CheckSquare size={14} />
                             Tasks
                         </button>
                         <button
                             onClick={() => setActiveTab('notes')}
-                            className={`flex-1 flex items-center justify-center gap-2 py-1.5 text-xs font-medium rounded-md transition-all ${activeTab === 'notes'
-                                ? 'bg-[#333333] text-white shadow-sm'
+                            className={`px-3 py-1 text-[10px] font-medium rounded-md transition-all ${activeTab === 'notes'
+                                ? 'bg-[#333333] text-white'
                                 : 'text-gray-400 hover:text-gray-200'
                                 }`}
                         >
-                            <FileText size={14} />
                             Notes
                         </button>
                     </div>
+                </div>
+            </div>
 
+            <CardContent className="flex-1 flex flex-col p-0 pt-6 min-h-0">
+                <div className="flex flex-col flex-1 min-h-0">
                     {/* Input Area */}
-                    {/* Input Area Container */}
-                    <div className="bg-[#212121] p-3 rounded-lg space-y-2.5">
+                    <div className="space-y-2.5 mb-4">
                         <div className="flex gap-2">
                             <Input
                                 value={inputValue}
                                 onChange={(e) => setInputValue(e.target.value)}
                                 onKeyDown={handleKeyDown}
                                 placeholder={activeTab === 'tasks' ? "Add a new task..." : "Add a new note..."}
-                                className="bg-[#171717] border-[#333333] text-white placeholder:text-gray-500 h-9 text-sm focus-visible:ring-1 focus-visible:ring-gray-500"
+                                className="bg-[#1f1f1f] border-[#333333] text-white placeholder:text-gray-500 h-9 text-sm focus-visible:ring-1 focus-visible:ring-gray-500"
                             />
                             {activeTab === 'tasks' && (
-                                <select
+                                <Select
                                     value={priority}
-                                    onChange={(e) => setPriority(e.target.value as 'Low' | 'Medium' | 'High')}
-                                    className="h-9 bg-[#171717] border border-[#333333] text-white text-xs rounded-md px-2 outline-none focus:ring-1 focus:ring-gray-500 w-24"
+                                    onValueChange={(val) => setPriority(val as 'Low' | 'Medium' | 'High')}
                                 >
-                                    <option value="Low">Low</option>
-                                    <option value="Medium">Medium</option>
-                                    <option value="High">High</option>
-                                </select>
+                                    <SelectTrigger className="h-9 bg-[#1f1f1f] border-[#333333] text-white text-xs w-32 focus:ring-0 justify-center gap-2">
+                                        <SelectValue placeholder="Priority" />
+                                    </SelectTrigger>
+                                    <SelectContent className="bg-[#1A1A1A] border-[#333333] text-white">
+                                        <SelectItem value="Low">Low</SelectItem>
+                                        <SelectItem value="Medium">Medium</SelectItem>
+                                        <SelectItem value="High">High</SelectItem>
+                                    </SelectContent>
+                                </Select>
                             )}
                         </div>
                         <div className="flex gap-2">
@@ -247,92 +256,92 @@ export default function TasksNotesWidget() {
                             </Button>
                         </div>
                     </div>
-                </div>
 
-                {/* List Section */}
-                <div className="flex-1 overflow-y-auto p-2 space-y-1">
-                    {activeTab === 'tasks' ? (
-                        tasks.length === 0 ? (
-                            <div className="h-full flex flex-col items-center justify-center text-gray-500">
-                                <p className="text-xs">No tasks yet</p>
-                            </div>
-                        ) : (
-                            tasks.map((task) => (
-                                <div
-                                    key={task.id}
-                                    className="group flex items-start gap-3 p-2.5 rounded-lg hover:bg-[#212121] transition-colors"
-                                >
-                                    <button
-                                        onClick={() => handleToggleTask(task.id)}
-                                        className={`mt-0.5 h-4 w-4 rounded border flex items-center justify-center transition-colors shrink-0 ${task.completed
-                                            ? 'bg-green-500 border-green-500 text-black'
-                                            : 'border-gray-500 hover:border-gray-300'
-                                            }`}
+                    {/* List Section */}
+                    <div className="flex-1 overflow-y-auto p-2 space-y-1">
+                        {activeTab === 'tasks' ? (
+                            tasks.length === 0 ? (
+                                <div className="h-full flex flex-col items-center justify-center text-gray-500">
+                                    <p className="text-xs">No tasks yet</p>
+                                </div>
+                            ) : (
+                                tasks.map((task) => (
+                                    <div
+                                        key={task.id}
+                                        className="group flex items-start gap-3 p-2.5 rounded-lg hover:bg-[#212121] transition-colors"
                                     >
-                                        {task.completed && <Check size={10} strokeWidth={4} />}
-                                    </button>
+                                        <button
+                                            onClick={() => handleToggleTask(task.id)}
+                                            className={`mt-0.5 h-4 w-4 rounded border flex items-center justify-center transition-colors shrink-0 ${task.completed
+                                                ? 'bg-green-500/10 border-green-500/20 text-green-400/70'
+                                                : 'border-gray-500/50 hover:border-gray-400'
+                                                }`}
+                                        >
+                                            {task.completed && <Check size={10} strokeWidth={4} />}
+                                        </button>
 
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex items-center gap-2 mb-0.5">
-                                            <span className={`truncate text-sm font-medium ${task.completed ? 'text-gray-500 line-through' : 'text-gray-200'}`}>
-                                                {task.content}
-                                            </span>
-                                            {task.priority && (
-                                                <span className={`text-[9px] px-1.5 py-px rounded border ${getPriorityColor(task.priority)} uppercase font-bold tracking-wider`}>
-                                                    {task.priority}
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-2 mb-0.5">
+                                                <span className={`truncate text-sm font-medium ${task.completed ? 'text-gray-500 line-through' : 'text-gray-200'}`}>
+                                                    {task.content}
                                                 </span>
+                                                {task.priority && (
+                                                    <span className={`text-[9px] px-1.5 py-px rounded border ${getPriorityColor(task.priority)} uppercase font-bold tracking-wider`}>
+                                                        {task.priority}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            {task.description && (
+                                                <p className={`text-xs ${task.completed ? 'text-gray-600' : 'text-gray-400'} break-words leading-relaxed`}>
+                                                    {task.description}
+                                                </p>
                                             )}
                                         </div>
-                                        {task.description && (
-                                            <p className={`text-xs ${task.completed ? 'text-gray-600' : 'text-gray-400'} break-words leading-relaxed`}>
-                                                {task.description}
-                                            </p>
-                                        )}
-                                    </div>
 
-                                    <button
-                                        onClick={() => handleDelete(task.id, 'tasks')}
-                                        className="opacity-0 group-hover:opacity-100 p-1 text-gray-500 hover:text-red-400 transition-all"
-                                    >
-                                        <Trash2 size={14} />
-                                    </button>
-                                </div>
-                            ))
-                        )
-                    ) : (
-                        notes.length === 0 ? (
-                            <div className="h-full flex flex-col items-center justify-center text-gray-500">
-                                <p className="text-xs">No notes yet</p>
-                            </div>
-                        ) : (
-                            notes.map((note) => (
-                                <div
-                                    key={note.id}
-                                    className="group flex items-start gap-3 p-3 rounded-lg hover:bg-[#212121] transition-colors border border-transparent hover:border-[#333333]"
-                                >
-                                    <div className="flex-1 min-w-0">
-                                        <p className="text-sm font-medium text-gray-200 whitespace-pre-wrap break-words leading-relaxed">
-                                            {note.content}
-                                        </p>
-                                        {note.description && (
-                                            <p className="text-xs text-gray-400 mt-1 whitespace-pre-wrap break-words leading-relaxed">
-                                                {note.description}
-                                            </p>
-                                        )}
-                                        <p className="text-[10px] text-gray-600 mt-2">
-                                            {new Date(note.created_at).toLocaleDateString()}
-                                        </p>
+                                        <button
+                                            onClick={() => handleDelete(task.id, 'tasks')}
+                                            className="opacity-0 group-hover:opacity-100 p-1 text-gray-500 hover:text-red-400 transition-all"
+                                        >
+                                            <Trash2 size={14} />
+                                        </button>
                                     </div>
-                                    <button
-                                        onClick={() => handleDelete(note.id, 'notes')}
-                                        className="opacity-0 group-hover:opacity-100 p-1 text-gray-500 hover:text-red-400 transition-all shrink-0"
-                                    >
-                                        <Trash2 size={14} />
-                                    </button>
+                                ))
+                            )
+                        ) : (
+                            notes.length === 0 ? (
+                                <div className="h-full flex flex-col items-center justify-center text-gray-500">
+                                    <p className="text-xs">No notes yet</p>
                                 </div>
-                            ))
-                        )
-                    )}
+                            ) : (
+                                notes.map((note) => (
+                                    <div
+                                        key={note.id}
+                                        className="group flex items-start gap-3 p-3 rounded-lg hover:bg-[#212121] transition-colors border border-transparent hover:border-[#333333]"
+                                    >
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-sm font-medium text-gray-200 whitespace-pre-wrap break-words leading-relaxed">
+                                                {note.content}
+                                            </p>
+                                            {note.description && (
+                                                <p className="text-xs text-gray-400 mt-1 whitespace-pre-wrap break-words leading-relaxed">
+                                                    {note.description}
+                                                </p>
+                                            )}
+                                            <p className="text-[10px] text-gray-600 mt-2">
+                                                {new Date(note.created_at).toLocaleDateString()}
+                                            </p>
+                                        </div>
+                                        <button
+                                            onClick={() => handleDelete(note.id, 'notes')}
+                                            className="opacity-0 group-hover:opacity-100 p-1 text-gray-500 hover:text-red-400 transition-all shrink-0"
+                                        >
+                                            <Trash2 size={14} />
+                                        </button>
+                                    </div>
+                                ))
+                            )
+                        )}
+                    </div>
                 </div>
             </CardContent>
         </Card>
