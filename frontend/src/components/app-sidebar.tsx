@@ -62,7 +62,7 @@ const data = {
         },
     ],
 
-    visualization: [
+    data_analysis: [
         {
             title: "Timeline",
             url: "/timeline",
@@ -128,7 +128,14 @@ export function AppSidebar() {
                                         <SidebarMenuButton asChild tooltip={item.title} isActive={pathname === item.url}>
                                             <a href={item.url}>
                                                 <item.icon />
-                                                <span>{item.title}</span>
+                                                <span>
+                                                    {item.title.split(" (")[0]}
+                                                    {item.title.includes(" (") && (
+                                                        <span className="text-[10px] text-muted-foreground/80 ml-1">
+                                                            ({item.title.split(" (")[1]}
+                                                        </span>
+                                                    )}
+                                                </span>
                                             </a>
                                         </SidebarMenuButton>
                                     </SidebarMenuItem>
@@ -146,7 +153,14 @@ export function AppSidebar() {
                                         <SidebarMenuButton asChild tooltip={item.title} isActive={pathname === item.url}>
                                             <a href={item.url}>
                                                 <item.icon />
-                                                <span>{item.title}</span>
+                                                <span>
+                                                    {item.title.split(" (")[0]}
+                                                    {item.title.includes(" (") && (
+                                                        <span className="text-[10px] text-muted-foreground/80 ml-1">
+                                                            ({item.title.split(" (")[1]}
+                                                        </span>
+                                                    )}
+                                                </span>
                                             </a>
                                         </SidebarMenuButton>
                                     </SidebarMenuItem>
@@ -157,10 +171,10 @@ export function AppSidebar() {
                 </SidebarGroup>
 
                 <SidebarGroup>
-                    <SidebarGroupLabel>Visualization</SidebarGroupLabel>
+                    <SidebarGroupLabel>Data Analysis</SidebarGroupLabel>
                     <SidebarGroupContent>
                         <SidebarMenu>
-                            {data.visualization.map((item) => (
+                            {data.data_analysis.map((item) => (
                                 <SidebarMenuItem key={item.title}>
                                     <SidebarMenuButton asChild tooltip={item.title} isActive={pathname === item.url}>
                                         <a href={item.url}>
