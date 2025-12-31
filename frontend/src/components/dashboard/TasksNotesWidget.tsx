@@ -170,7 +170,7 @@ export default function TasksNotesWidget() {
 
     if (!selectedCaseId) {
         return (
-            <Card className="bg-[#171717] border-[#333333] flex flex-col overflow-hidden h-full">
+            <Card className="bg-transparent border-none shadow-none flex flex-col overflow-hidden h-full">
                 <CardContent className="flex items-center justify-center h-full text-gray-500">
                     <p className="text-sm">Select a case to view tasks and notes</p>
                 </CardContent>

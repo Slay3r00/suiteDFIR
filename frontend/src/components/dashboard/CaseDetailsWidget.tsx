@@ -44,29 +44,9 @@ export default function CaseDetailsWidget({ className }: { className?: string })
 
     if (!selectedCaseId) {
         return (
-            <Card className={cn("bg-[#171717] border-[#333333] flex flex-col overflow-hidden h-full", className)}>
+            <Card className={cn("bg-transparent border-none shadow-none flex flex-col overflow-hidden h-full", className)}>
                 <CardContent className="flex items-center justify-center h-full text-gray-500">
                     <p className="text-sm">No case selected</p>
-                </CardContent>
-            </Card>
-        )
-    }
-
-    if (isLoading) {
-        return (
-            <Card className={cn("bg-[#171717] border-[#333333] flex flex-col overflow-hidden h-full", className)}>
-                <CardContent className="flex items-center justify-center h-full text-gray-500">
-                    <p className="text-sm">Loading case details...</p>
-                </CardContent>
-            </Card>
-        )
-    }
-
-    if (!caseData) {
-        return (
-            <Card className={cn("bg-[#171717] border-[#333333] flex flex-col overflow-hidden h-full", className)}>
-                <CardContent className="flex items-center justify-center h-full text-gray-500">
-                    <p className="text-sm">Case not found</p>
                 </CardContent>
             </Card>
         )
@@ -80,94 +60,108 @@ export default function CaseDetailsWidget({ className }: { className?: string })
                         <FileText size={14} className="text-yellow-400/70" />
                         Case Overview
                     </h3>
-                    <button
-                        onClick={() => setIsEditModalOpen(true)}
-                        className="p-1 hover:bg-[#333333] rounded text-gray-500 hover:text-white transition-colors"
-                        title="Edit Case"
-                    >
-                        <Edit2 size={12} />
-                    </button>
+                    {caseData && !isLoading && (
+                        <button
+                            onClick={() => setIsEditModalOpen(true)}
+                            className="p-1 hover:bg-[#333333] rounded text-gray-500 hover:text-white transition-colors"
+                            title="Edit Case"
+                        >
+                            <Edit2 size={12} />
+                        </button>
+                    )}
                 </div>
-                <span className="text-[10px] font-mono text-gray-500">{caseData.case_number}</span>
+                {caseData && !isLoading && (
+                    <span className="text-[10px] font-mono text-gray-500">{caseData.case_number}</span>
+                )}
             </div>
             <CardContent className="flex-1 p-0 pt-0 flex flex-col min-h-0 gap-4">
-                {/* Top 60% - Details Grid */}
-                <div className="flex-[6] min-h-0 overflow-y-auto pr-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] flex flex-col justify-center">
-                    <div className="grid grid-cols-2 gap-x-6 gap-y-4">
-                        {/* Case Name */}
-                        <div className="space-y-0.5">
-                            <div className="flex items-center gap-2 text-gray-500 mb-0.5">
-                                <FileText size={12} />
-                                <span className="text-[9px] font-medium uppercase tracking-wider">Case Name</span>
-                            </div>
-                            <p className="text-sm text-gray-200 font-medium truncate">{caseData.name}</p>
-                        </div>
-
-                        {/* Client Name */}
-                        <div className="space-y-0.5">
-                            <div className="flex items-center gap-2 text-gray-500 mb-0.5">
-                                <User size={12} />
-                                <span className="text-[9px] font-medium uppercase tracking-wider">Client Name</span>
-                            </div>
-                            <p className="text-sm text-gray-200 font-medium truncate">{caseData.client_name || 'N/A'}</p>
-                        </div>
-
-                        {/* Client Email */}
-                        <div className="space-y-0.5">
-                            <div className="flex items-center gap-2 text-gray-500 mb-0.5">
-                                <Mail size={12} />
-                                <span className="text-[9px] font-medium uppercase tracking-wider">Client Email</span>
-                            </div>
-                            <p className="text-sm text-gray-200 font-medium truncate">{caseData.client_email || 'N/A'}</p>
-                        </div>
-
-                        {/* Client Phone */}
-                        <div className="space-y-0.5">
-                            <div className="flex items-center gap-2 text-gray-500 mb-0.5">
-                                <Phone size={12} />
-                                <span className="text-[9px] font-medium uppercase tracking-wider">Client Phone</span>
-                            </div>
-                            <p className="text-sm text-gray-200 font-medium truncate">{caseData.client_phone || 'N/A'}</p>
-                        </div>
-
-                        {/* Status */}
-                        <div className="space-y-0.5">
-                            <div className="flex items-center gap-2 text-gray-500 mb-0.5">
-                                <Activity size={12} />
-                                <span className="text-[9px] font-medium uppercase tracking-wider">Status</span>
-                            </div>
-                            <p className="text-sm text-gray-200 font-medium truncate">{caseData.status || 'Active'}</p>
-                        </div>
-
-                        {/* Priority */}
-                        <div className="space-y-0.5">
-                            <div className="flex items-center gap-2 text-gray-500 mb-0.5">
-                                <ShieldAlert size={12} />
-                                <span className="text-[9px] font-medium uppercase tracking-wider">Priority</span>
-                            </div>
-                            <p className="text-sm text-gray-200 font-medium truncate">{caseData.priority || 'Medium'}</p>
-                        </div>
+                {isLoading || !caseData ? (
+                    <div className="flex items-center justify-center h-full text-gray-500">
+                        <p className="text-sm">{isLoading ? "Loading case details..." : "Case not found"}</p>
                     </div>
-                </div>
+                ) : (
+                    <>
+                        {/* Top 60% - Details Grid */}
+                        <div className="flex-[6] min-h-0 overflow-y-auto pr-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] flex flex-col justify-center">
+                            <div className="grid grid-cols-2 gap-x-6 gap-y-4">
+                                {/* Case Name */}
+                                <div className="space-y-0.5">
+                                    <div className="flex items-center gap-2 text-gray-500 mb-0.5">
+                                        <FileText size={12} />
+                                        <span className="text-[9px] font-medium uppercase tracking-wider">Case Name</span>
+                                    </div>
+                                    <p className="text-sm text-gray-200 font-medium truncate">{caseData.name}</p>
+                                </div>
 
-                {/* Bottom 40% - Case Description */}
-                <div className="flex-[4] flex flex-col min-h-0">
-                    <div className="flex items-center gap-2 text-gray-500 shrink-0 mb-2">
-                        <Info size={12} />
-                        <span className="text-[9px] font-medium uppercase tracking-wider">Case Description</span>
-                    </div>
-                    <div className="flex-1 bg-[#1f1f1f]/50 border border-[#333333]/20 rounded-md p-3 overflow-y-auto text-xs text-gray-400 leading-relaxed [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-                        <p>{caseData.description || 'No description provided.'}</p>
-                    </div>
-                </div>
+                                {/* Client Name */}
+                                <div className="space-y-0.5">
+                                    <div className="flex items-center gap-2 text-gray-500 mb-0.5">
+                                        <User size={12} />
+                                        <span className="text-[9px] font-medium uppercase tracking-wider">Client Name</span>
+                                    </div>
+                                    <p className="text-sm text-gray-200 font-medium truncate">{caseData.client_name || 'N/A'}</p>
+                                </div>
+
+                                {/* Client Email */}
+                                <div className="space-y-0.5">
+                                    <div className="flex items-center gap-2 text-gray-500 mb-0.5">
+                                        <Mail size={12} />
+                                        <span className="text-[9px] font-medium uppercase tracking-wider">Client Email</span>
+                                    </div>
+                                    <p className="text-sm text-gray-200 font-medium truncate">{caseData.client_email || 'N/A'}</p>
+                                </div>
+
+                                {/* Client Phone */}
+                                <div className="space-y-0.5">
+                                    <div className="flex items-center gap-2 text-gray-500 mb-0.5">
+                                        <Phone size={12} />
+                                        <span className="text-[9px] font-medium uppercase tracking-wider">Client Phone</span>
+                                    </div>
+                                    <p className="text-sm text-gray-200 font-medium truncate">{caseData.client_phone || 'N/A'}</p>
+                                </div>
+
+                                {/* Status */}
+                                <div className="space-y-0.5">
+                                    <div className="flex items-center gap-2 text-gray-500 mb-0.5">
+                                        <Activity size={12} />
+                                        <span className="text-[9px] font-medium uppercase tracking-wider">Status</span>
+                                    </div>
+                                    <p className="text-sm text-gray-200 font-medium truncate">{caseData.status || 'Active'}</p>
+                                </div>
+
+                                {/* Priority */}
+                                <div className="space-y-0.5">
+                                    <div className="flex items-center gap-2 text-gray-500 mb-0.5">
+                                        <ShieldAlert size={12} />
+                                        <span className="text-[9px] font-medium uppercase tracking-wider">Priority</span>
+                                    </div>
+                                    <p className="text-sm text-gray-200 font-medium truncate">{caseData.priority || 'Medium'}</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Bottom 40% - Case Description */}
+                        <div className="flex-[4] flex flex-col min-h-0">
+                            <div className="flex items-center gap-2 text-gray-500 shrink-0 mb-2">
+                                <Info size={12} />
+                                <span className="text-[9px] font-medium uppercase tracking-wider">Case Description</span>
+                            </div>
+                            <div className="flex-1 bg-[#1f1f1f]/50 border border-[#333333]/20 rounded-md p-3 overflow-y-auto text-xs text-gray-400 leading-relaxed [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+                                <p>{caseData.description || 'No description provided.'}</p>
+                            </div>
+                        </div>
+                    </>
+                )}
             </CardContent>
 
-            <CaseFormDialog
-                open={isEditModalOpen}
-                onOpenChange={setIsEditModalOpen}
-                caseData={caseData}
-                onSuccess={handleCaseSaved}
-            />
-        </Card >
+            {caseData && (
+                <CaseFormDialog
+                    open={isEditModalOpen}
+                    onOpenChange={setIsEditModalOpen}
+                    caseData={caseData}
+                    onSuccess={handleCaseSaved}
+                />
+            )}
+        </Card>
     )
 }
