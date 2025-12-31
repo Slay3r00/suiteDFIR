@@ -107,31 +107,26 @@ export default function SpatialMap() {
                         attribution='&copy; Google Maps'
                         url="https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}"
                         subdomains={['mt0', 'mt1', 'mt2', 'mt3']}
+                        maxZoom={22}
                     />
                 )
             case 'hybrid':
                 return (
-                    <>
-                        <TileLayer
-                            attribution='&copy; Google Maps'
-                            url="https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}"
-                            subdomains={['mt0', 'mt1', 'mt2', 'mt3']}
-                            opacity={0.5}
-                        />
-                        <TileLayer
-                            attribution='&copy; Google Maps'
-                            url="https://{s}.google.com/vt/lyrs=h&x={x}&y={y}&z={z}"
-                            subdomains={['mt0', 'mt1', 'mt2', 'mt3']}
-                        />
-                    </>
+                    <TileLayer
+                        attribution='&copy; Google Maps'
+                        url="https://{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}&scale=2"
+                        subdomains={['mt0', 'mt1', 'mt2', 'mt3']}
+                        maxZoom={22}
+                    />
                 )
             case 'normal':
             default:
                 return (
                     <TileLayer
-                        attribution='&copy; Google Maps'
-                        url="https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}"
-                        subdomains={['mt0', 'mt1', 'mt2', 'mt3']}
+                        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+                        url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+                        subdomains='abcd'
+                        maxZoom={22}
                     />
                 )
         }
@@ -231,6 +226,7 @@ export default function SpatialMap() {
                 zoom={zoom}
                 className="h-full w-full z-0"
                 zoomControl={false}
+                maxZoom={22}
             >
                 <MapUpdater center={center} zoom={zoom} />
                 <AutoFitBounds data={geoJsonData} />
@@ -247,10 +243,10 @@ export default function SpatialMap() {
                         data={geoJsonData}
                         onEachFeature={onEachFeature}
                         style={() => ({
-                            color: "#a855f7", // Purple
-                            weight: 2,
-                            opacity: 1,
-                            fillOpacity: 0.2
+                            color: "#af52de", // Apple System Purple
+                            weight: 3,
+                            opacity: 0.8,
+                            fillOpacity: 0.15
                         })}
                     />
                 )}
@@ -262,10 +258,10 @@ export default function SpatialMap() {
                         data={data}
                         onEachFeature={onEachFeature}
                         style={() => ({
-                            color: "#3b82f6", // Blue for browsed items
-                            weight: 2,
-                            opacity: 1,
-                            fillOpacity: 0.2
+                            color: "#007aff", // Apple System Blue
+                            weight: 3,
+                            opacity: 0.8,
+                            fillOpacity: 0.15
                         })}
                     />
                 ))}

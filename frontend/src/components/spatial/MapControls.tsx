@@ -129,7 +129,7 @@ export default function MapControls({ onSearch, onLayerChange, onDataUpload, onK
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         placeholder="Search location..."
-                        className="pl-9 !bg-background border border-border h-10"
+                        className="pl-9 h-8 !bg-[#1f1f1f] hover:!bg-[#262626] focus:!bg-[#262626] !border-[#414141] text-white placeholder:text-gray-500 text-xs focus-visible:ring-0 focus-visible:ring-offset-0 transition-colors shadow-md"
                     />
                     {isSearching && (
                         <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4 animate-spin" />
@@ -143,8 +143,8 @@ export default function MapControls({ onSearch, onLayerChange, onDataUpload, onK
                 <div className="relative">
                     <Button
                         variant="secondary"
-                        size="icon"
-                        className="!bg-background border border-border shadow-lg hover:bg-accent"
+                        size="icon-sm"
+                        className="!bg-[#1f1f1f] border border-[#414141] shadow-lg hover:!bg-[#333333] !text-[#fafafa]"
                         onClick={() => {
                             setShowLayerMenu(!showLayerMenu)
                             setShowKmlMenu(false)
@@ -154,35 +154,38 @@ export default function MapControls({ onSearch, onLayerChange, onDataUpload, onK
                     </Button>
 
                     {showLayerMenu && (
-                        <div className="absolute top-12 right-0 !bg-background border border-border rounded-lg shadow-xl p-2 min-w-[140px] flex flex-col gap-1">
+                        <div className="absolute top-10 right-0 bg-[#1A1A1A] border border-[#414141] rounded-lg shadow-xl overflow-hidden min-w-[140px] flex flex-col">
+                            <div className="bg-[#212121] px-3 py-2 text-[10px] font-medium text-gray-400 uppercase tracking-wider border-b border-[#414141]">
+                                Map Layers
+                            </div>
                             <button
                                 onClick={() => { onLayerChange('normal'); setShowLayerMenu(false) }}
                                 className={cn(
-                                    "flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors hover:bg-accent",
-                                    currentLayer === 'normal' && "bg-accent text-accent-foreground"
+                                    "flex items-center gap-2 px-3 py-2 text-xs font-medium transition-colors hover:bg-[#2a2a2a] border-b border-[#262626]",
+                                    currentLayer === 'normal' ? "text-white bg-[#262626]" : "text-gray-300 hover:text-white"
                                 )}
                             >
-                                <MapIcon className="h-4 w-4" />
-                                Normal
+                                <MapIcon className="h-3.5 w-3.5" />
+                                Standard
                             </button>
                             <button
                                 onClick={() => { onLayerChange('satellite'); setShowLayerMenu(false) }}
                                 className={cn(
-                                    "flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors hover:bg-accent",
-                                    currentLayer === 'satellite' && "bg-accent text-accent-foreground"
+                                    "flex items-center gap-2 px-3 py-2 text-xs font-medium transition-colors hover:bg-[#2a2a2a] border-b border-[#262626]",
+                                    currentLayer === 'satellite' ? "text-white bg-[#262626]" : "text-gray-300 hover:text-white"
                                 )}
                             >
-                                <Satellite className="h-4 w-4" />
+                                <Satellite className="h-3.5 w-3.5" />
                                 Satellite
                             </button>
                             <button
                                 onClick={() => { onLayerChange('hybrid'); setShowLayerMenu(false) }}
                                 className={cn(
-                                    "flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors hover:bg-accent",
-                                    currentLayer === 'hybrid' && "bg-accent text-accent-foreground"
+                                    "flex items-center gap-2 px-3 py-2 text-xs font-medium transition-colors hover:bg-[#2a2a2a] last:border-b-0",
+                                    currentLayer === 'hybrid' ? "text-white bg-[#262626]" : "text-gray-300 hover:text-white"
                                 )}
                             >
-                                <Globe className="h-4 w-4" />
+                                <Globe className="h-3.5 w-3.5" />
                                 Hybrid
                             </button>
                         </div>
@@ -192,8 +195,8 @@ export default function MapControls({ onSearch, onLayerChange, onDataUpload, onK
                 {/* Upload Button */}
                 <Button
                     variant="secondary"
-                    size="icon"
-                    className="!bg-background border border-border shadow-lg hover:bg-accent"
+                    size="icon-sm"
+                    className="!bg-[#1f1f1f] border border-[#414141] shadow-lg hover:!bg-[#333333] !text-[#fafafa]"
                     onClick={() => fileInputRef.current?.click()}
                     disabled={isUploading}
                     title="Upload KML/KMZ"
@@ -212,8 +215,8 @@ export default function MapControls({ onSearch, onLayerChange, onDataUpload, onK
                 <div className="relative">
                     <Button
                         variant="secondary"
-                        size="icon"
-                        className="!bg-background border border-border shadow-lg hover:bg-accent"
+                        size="icon-sm"
+                        className="!bg-[#1f1f1f] border border-[#414141] shadow-lg hover:!bg-[#333333] !text-[#fafafa]"
                         onClick={() => {
                             setShowKmlMenu(!showKmlMenu)
                             setShowLayerMenu(false)
@@ -224,34 +227,41 @@ export default function MapControls({ onSearch, onLayerChange, onDataUpload, onK
                     </Button>
 
                     {showKmlMenu && (
-                        <div className="absolute top-12 right-0 !bg-background border border-border rounded-lg shadow-xl p-0 min-w-[300px] max-h-[400px] flex flex-col overflow-hidden">
-                            <div className="p-2 border-b border-border bg-muted/50">
-                                <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">KML Exports</h3>
+                        <div className="absolute top-10 right-0 bg-[#1A1A1A] border border-[#414141] rounded-lg shadow-xl p-0 min-w-[300px] max-h-[400px] flex flex-col overflow-hidden">
+                            <div className="bg-[#212121] px-3 py-2 text-[10px] font-medium text-gray-400 uppercase tracking-wider border-b border-[#414141]">
+                                KML Exports
                             </div>
-                            <div className="overflow-y-auto custom-scrollbar p-2 space-y-4">
+                            <div className="overflow-y-auto custom-scrollbar bg-[#1A1A1A]">
                                 {Object.entries(kmlFiles).length === 0 ? (
-                                    <div className="text-sm text-muted-foreground text-center py-4">No KML files found</div>
+                                    <div className="text-xs text-gray-500 text-center py-6">No KML files found</div>
                                 ) : (
                                     Object.entries(kmlFiles).map(([groupName, files]) => (
-                                        <div key={groupName}>
-                                            <h4 className="text-xs font-medium text-primary mb-2 px-1">{groupName}</h4>
-                                            <div className="space-y-1">
+                                        <div key={groupName} className="border-b border-[#262626] last:border-b-0">
+                                            <div className="bg-[#1f1f1f] px-3 py-1.5 text-[9px] font-bold text-blue-400/70 uppercase tracking-widest border-b border-[#262626]/50">
+                                                {groupName}
+                                            </div>
+                                            <div className="divide-y divide-[#262626]/30">
                                                 {files.map((file) => (
                                                     <div
                                                         key={file.path}
                                                         className={cn(
-                                                            "flex items-center gap-2 px-2 py-1.5 rounded-md text-sm cursor-pointer transition-colors hover:bg-accent",
-                                                            selectedKmls.has(file.path) && "bg-accent text-accent-foreground"
+                                                            "flex items-center gap-3 px-3 py-2 cursor-pointer transition-colors hover:bg-[#2a2a2a]",
+                                                            selectedKmls.has(file.path) && "bg-[#262626]"
                                                         )}
                                                         onClick={() => toggleKmlSelection(file)}
                                                     >
                                                         <div className={cn(
-                                                            "w-4 h-4 border rounded flex items-center justify-center transition-colors",
-                                                            selectedKmls.has(file.path) ? "bg-primary border-primary" : "border-muted-foreground"
-                                                        )}>
-                                                            {selectedKmls.has(file.path) && <Check className="h-3 w-3 text-primary-foreground" />}
+                                                            "w-3.5 h-3.5 border flex items-center justify-center transition-colors rounded",
+                                                            selectedKmls.has(file.path) ? "bg-white border-white" : "border-gray-500 hover:border-gray-400"
+                                                        )}
+                                                            style={{ borderWidth: '0.5px' }}
+                                                        >
+                                                            {selectedKmls.has(file.path) && <Check className="h-2.5 w-2.5 text-black" strokeWidth={4} />}
                                                         </div>
-                                                        <span className="truncate flex-1" title={file.name}>{file.name}</span>
+                                                        <span className={cn(
+                                                            "text-xs truncate flex-1 font-medium",
+                                                            selectedKmls.has(file.path) ? "text-white" : "text-gray-300 hover:text-white"
+                                                        )} title={file.name}>{file.name}</span>
                                                     </div>
                                                 ))}
                                             </div>
