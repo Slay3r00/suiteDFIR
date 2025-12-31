@@ -366,3 +366,22 @@ ring-offset-2 {
 .processing-badge {
   animation: processing-pulse 1.5s ease-in-out infinite;
 }
+
+/* Report Card Container Query Styles */
+.report-cards-container {
+  container-type: size;
+  container-name: reportCards;
+}
+
+/* Report card sizing based on container height */
+.report-card {
+  /* Use container query units for height - 100% of container height */
+  height: 100cqb;
+}
+
+/* Icon sizing based on card */
+.report-card-icon {
+  height: 100%;
+  aspect-ratio: 1;
+  max-height: 40px;
+}

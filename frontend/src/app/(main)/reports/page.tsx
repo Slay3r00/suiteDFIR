@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Search, FileText, FolderOpen, Download, Trash2, X, Maximize2 } from 'lucide-react';
-import { Button } from '@/components/ui';
+import { Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui';
 import { useCase } from "@/context/CaseContext";
 
 interface Report {
@@ -23,6 +23,9 @@ export default function Reports() {
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedReport, setSelectedReport] = useState<Report | null>(null);
     const [isFullscreen, setIsFullscreen] = useState(false);
+    const [reportToDelete, setReportToDelete] = useState<Report | null>(null);
+    const [reportToOpen, setReportToOpen] = useState<Report | null>(null);
+    const [reportToDownload, setReportToDownload] = useState<Report | null>(null);
     const { selectedCaseId } = useCase();
 
     // Drag-to-scroll state
@@ -84,24 +87,32 @@ export default function Reports() {
                 setScrollProgress(container.scrollLeft / maxScroll);
                 setThumbWidth(Math.max(20, (container.clientWidth / container.scrollWidth) * 100));
             } else {
-                // No overflow - set thumbWidth to 100 to hide scrollbar
                 setScrollProgress(0);
                 setThumbWidth(100);
             }
         };
 
+        // Use ResizeObserver to catch changes in container size OR content size
+        const resizeObserver = new ResizeObserver(() => {
+            updateScrollProgress();
+        });
+
+        resizeObserver.observe(container);
+
+        // Also observe the first child (if it exists) to catch content shifts
+        const content = container.firstElementChild;
+        if (content) {
+            resizeObserver.observe(content);
+        }
+
         container.addEventListener('scroll', updateScrollProgress);
-        // Initial calculation
         updateScrollProgress();
 
-        // Also recalculate on window resize
-        window.addEventListener('resize', updateScrollProgress);
-
         return () => {
+            resizeObserver.disconnect();
             container.removeEventListener('scroll', updateScrollProgress);
-            window.removeEventListener('resize', updateScrollProgress);
         };
-    }, [reports]);
+    }, [reports, filter, searchQuery, sort]);
 
     // Scrollbar drag handlers
     const thumbOffsetRef = useRef(0);
@@ -157,33 +168,50 @@ export default function Reports() {
         };
     }, [isScrollbarDragging, thumbWidth]);
 
-    const handleOpen = async (path: string) => {
+    const handleOpenClick = (report: Report) => {
+        setReportToOpen(report);
+    };
+
+    const executeOpen = async () => {
+        if (!reportToOpen) return;
         try {
-            await fetch(`http://localhost:8000/api/reports/open?path=${encodeURIComponent(path)}`, {
+            await fetch(`http://localhost:8000/api/reports/open?path=${encodeURIComponent(reportToOpen.path)}`, {
                 method: 'POST'
             });
+            setReportToOpen(null);
         } catch (error) {
             console.error('Failed to open report:', error);
         }
     };
 
-    const handleDownload = async (path: string) => {
-        window.location.href = `http://localhost:8000/api/reports/download?path=${encodeURIComponent(path)}`;
+    const handleDownloadClick = (report: Report) => {
+        setReportToDownload(report);
     };
 
-    const handleDelete = async (path: string) => {
-        if (!confirm('Are you sure you want to delete this report? This action cannot be undone.')) return;
+    const executeDownload = async () => {
+        if (!reportToDownload) return;
+        window.location.href = `http://localhost:8000/api/reports/download?path=${encodeURIComponent(reportToDownload.path)}`;
+        setReportToDownload(null);
+    };
+
+    const handleDeleteClick = (report: Report) => {
+        setReportToDelete(report);
+    };
+
+    const executeDelete = async () => {
+        if (!reportToDelete) return;
 
         try {
-            const response = await fetch(`http://localhost:8000/api/reports?path=${encodeURIComponent(path)}`, {
+            const response = await fetch(`http://localhost:8000/api/reports?path=${encodeURIComponent(reportToDelete.path)}`, {
                 method: 'DELETE'
             });
             if (response.ok) {
                 // If deleted report was selected, clear selection
-                if (selectedReport?.path === path) {
+                if (selectedReport?.path === reportToDelete.path) {
                     setSelectedReport(null);
                 }
                 fetchReports(); // Refresh list
+                setReportToDelete(null); // Close dialog
             }
         } catch (error) {
             console.error('Failed to delete report:', error);
@@ -238,24 +266,31 @@ export default function Reports() {
                 {selectedReport && (
                     <button
                         onClick={() => setIsFullscreen(!isFullscreen)}
-                        className="absolute top-14 right-2 z-10 h-10 w-10 bg-[#212121] hover:bg-[#2a2a2a] border border-white/20 rounded-lg flex items-center justify-center transition-all hover:scale-105"
+                        className="absolute bottom-4 right-4 z-20 h-8 w-8 bg-[#1A1A1A]/80 hover:bg-[#252525] border border-white/10 rounded-lg flex items-center justify-center transition-all hover:scale-105 backdrop-blur-sm"
                         title={isFullscreen ? 'Exit fullscreen' : 'Expand fullscreen'}
                     >
                         {isFullscreen ? (
-                            <X size={20} className="text-white" />
+                            <X size={16} className="text-white" />
                         ) : (
-                            <Maximize2 size={20} className="text-white" />
+                            <Maximize2 size={16} className="text-white" />
                         )}
                     </button>
                 )}
 
                 {selectedReport ? (
-                    <div className={`flex-1 bg-[#1A1A1A] overflow-hidden shadow-xl ${isFullscreen ? 'rounded-none' : 'rounded-lg'}`}>
+                    <div
+                        className={`flex-1 bg-[#1A1A1A] overflow-hidden isolate relative ${isFullscreen ? 'rounded-none' : 'rounded-xl'}`}
+                        style={{ WebkitMaskImage: isFullscreen ? 'none' : '-webkit-radial-gradient(white, black)' }}
+                    >
                         <iframe
                             src={`http://localhost:8000${selectedReport.url}`}
-                            className="w-full h-full"
+                            className={`w-full h-full border-none ${isFullscreen ? 'rounded-none' : 'rounded-xl'}`}
                             title={selectedReport.name}
                         />
+                        {/* Border Overlay - physically blocks corner artifacts */}
+                        {!isFullscreen && (
+                            <div className="absolute inset-0 border border-white/10 rounded-xl pointer-events-none z-10" />
+                        )}
                     </div>
                 ) : (
                     <div className="flex-1 bg-[#1A1A1A] rounded-lg flex items-center justify-center text-gray-500">
@@ -270,157 +305,159 @@ export default function Reports() {
 
             {/* Bottom Section - Report List (15% of available height) - Hidden in fullscreen */}
             {!isFullscreen && (
-                <div className="flex-[15] flex flex-col gap-3 min-h-0">
-                    {/* Header with Controls */}
-                    <div className="flex items-center justify-between gap-4">
-                        <div className="flex items-center gap-4">
-                            <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider ml-1">Reports Library</label>
-                            <div className="flex gap-1 bg-[#1A1A1A] p-1 rounded-lg border border-white/10">
-                                <button
-                                    onClick={() => setFilter('all')}
-                                    className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${filter === 'all' ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white'}`}
-                                >
-                                    All ({reports.length})
-                                </button>
-                                <button
-                                    onClick={() => setFilter('ileapp')}
-                                    className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${filter === 'ileapp' ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white'}`}
-                                >
-                                    iLEAPP ({reports.filter(r => r.tool === 'ileapp').length})
-                                </button>
-                                <button
-                                    onClick={() => setFilter('aleapp')}
-                                    className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${filter === 'aleapp' ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white'}`}
-                                >
-                                    aLEAPP ({reports.filter(r => r.tool === 'aleapp').length})
-                                </button>
-                            </div>
-                        </div>
-
-                        <div className="flex gap-2">
-                            <div className="relative w-64">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={14} />
-                                <input
-                                    type="text"
-                                    placeholder="Search reports..."
-                                    value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                    className="w-full bg-[#1A1A1A] border border-white/10 rounded-lg pl-9 pr-3 py-1.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-white/20"
-                                />
-                            </div>
-                            <select
-                                value={sort}
-                                onChange={(e) => setSort(e.target.value as 'newest' | 'oldest' | 'name')}
-                                className="bg-[#1A1A1A] border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-white/20 appearance-none cursor-pointer text-center"
-                            >
-                                <option value="newest">Newest First</option>
-                                <option value="oldest">Oldest First</option>
-                                <option value="name">Name (A-Z)</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    {/* Horizontal Scrollable Report Cards */}
-                    <div
-                        ref={scrollContainerRef}
-                        className={`flex-1 overflow-x-auto overflow-y-hidden min-h-0 [&::-webkit-scrollbar]:hidden ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
-                        style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-                        onMouseDown={handleMouseDown}
-                        onMouseLeave={handleMouseLeave}
-                        onMouseUp={handleMouseUp}
-                        onMouseMove={handleMouseMove}
-                    >
-                        {isLoading ? (
-                            <div className="h-full flex items-center justify-center text-gray-500 text-sm">Loading reports...</div>
-                        ) : filteredReports.length === 0 ? (
-                            <div className="h-full flex items-center justify-center text-gray-500 text-sm">No reports found</div>
-                        ) : (
-                            <div className="flex gap-3 h-full pb-2">
-                                {filteredReports.map((report) => (
-                                    <div
-                                        key={report.path}
-                                        className={`group flex-shrink-0 w-80 h-14 rounded-lg p-2 flex items-center gap-2 border transition-colors cursor-pointer ${selectedReport?.path === report.path ? 'bg-[#1A1A1A] border-white/40' : 'bg-[#1A1A1A] border-white/10 hover:border-white/20'
-                                            }`}
-                                        onClick={() => handleViewReport(report)}
+                <div className="flex-[15] flex flex-col gap-0 min-h-0 border border-white/10 rounded-xl bg-[#1A1A1A]/30 overflow-hidden pb-2">
+                    <div className="flex-1 flex flex-col gap-2 min-h-0 pb-2 pt-2 px-4">
+                        {/* Header with Controls */}
+                        <div className="flex items-center justify-between gap-4">
+                            <div className="flex items-center gap-4">
+                                <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider ml-1">Reports Library</label>
+                                <div className="flex gap-1 bg-[#1A1A1A] p-0.5 rounded-lg border border-white/10">
+                                    <button
+                                        onClick={() => setFilter('all')}
+                                        className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${filter === 'all' ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white'}`}
                                     >
-                                        {/* Icon */}
-                                        <div className="h-10 w-10 shrink-0 bg-[#1a1a1a] rounded flex items-center justify-center p-0.5">
-                                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                                            <img
-                                                src={report.tool === 'ileapp' ? '/apple-logo.svg' : '/android-logo.svg'}
-                                                alt={report.tool}
-                                                className="max-h-full max-w-full object-contain"
-                                                style={{
-                                                    filter: report.tool === 'ileapp'
-                                                        ? 'brightness(0) invert(1)' // White for Apple
-                                                        : 'brightness(0) saturate(100%) invert(80%) sepia(16%) saturate(1088%) hue-rotate(32deg) brightness(92%) contrast(87%)' // #a6c43b for Android
-                                                }}
-                                            />
-                                        </div>
+                                        All ({reports.length})
+                                    </button>
+                                    <button
+                                        onClick={() => setFilter('ileapp')}
+                                        className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${filter === 'ileapp' ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white'}`}
+                                    >
+                                        iLEAPP ({reports.filter(r => r.tool === 'ileapp').length})
+                                    </button>
+                                    <button
+                                        onClick={() => setFilter('aleapp')}
+                                        className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${filter === 'aleapp' ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white'}`}
+                                    >
+                                        aLEAPP ({reports.filter(r => r.tool === 'aleapp').length})
+                                    </button>
+                                </div>
+                            </div>
 
-                                        {/* Info */}
-                                        <div className="flex-1 min-w-0 flex flex-col justify-center items-center overflow-hidden">
-                                            <h3 className="text-white font-medium truncate text-xs w-full text-center">{report.name}</h3>
-                                            <div className="flex items-center justify-center gap-1.5 text-[10px] text-gray-400 mt-0.5 whitespace-nowrap">
-                                                <span className="flex items-center gap-0.5 shrink-0">
-                                                    <FileText size={9} className="shrink-0" />
-                                                    <span>{new Date(report.created_at).toLocaleDateString()}</span>
-                                                </span>
-                                                <span className="shrink-0">•</span>
-                                                <span className="shrink-0">{report.size}</span>
+                            <div className="flex gap-2">
+                                <div className="relative w-64">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={14} />
+                                    <input
+                                        type="text"
+                                        placeholder="Search reports..."
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                        className="w-full bg-[#1A1A1A] border border-white/10 rounded-lg pl-9 pr-3 py-1.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-white/20"
+                                    />
+                                </div>
+                                <select
+                                    value={sort}
+                                    onChange={(e) => setSort(e.target.value as 'newest' | 'oldest' | 'name')}
+                                    className="bg-[#1A1A1A] border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-white/20 appearance-none cursor-pointer text-center"
+                                >
+                                    <option value="newest">Newest First</option>
+                                    <option value="oldest">Oldest First</option>
+                                    <option value="name">Name (A-Z)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        {/* Horizontal Scrollable Report Cards */}
+                        <div
+                            ref={scrollContainerRef}
+                            className={`report-cards-container flex-1 overflow-x-auto overflow-y-hidden min-h-0 [&::-webkit-scrollbar]:hidden ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
+                            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+                            onMouseDown={handleMouseDown}
+                            onMouseLeave={handleMouseLeave}
+                            onMouseUp={handleMouseUp}
+                            onMouseMove={handleMouseMove}
+                        >
+                            {isLoading ? (
+                                <div className="h-full flex items-center justify-center text-gray-500 text-sm">Loading reports...</div>
+                            ) : filteredReports.length === 0 ? (
+                                <div className="h-full flex items-center justify-center text-gray-500 text-sm">No reports found</div>
+                            ) : (
+                                <div className="flex gap-3 h-full items-center">
+                                    {filteredReports.map((report) => (
+                                        <div
+                                            key={report.path}
+                                            className={`report-card group flex-shrink-0 w-72 rounded-lg px-2.5 flex items-center gap-2 border transition-colors cursor-pointer ${selectedReport?.path === report.path ? 'bg-[#1A1A1A] border-white/40' : 'bg-[#1A1A1A] border-white/10 hover:border-white/20'
+                                                }`}
+                                            onClick={() => handleViewReport(report)}
+                                        >
+                                            {/* Icon - scales with container */}
+                                            <div className="report-card-icon shrink-0 bg-[#1a1a1a] rounded flex items-center justify-center p-0.5">
+                                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                <img
+                                                    src={report.tool === 'ileapp' ? '/apple-logo.svg' : '/android-logo.svg'}
+                                                    alt={report.tool}
+                                                    className="max-h-full max-w-full object-contain"
+                                                    style={{
+                                                        filter: report.tool === 'ileapp'
+                                                            ? 'brightness(0) invert(1)' // White for Apple
+                                                            : 'brightness(0) saturate(100%) invert(80%) sepia(16%) saturate(1088%) hue-rotate(32deg) brightness(92%) contrast(87%)' // #a6c43b for Android
+                                                    }}
+                                                />
+                                            </div>
+
+                                            {/* Info */}
+                                            <div className="flex-1 min-w-0 flex flex-col justify-center items-center overflow-hidden">
+                                                <h3 className="text-white font-medium truncate text-xs w-full text-center">{report.name}</h3>
+                                                <div className="flex items-center justify-center gap-1.5 text-[10px] text-gray-400 mt-0.5 whitespace-nowrap">
+                                                    <span className="flex items-center gap-0.5 shrink-0">
+                                                        <FileText size={9} className="shrink-0" />
+                                                        <span>{new Date(report.created_at).toLocaleDateString()}</span>
+                                                    </span>
+                                                    <span className="shrink-0">•</span>
+                                                    <span className="shrink-0">{report.size}</span>
+                                                </div>
+                                            </div>
+
+                                            {/* Actions */}
+                                            <div className="flex items-center gap-0.5 shrink-0">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleOpenClick(report);
+                                                    }}
+                                                    title="Open in Finder"
+                                                    className="h-6 w-6 shrink-0 hover:bg-white/20 text-white"
+                                                >
+                                                    <FolderOpen size={11} className="shrink-0" />
+                                                </Button>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleDownloadClick(report);
+                                                    }}
+                                                    title="Download ZIP"
+                                                    className="h-6 w-6 shrink-0 hover:bg-white/20 text-white"
+                                                >
+                                                    <Download size={11} className="shrink-0" />
+                                                </Button>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleDeleteClick(report);
+                                                    }}
+                                                    title="Delete Report"
+                                                    className="h-6 w-6 shrink-0 hover:bg-red-900/30 text-white hover:text-red-400"
+                                                >
+                                                    <Trash2 size={11} className="shrink-0" />
+                                                </Button>
                                             </div>
                                         </div>
-
-                                        {/* Actions */}
-                                        <div className="flex items-center gap-0.5 shrink-0">
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    handleOpen(report.path);
-                                                }}
-                                                title="Open in Finder"
-                                                className="h-7 w-7 shrink-0 hover:bg-white/20 text-white"
-                                            >
-                                                <FolderOpen size={12} className="shrink-0" />
-                                            </Button>
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    handleDownload(report.path);
-                                                }}
-                                                title="Download ZIP"
-                                                className="h-7 w-7 shrink-0 hover:bg-white/20 text-white"
-                                            >
-                                                <Download size={12} className="shrink-0" />
-                                            </Button>
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    handleDelete(report.path);
-                                                }}
-                                                title="Delete Report"
-                                                className="h-7 w-7 shrink-0 hover:bg-red-900/30 text-white hover:text-red-400"
-                                            >
-                                                <Trash2 size={12} className="shrink-0" />
-                                            </Button>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
+                                    ))}
+                                </div>
+                            )}
+                        </div>
                     </div>
 
-                    {/* Custom Minimal Scrollbar - Only show when content overflows */}
+                    {/* Custom Minimal Scrollbar - Moved Outside Red Container */}
                     {filteredReports.length > 0 && thumbWidth < 100 && (
                         <div
                             ref={scrollbarRef}
-                            className="h-1.5 bg-white/5 rounded-full mx-4 mb-1 relative cursor-pointer"
+                            className="h-1 bg-white/5 rounded-full mx-4 relative cursor-pointer"
                             onMouseDown={(e) => {
                                 // Click to scroll to position
                                 if (!scrollContainerRef.current || !scrollbarRef.current) return;
@@ -448,6 +485,99 @@ export default function Reports() {
                     )}
                 </div>
             )}
+
+            <Dialog open={reportToDelete !== null} onOpenChange={(open) => !open && setReportToDelete(null)}>
+                <DialogContent className="max-w-[340px] p-5 bg-[#1A1A1A] border-[#333333] rounded-xl shadow-2xl">
+                    <DialogHeader>
+                        <DialogTitle className="text-sm font-semibold text-white tracking-wide uppercase">Delete Report</DialogTitle>
+                    </DialogHeader>
+                    <div className="py-2">
+                        <p className="text-[11px] text-gray-400 leading-relaxed">
+                            Are you sure you want to delete <span className="text-white font-medium">{reportToDelete?.name}</span>? This action cannot be undone.
+                        </p>
+                    </div>
+                    <DialogFooter className="mt-2 flex gap-2">
+                        <Button
+                            variant="secondary"
+                            size="sm"
+                            className="flex-1 h-8 text-[11px] bg-[#222] hover:bg-[#2a2a2a] text-gray-300 border border-white/5"
+                            onClick={() => setReportToDelete(null)}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            variant="destructive"
+                            size="sm"
+                            className="flex-1 h-8 text-[11px] bg-red-900/20 hover:bg-red-900/40 text-white border border-red-900/30"
+                            onClick={executeDelete}
+                        >
+                            Delete
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={reportToOpen !== null} onOpenChange={(open) => !open && setReportToOpen(null)}>
+                <DialogContent className="max-w-[340px] p-5 bg-[#1A1A1A] border-[#333333] rounded-xl shadow-2xl">
+                    <DialogHeader>
+                        <DialogTitle className="text-sm font-semibold text-white tracking-wide uppercase">Open Folder</DialogTitle>
+                    </DialogHeader>
+                    <div className="py-2">
+                        <p className="text-[11px] text-gray-400 leading-relaxed">
+                            Are you sure you want to open <span className="text-white font-medium">{reportToOpen?.name}</span> in Finder?
+                        </p>
+                    </div>
+                    <DialogFooter className="mt-2 flex gap-2">
+                        <Button
+                            variant="secondary"
+                            size="sm"
+                            className="flex-1 h-8 text-[11px] bg-[#222] hover:bg-[#2a2a2a] text-gray-300 border border-white/5"
+                            onClick={() => setReportToOpen(null)}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            variant="default"
+                            size="sm"
+                            className="flex-1 h-8 text-[11px] bg-white/10 hover:bg-white/20 text-white border border-white/10"
+                            onClick={executeOpen}
+                        >
+                            Open
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={reportToDownload !== null} onOpenChange={(open) => !open && setReportToDownload(null)}>
+                <DialogContent className="max-w-[340px] p-5 bg-[#1A1A1A] border-[#333333] rounded-xl shadow-2xl">
+                    <DialogHeader>
+                        <DialogTitle className="text-sm font-semibold text-white tracking-wide uppercase">Download Report</DialogTitle>
+                    </DialogHeader>
+                    <div className="py-2">
+                        <p className="text-[11px] text-gray-400 leading-relaxed">
+                            Are you sure you want to download <span className="text-white font-medium">{reportToDownload?.name}</span> as a ZIP archive?
+                        </p>
+                    </div>
+                    <DialogFooter className="mt-2 flex gap-2">
+                        <Button
+                            variant="secondary"
+                            size="sm"
+                            className="flex-1 h-8 text-[11px] bg-[#222] hover:bg-[#2a2a2a] text-gray-300 border border-white/5"
+                            onClick={() => setReportToDownload(null)}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            variant="default"
+                            size="sm"
+                            className="flex-1 h-8 text-[11px] bg-white/10 hover:bg-white/20 text-white border border-white/10"
+                            onClick={executeDownload}
+                        >
+                            Download
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }
