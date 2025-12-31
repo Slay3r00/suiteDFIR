@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline';">
-  <title>VDF Tools - Starting</title>
+  <title>VDF Tools</title>
   <style>
     * {
       margin: 0;
@@ -14,7 +14,7 @@
 
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-      background: #0a0a0a;
+      background: #151515;
       height: 100vh;
       display: flex;
       flex-direction: column;
@@ -25,51 +25,31 @@
       position: relative;
     }
 
-    /* Subtle white overlay */
-    body::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: radial-gradient(ellipse at top, rgba(255, 255, 255, 0.05) 0%, transparent 50%);
-      pointer-events: none;
-    }
-
     .container {
       text-align: center;
-      padding: 48px;
+      padding: 0;
       position: relative;
       z-index: 1;
     }
 
-    .logo {
-      font-size: 32px;
+    .title {
+      font-size: 20px;
       font-weight: 600;
-      margin-bottom: 8px;
-      letter-spacing: -0.5px;
       color: #fafafa;
-    }
-
-    .subtitle {
-      font-size: 13px;
-      color: #737373;
-      margin-bottom: 48px;
-      font-weight: 500;
+      margin-bottom: 24px;
       letter-spacing: 0.5px;
-      text-transform: uppercase;
+      text-transform: none;
     }
 
     /* Loading indicator */
     .loader {
-      width: 40px;
-      height: 40px;
-      margin: 0 auto 32px;
-      border: 3px solid rgba(255, 255, 255, 0.1);
+      width: 24px;
+      height: 24px;
+      margin: 0 auto 20px;
+      border: 2px solid rgba(255, 255, 255, 0.1);
       border-radius: 50%;
       border-top-color: #ffffff;
-      animation: spin 1s linear infinite;
+      animation: spin 0.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
     }
 
     @keyframes spin {
@@ -79,116 +59,50 @@
     }
 
     .status {
-      font-size: 14px;
-      color: #a3a3a3;
-      min-height: 22px;
-      font-weight: 400;
-      letter-spacing: 0.2px;
-      transition: color 0.3s ease;
-    }
-
-    .status.ready {
-      color: #737373;
-    }
-
-    .retry-info {
-      margin-top: 16px;
       font-size: 11px;
-      color: #525252;
+      color: #737373;
+      min-height: 14px;
       font-weight: 500;
-      letter-spacing: 0.5px;
+      letter-spacing: 0.8px;
       text-transform: uppercase;
     }
 
-    .log-link {
-      margin-top: 24px;
-      font-size: 10px;
-      color: #404040;
-      cursor: pointer;
-      transition: color 0.2s ease;
-    }
-
-    .log-link:hover {
-      color: #737373;
-    }
-
-    .log-path {
-      display: none;
+    .retry-info {
       margin-top: 8px;
       font-size: 9px;
-      color: #525252;
-      font-family: 'SF Mono', Monaco, 'Courier New', monospace;
-      word-break: break-all;
-      max-width: 300px;
-      background: rgba(255, 255, 255, 0.05);
-      padding: 8px 12px;
-      border-radius: 4px;
-    }
-
-    .log-path.visible {
-      display: block;
-    }
-
-    /* Bottom accent */
-    .accent {
-      position: absolute;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      height: 1px;
-      background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.2) 50%, transparent 100%);
+      color: #404040;
+      font-weight: 500;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
     }
   </style>
 </head>
 
 <body>
   <div class="container">
-    <div class="logo">VDF Tools</div>
-    <div class="subtitle">Digital Forensics</div>
+    <div class="title">VDF Tools</div>
     <div class="loader"></div>
-    <div class="status" id="status">Starting application...</div>
+    <div class="status" id="status">Initializing</div>
     <div class="retry-info" id="retryInfo"></div>
-    <div class="log-link" id="logLink">View Logs</div>
-    <div class="log-path" id="logPath"></div>
   </div>
-  <div class="accent"></div>
 
   <script>
-    // Use the preload API (contextIsolation is enabled)
     if (window.electronAPI) {
-      // Update status text
       window.electronAPI.onUpdateStatus((message) => {
         const statusEl = document.getElementById('status');
         statusEl.textContent = message;
-
-        // Add 'ready' class for positive status
-        if (message === 'Ready') {
-          statusEl.classList.add('ready');
-        } else {
-          statusEl.classList.remove('ready');
-        }
       });
 
-      // Update retry info
       window.electronAPI.onUpdateRetryInfo((attempt, maxAttempts) => {
         if (attempt > 0) {
           document.getElementById('retryInfo').textContent = `Attempt ${attempt} of ${maxAttempts}`;
         }
       });
-
-      // Log link click handler
-      document.getElementById('logLink').addEventListener('click', async () => {
-        const logPathEl = document.getElementById('logPath');
-        if (logPathEl.classList.contains('visible')) {
-          logPathEl.classList.remove('visible');
-        } else {
-          const path = await window.electronAPI.getLogPath();
-          logPathEl.textContent = path || 'Log path not available';
-          logPathEl.classList.add('visible');
-        }
-      });
     }
   </script>
+</body>
+
+</html>
 </body>
 
 </html>

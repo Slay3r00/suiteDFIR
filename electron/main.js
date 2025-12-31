@@ -53,7 +53,7 @@ function createSplashWindow() {
   logger.info('Creating splash window');
   splashWindow = new BrowserWindow({
     width: 400,
-    height: 300,
+    height: 200,
     center: true,
     frame: false,
     resizable: false,

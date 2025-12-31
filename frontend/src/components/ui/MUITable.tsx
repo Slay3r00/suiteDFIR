@@ -319,6 +319,8 @@ const EnhancedTable = ({
             sorting,
             globalFilter,
             columnFilters,
+        },
+        initialState: {
             density: 'compact',
         },
         onPaginationChange,
