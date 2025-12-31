@@ -69,7 +69,7 @@ const data = {
             icon: Clock,
         },
         {
-            title: "Spatial",
+            title: "GeoSpatial",
             url: "/spatial",
             icon: Box,
         },

@@ -145,7 +145,7 @@ export default function MapControls({ onSearch, onLayerChange, onDataUpload, onK
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         placeholder="Search location..."
-                        className="pl-9 h-8 !bg-[#1f1f1f] hover:!bg-[#262626] focus:!bg-[#262626] !border-[#414141] text-white placeholder:text-gray-500 text-xs focus-visible:ring-0 focus-visible:ring-offset-0 transition-colors shadow-md"
+                        className="pl-9 h-8 !bg-[#1f1f1f] hover:!bg-[#262626] focus:!bg-[#262626] !border-[#414141] text-white placeholder:text-muted-foreground placeholder:text-[11px] text-xs focus-visible:ring-0 focus-visible:ring-offset-0 transition-colors shadow-md"
                     />
                     {isSearching && (
                         <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4 animate-spin" />

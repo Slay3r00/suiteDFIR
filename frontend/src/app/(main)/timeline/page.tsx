@@ -142,7 +142,7 @@ export default function Timeline() {
                 <div className="flex items-center gap-4">
                     <h2 className="text-sm font-medium text-gray-400">Filter by Report:</h2>
                     <Select value={selectedReport} onValueChange={setSelectedReport}>
-                        <SelectTrigger className="w-[300px] bg-[#212121] border-white/10 text-white">
+                        <SelectTrigger className="h-8 w-[300px] bg-[#212121] border-white/10 text-white focus:!ring-0 focus:!ring-offset-0">
                             <SelectValue placeholder="Select a report">
                                 {selectedReport === "all"
                                     ? "All Reports"
@@ -152,7 +152,7 @@ export default function Timeline() {
                                 }
                             </SelectValue>
                         </SelectTrigger>
-                        <SelectContent className="bg-[#212121] border-white/10 text-white">
+                        <SelectContent className="w-full left-0 bg-[#212121] border-white/10 text-white">
                             <SelectItem value="all">All Reports</SelectItem>
                             {reports.map((report) => (
                                 <SelectItem key={report.path} value={report.path}>
