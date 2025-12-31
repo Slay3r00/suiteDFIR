@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException, Query
 from typing import List, Optional, Dict, Any
 import sqlite3
+import json
 import os
 import logging
 from database import get_db_connection, DB_PATH
@@ -214,8 +215,13 @@ async def get_timeline(
             except:
                 pass
 
+            # Format ID sequentially
+            current_page = page if limit != -1 else 0
+            page_size = limit if limit != -1 else total_count
+            virtual_id = (current_page * page_size) + i + 1
+
             formatted_data.append({
-                "id": f"{page}-{i}", # Virtual ID
+                "id": virtual_id,
                 "date": date,
                 "artifact": artifact,
                 "description": description,
