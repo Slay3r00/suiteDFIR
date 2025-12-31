@@ -30,6 +30,13 @@ import {
     SelectItem
 } from "@/components/ui/Select"
 import { CaseFormDialog, Case, CaseStatus } from "@/components/cases/CaseFormDialog"
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogFooter,
+} from "@/components/ui/Dialog"
 
 export default function CaseManagementPage() {
     const router = useRouter()
@@ -43,6 +50,7 @@ export default function CaseManagementPage() {
     // Modal State
     const [isModalOpen, setIsModalOpen] = useState(false)
     const [editingCase, setEditingCase] = useState<Case | null>(null)
+    const [caseToDelete, setCaseToDelete] = useState<Case | null>(null)
 
     // --- Fetch Data ---
     useEffect(() => {
@@ -99,19 +107,23 @@ export default function CaseManagementPage() {
         setIsModalOpen(true)
     }
 
-    const handleDelete = async (e: React.MouseEvent, id: number) => {
+    const handleDelete = (e: React.MouseEvent, caseItem: Case) => {
         e.stopPropagation() // Prevent case selection
-        if (confirm('Are you sure you want to delete this case?')) {
-            try {
-                const res = await fetch(`http://localhost:8000/api/cases/${id}`, {
-                    method: 'DELETE'
-                })
-                if (res.ok) {
-                    setCases(prev => prev.filter(c => c.id !== id))
-                }
-            } catch (error) {
-                console.error('Failed to delete case:', error)
+        setCaseToDelete(caseItem)
+    }
+
+    const executeDelete = async () => {
+        if (!caseToDelete) return
+        try {
+            const res = await fetch(`http://localhost:8000/api/cases/${caseToDelete.id}`, {
+                method: 'DELETE'
+            })
+            if (res.ok) {
+                setCases(prev => prev.filter(c => c.id !== caseToDelete.id))
+                setCaseToDelete(null)
             }
+        } catch (error) {
+            console.error('Failed to delete case:', error)
         }
     }
 
@@ -278,7 +290,7 @@ export default function CaseManagementPage() {
                                                 <Edit2 size={14} />
                                             </button>
                                             <button
-                                                onClick={(e) => handleDelete(e, caseItem.id)}
+                                                onClick={(e) => handleDelete(e, caseItem)}
                                                 className="p-1 hover:bg-[#333333] rounded text-gray-500 hover:text-red-400 transition-colors"
                                                 title="Delete Case"
                                             >
@@ -342,7 +354,7 @@ export default function CaseManagementPage() {
                                                         <Edit2 size={14} />
                                                     </button>
                                                     <button
-                                                        onClick={(e) => handleDelete(e, caseItem.id)}
+                                                        onClick={(e) => handleDelete(e, caseItem)}
                                                         className="p-1.5 hover:bg-[#333333] rounded text-gray-500 hover:text-red-400 transition-colors"
                                                         title="Delete Case"
                                                     >
@@ -359,13 +371,37 @@ export default function CaseManagementPage() {
                 )}
             </div>
 
-            {/* Create/Edit Modal */}
-            <CaseFormDialog
-                open={isModalOpen}
-                onOpenChange={setIsModalOpen}
-                caseData={editingCase}
-                onSuccess={handleCaseSaved}
-            />
+            {/* Delete Confirmation Modal */}
+            <Dialog open={caseToDelete !== null} onOpenChange={(open) => !open && setCaseToDelete(null)}>
+                <DialogContent className="max-w-[340px] p-5 bg-[#1A1A1A] border-[#333333] rounded-xl shadow-2xl">
+                    <DialogHeader>
+                        <DialogTitle className="text-sm font-semibold text-white tracking-wide uppercase">Delete Case</DialogTitle>
+                    </DialogHeader>
+                    <div className="py-2">
+                        <p className="text-[11px] text-gray-400 leading-relaxed">
+                            Are you sure you want to delete case <span className="text-white font-medium">{caseToDelete?.name}</span>? This action cannot be undone.
+                        </p>
+                    </div>
+                    <DialogFooter className="mt-2 flex gap-2">
+                        <Button
+                            variant="secondary"
+                            size="sm"
+                            className="flex-1 h-8 text-[11px] bg-[#222] hover:bg-[#2a2a2a] text-gray-300 border border-white/5"
+                            onClick={() => setCaseToDelete(null)}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            variant="destructive"
+                            size="sm"
+                            className="flex-1 h-8 text-[11px] bg-red-900/20 hover:bg-red-900/40 text-white border border-red-900/30"
+                            onClick={executeDelete}
+                        >
+                            Delete
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     )
 }
