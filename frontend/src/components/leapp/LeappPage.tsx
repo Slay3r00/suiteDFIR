@@ -12,7 +12,7 @@ import ToolNotInstalled from '../../components/ui/ToolNotInstalled';
 
 import { Button, Input, Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../../components/ui';
 import { useCase } from '@/context/CaseContext';
-import { FileText, FolderOpen, Calendar, Trash2, Loader2 } from 'lucide-react';
+import { FileText, FolderOpen, Calendar, Trash2, Loader2, Download } from 'lucide-react';
 
 import { getToolsStatus } from '@/lib/api/tools';
 import { cn } from '../../lib/utils';
@@ -156,10 +156,11 @@ function LeappContent({ logoPath, tool }: { logoPath: string; tool: string }) {
                 {/* Left Panel - Input & Controls */}
                 <div className="flex-1 basis-0 min-w-0 h-full flex flex-col gap-6 min-h-0">
                     {/* Logo */}
+                    {/* 
                     <div className="flex items-center h-16">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img src={logoPath} alt="Tool Logo" className={logoHeight} />
                     </div>
+                    */}
                     {/* Input & Report Name Row */}
                     <div className="flex gap-6">
                         {/* Report Name Section */}
@@ -180,7 +181,7 @@ function LeappContent({ logoPath, tool }: { logoPath: string; tool: string }) {
                             value={inputFile}
                             onChange={setInputFile}
                             disabled={isProcessing}
-                            placeholder="Select input file..."
+                            placeholder="Select input..."
                             showFolderOption={true}
                             tool={tool}
                             caseId={selectedCaseId ? parseInt(selectedCaseId) : undefined}
@@ -228,7 +229,6 @@ function LeappContent({ logoPath, tool }: { logoPath: string; tool: string }) {
                         <div className="flex-1 flex flex-col p-0 min-h-0 overflow-hidden">
                             {reports.length === 0 && !isProcessing && !processingReportName ? (
                                 <div className="h-full flex flex-col items-center justify-center text-gray-500">
-                                    <FileText className="h-12 w-12 mb-4 opacity-20" />
                                     <p className="text-sm font-medium">No reports found</p>
                                     <p className="text-xs text-gray-600 mt-1">Generated reports will appear here</p>
                                 </div>
@@ -241,23 +241,57 @@ function LeappContent({ logoPath, tool }: { logoPath: string; tool: string }) {
                                         >
                                             {/* Info */}
                                             <div className="flex-1 min-w-0 flex flex-col justify-center items-start">
-                                                <div className="flex items-center gap-2">
-                                                    <h3 className="text-white font-medium truncate text-xs text-left">{processingReportName}</h3>
-                                                    <span
-                                                        className="processing-badge text-[10px] font-medium px-1.5 py-0 rounded border border-white/50 flex items-center gap-1"
-                                                        style={{ backgroundColor: '#262626', color: 'white' }}
-                                                    >
-                                                        <Loader2 size={8} className="animate-spin" />
-                                                        {isProcessing ? 'Processing' : 'Completing'}
-                                                    </span>
-                                                </div>
+                                                <h3 className="text-white font-medium truncate text-xs text-left">{processingReportName}</h3>
                                                 <div className="flex items-center gap-2 text-[10px] text-gray-400 mt-0.5">
                                                     <span className="flex items-center gap-0.5">
                                                         <Calendar size={9} />
                                                         {new Date().toLocaleDateString()}
                                                     </span>
-                                                    <span>•</span>
-                                                    <span>{isProcessing ? 'In progress...' : 'Saving report...'}</span>
+                                                    {!isProcessing && (
+                                                        <>
+                                                            <span>•</span>
+                                                            <span>Saving report...</span>
+                                                        </>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            {/* Badge - Centered on Right */}
+                                            <div className="flex items-center gap-2">
+                                                <span
+                                                    className="processing-badge shrink-0 text-[10px] font-medium px-1.5 py-0 rounded border border-white/50 flex items-center gap-1"
+                                                    style={{ backgroundColor: '#262626', color: 'white' }}
+                                                >
+                                                    <Loader2 size={8} className="animate-spin" />
+                                                    {isProcessing ? 'Processing' : 'Completing'}
+                                                </span>
+
+                                                {/* Action Buttons (Disabled during processing) */}
+                                                <div className="flex items-center gap-0.5 opacity-50 pointer-events-none">
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        disabled
+                                                        className="h-7 w-7 text-white"
+                                                    >
+                                                        <FolderOpen size={12} />
+                                                    </Button>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        disabled
+                                                        className="h-7 w-7 text-white"
+                                                    >
+                                                        <Download size={12} />
+                                                    </Button>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        disabled
+                                                        className="h-7 w-7 text-white"
+                                                    >
+                                                        <Trash2 size={12} />
+                                                    </Button>
                                                 </div>
                                             </div>
                                         </div>
@@ -286,21 +320,13 @@ function LeappContent({ logoPath, tool }: { logoPath: string; tool: string }) {
                                                 <Button
                                                     variant="ghost"
                                                     size="icon"
-                                                    onClick={() => handleViewReport()}
-                                                    title="View Report"
-                                                    className="h-7 w-7 hover:bg-white/20 text-white"
-                                                >
-                                                    <FileText size={12} />
-                                                </Button>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
                                                     onClick={() => handleOpenLocation(report.path)}
                                                     title="Open Location"
                                                     className="h-7 w-7 hover:bg-white/20 text-white"
                                                 >
                                                     <FolderOpen size={12} />
                                                 </Button>
+
                                                 <Button
                                                     variant="ghost"
                                                     size="icon"

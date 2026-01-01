@@ -5,6 +5,7 @@ export interface Iphone15ProProps extends SVGProps<SVGSVGElement> {
     height?: number;
     src?: string;
     videoSrc?: string;
+    children?: React.ReactNode;
 }
 
 export default function Iphone15Pro({
@@ -12,6 +13,7 @@ export default function Iphone15Pro({
     height = 882,
     src,
     videoSrc,
+    children,
     ...props
 }: Iphone15ProProps) {
     return (
@@ -98,6 +100,17 @@ export default function Iphone15Pro({
                         muted
                         playsInline
                     />
+                </foreignObject>
+            )}
+            {children && (
+                <foreignObject
+                    x="21.25"
+                    y="19.25"
+                    width="389.5"
+                    height="843.5"
+                    clipPath="url(#roundedCorners)"
+                >
+                    {children}
                 </foreignObject>
             )}
             <path

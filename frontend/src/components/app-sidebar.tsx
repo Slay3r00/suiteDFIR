@@ -60,18 +60,23 @@ const data = {
             url: "/aleapp",
             icon: Smartphone,
         },
+        {
+            title: "Backup (ADB)",
+            url: "/adb-backup",
+            icon: Archive,
+        },
     ],
 
     data_analysis: [
         {
-            title: "Timeline",
-            url: "/timeline",
-            icon: Clock,
-        },
-        {
             title: "GeoSpatial",
             url: "/spatial",
             icon: Box,
+        },
+        {
+            title: "Timeline",
+            url: "/timeline",
+            icon: Clock,
         },
     ],
 }
@@ -84,12 +89,11 @@ export function AppSidebar() {
 
     return (
         <Sidebar collapsible="icon">
-            <SidebarHeader>
+            <SidebarHeader className="pt-4">
                 <div className="flex items-center justify-between p-2 group-data-[collapsible=icon]:justify-center">
-                    <div className="flex items-center gap-2 overflow-hidden group-data-[state=expanded]:w-full">
-                        <div className="flex flex-col overflow-hidden whitespace-nowrap opacity-0 max-w-0 group-data-[state=expanded]:opacity-100 group-data-[state=expanded]:max-w-[200px] group-data-[state=expanded]:transition-[opacity,max-width] group-data-[state=expanded]:duration-300 group-data-[state=expanded]:ease-in-out group-data-[state=expanded]:delay-200">
-                            <span className="text-lg font-bold text-white">VDF Tools</span>
-                            <span className="text-[10px] uppercase tracking-widest text-muted-foreground font-medium">Forensic Toolkit</span>
+                    <div className="flex items-center gap-2 overflow-hidden group-data-[state=expanded]:w-full group-data-[state=expanded]:justify-center">
+                        <div className="flex flex-col items-center gap-0.5 overflow-hidden whitespace-nowrap opacity-0 max-w-0 group-data-[state=expanded]:opacity-100 group-data-[state=expanded]:max-w-[200px] group-data-[state=expanded]:transition-[opacity,max-width] group-data-[state=expanded]:duration-300 group-data-[state=expanded]:ease-in-out group-data-[state=expanded]:delay-200">
+                            <img src="/vdf-logo-dark.png" alt="VDF Tools" className="h-7 w-auto object-contain object-center grayscale invert" />
                         </div>
                     </div>
                     <button onClick={toggleSidebar} className="p-1 hover:bg-sidebar-accent rounded-md text-sidebar-foreground flex-shrink-0">
@@ -99,7 +103,7 @@ export function AppSidebar() {
             </SidebarHeader>
             <SidebarContent>
                 <SidebarGroup>
-                    <SidebarGroupLabel>Case</SidebarGroupLabel>
+                    <SidebarGroupLabel className="text-[10px] font-medium text-sidebar-foreground/70 uppercase tracking-wider">Case</SidebarGroupLabel>
                     <SidebarGroupContent>
                         <SidebarMenu>
                             {data.case.map((item) => (
@@ -107,7 +111,7 @@ export function AppSidebar() {
                                     <SidebarMenuButton asChild tooltip={item.title} isActive={pathname === item.url}>
                                         <a href={item.url}>
                                             <item.icon />
-                                            <span>{item.title}</span>
+                                            <span className="text-[11px] uppercase tracking-wider font-medium">{item.title}</span>
                                         </a>
                                     </SidebarMenuButton>
                                 </SidebarMenuItem>
@@ -116,10 +120,10 @@ export function AppSidebar() {
                     </SidebarGroupContent>
                 </SidebarGroup>
                 <SidebarGroup>
-                    <SidebarGroupLabel>Mobile Tools</SidebarGroupLabel>
+                    <SidebarGroupLabel className="text-[10px] font-medium text-sidebar-foreground/70 uppercase tracking-wider">Mobile Tools</SidebarGroupLabel>
                     <SidebarGroupContent className="space-y-4">
                         <div className="flex flex-col group-data-[state=expanded]:pl-4">
-                            <div className="px-2 py-1.5 text-[10px] font-medium text-sidebar-foreground/70 uppercase group-data-[state=collapsed]:hidden">
+                            <div className="px-2 py-1.5 text-[10px] font-medium text-sidebar-foreground/70 uppercase tracking-wider group-data-[state=collapsed]:hidden">
                                 iOS
                             </div>
                             <SidebarMenu>
@@ -128,10 +132,10 @@ export function AppSidebar() {
                                         <SidebarMenuButton asChild tooltip={item.title} isActive={pathname === item.url}>
                                             <a href={item.url}>
                                                 <item.icon />
-                                                <span>
+                                                <span className="text-[11px] uppercase tracking-wider font-medium">
                                                     {item.title.split(" (")[0]}
                                                     {item.title.includes(" (") && (
-                                                        <span className="text-[10px] text-muted-foreground/80 ml-1">
+                                                        <span className="text-[10px] text-muted-foreground/80 ml-1 lowercase">
                                                             ({item.title.split(" (")[1]}
                                                         </span>
                                                     )}
@@ -144,7 +148,7 @@ export function AppSidebar() {
                         </div>
 
                         <div className="flex flex-col group-data-[state=expanded]:pl-4">
-                            <div className="px-2 py-1.5 text-[10px] font-medium text-sidebar-foreground/70 uppercase group-data-[state=collapsed]:hidden">
+                            <div className="px-2 py-1.5 text-[10px] font-medium text-sidebar-foreground/70 uppercase tracking-wider group-data-[state=collapsed]:hidden">
                                 Android
                             </div>
                             <SidebarMenu>
@@ -153,10 +157,10 @@ export function AppSidebar() {
                                         <SidebarMenuButton asChild tooltip={item.title} isActive={pathname === item.url}>
                                             <a href={item.url}>
                                                 <item.icon />
-                                                <span>
+                                                <span className="text-[11px] uppercase tracking-wider font-medium">
                                                     {item.title.split(" (")[0]}
                                                     {item.title.includes(" (") && (
-                                                        <span className="text-[10px] text-muted-foreground/80 ml-1">
+                                                        <span className="text-[10px] text-muted-foreground/80 ml-1 lowercase">
                                                             ({item.title.split(" (")[1]}
                                                         </span>
                                                     )}
@@ -171,7 +175,7 @@ export function AppSidebar() {
                 </SidebarGroup>
 
                 <SidebarGroup>
-                    <SidebarGroupLabel>Data Analysis</SidebarGroupLabel>
+                    <SidebarGroupLabel className="text-[10px] font-medium text-sidebar-foreground/70 uppercase tracking-wider">Data Analysis</SidebarGroupLabel>
                     <SidebarGroupContent>
                         <SidebarMenu>
                             {data.data_analysis.map((item) => (
@@ -179,7 +183,7 @@ export function AppSidebar() {
                                     <SidebarMenuButton asChild tooltip={item.title} isActive={pathname === item.url}>
                                         <a href={item.url}>
                                             <item.icon />
-                                            <span>{item.title}</span>
+                                            <span className="text-[11px] uppercase tracking-wider font-medium">{item.title}</span>
                                         </a>
                                     </SidebarMenuButton>
                                 </SidebarMenuItem>
@@ -197,7 +201,7 @@ export function AppSidebar() {
                             className="h-10 hover:bg-sidebar-accent px-3 gap-2 group-data-[state=collapsed]:justify-center"
                         >
                             <ChevronLeft className="h-4 w-4 shrink-0" />
-                            <span className="text-xs font-medium truncate group-data-[state=collapsed]:hidden">Back to Cases</span>
+                            <span className="text-[11px] uppercase tracking-wider font-medium truncate group-data-[state=collapsed]:hidden">Back to Cases</span>
                         </SidebarMenuButton>
                     </SidebarMenuItem>
                     <SidebarMenuItem className="flex-1">

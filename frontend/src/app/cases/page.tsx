@@ -141,19 +141,19 @@ export default function CaseManagementPage() {
     // --- Helpers ---
     const getStatusColor = (status: string) => {
         switch (status) {
-            case 'Active': return 'bg-green-500/5 text-green-400/70 border-green-500/10'
-            case 'Closed': return 'bg-red-500/5 text-red-400/70 border-red-500/10'
-            case 'Archived': return 'bg-gray-500/5 text-gray-400/70 border-gray-500/10'
-            default: return 'bg-gray-500/5 text-gray-400/50 border-gray-500/5'
+            case 'Active': return 'bg-white/10 text-white/80 border-white/20'
+            case 'Closed': return 'bg-white/5 text-white/50 border-white/10'
+            case 'Archived': return 'bg-white/5 text-white/30 border-white/5'
+            default: return 'bg-white/5 text-white/20 border-white/5'
         }
     }
 
     const getPriorityColor = (priority: string) => {
         switch (priority) {
-            case 'High': return 'text-red-400/60'
-            case 'Medium': return 'text-yellow-400/60'
-            case 'Low': return 'text-blue-400/60'
-            default: return 'text-gray-500/50'
+            case 'High': return 'text-white/80'
+            case 'Medium': return 'text-white/50'
+            case 'Low': return 'text-white/30'
+            default: return 'text-white/20'
         }
     }
 
@@ -161,9 +161,8 @@ export default function CaseManagementPage() {
         <div className="h-full flex flex-col bg-[#151515] text-white overflow-hidden">
             {/* Header */}
             <div className="px-8 py-6 bg-[#151515] flex justify-between items-center shrink-0">
-                <div>
-                    <h1 className="text-2xl font-bold tracking-tight">VDF Tools</h1>
-                    <p className="text-gray-400 text-xs mt-1 uppercase tracking-widest font-medium">FORENSIC TOOLKIT</p>
+                <div className="flex items-center">
+                    <img src="/vdf-logo-dark.png" alt="VDF Tools" className="h-8 w-auto grayscale invert" />
                 </div>
                 <Button
                     size="sm"
@@ -370,6 +369,14 @@ export default function CaseManagementPage() {
                     </div>
                 )}
             </div>
+
+            {/* Case Form Modal */}
+            <CaseFormDialog
+                open={isModalOpen}
+                onOpenChange={setIsModalOpen}
+                caseData={editingCase}
+                onSuccess={handleCaseSaved}
+            />
 
             {/* Delete Confirmation Modal */}
             <Dialog open={caseToDelete !== null} onOpenChange={(open) => !open && setCaseToDelete(null)}>

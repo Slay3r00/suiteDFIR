@@ -35,7 +35,7 @@ export default function FileSelector({
   value,
   onChange,
   disabled = false,
-  placeholder = 'Select input file...',
+  placeholder = 'Select input...',
   showFolderOption = true,
   tool,
   caseId,
@@ -159,8 +159,8 @@ export default function FileSelector({
                       }}
                       className="px-3 py-2 hover:bg-[#2a2a2a] cursor-pointer transition-colors flex items-center gap-3 border-b border-[#262626] last:border-b-0"
                     >
-                      <div className="h-8 w-8 rounded bg-blue-500/10 flex items-center justify-center flex-shrink-0">
-                        <Smartphone size={14} className="text-blue-400" />
+                      <div className="h-8 w-8 rounded bg-white/5 flex items-center justify-center flex-shrink-0">
+                        <Smartphone size={14} className="text-gray-400" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="text-sm text-gray-200 font-medium truncate">{backup.name}</div>

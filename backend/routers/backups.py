@@ -1,9 +1,12 @@
 from fastapi import APIRouter, HTTPException, BackgroundTasks
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, FileResponse
 import asyncio
 import os
 import logging
 import shutil
+import sqlite3
+import subprocess
+import platform
 import sqlite3
 from datetime import datetime
 from typing import List, Optional
@@ -423,3 +426,56 @@ async def delete_backup(backup_id: int):
             print(f"Error deleting backup files: {e}")
             
     return {"message": "Backup deleted"}
+
+@router.post("/ios/backup/open")
+async def open_backup_location(path: str):
+    """Open backup folder in system file explorer"""
+    # Security check: ensure path is within BACKUPS_DIR
+    if not os.path.abspath(path).startswith(os.path.abspath(BACKUPS_DIR)):
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    if not os.path.exists(path):
+        raise HTTPException(status_code=404, detail="Backup not found")
+
+    try:
+        if platform.system() == "Darwin":  # macOS
+            subprocess.run(["open", path])
+        elif platform.system() == "Windows":
+            os.startfile(path)
+        else:  # Linux
+            subprocess.run(["xdg-open", path])
+        return {"message": "Backup opened successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to open backup: {str(e)}")
+
+@router.get("/ios/backup/download")
+async def download_backup(path: str):
+    """Zip and download backup directory"""
+    # Security check: ensure path is within BACKUPS_DIR
+    if not os.path.abspath(path).startswith(os.path.abspath(BACKUPS_DIR)):
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    if not os.path.exists(path):
+        raise HTTPException(status_code=404, detail="Backup not found")
+
+    try:
+        # Create zip in temp location
+        import tempfile
+        temp_dir = tempfile.mkdtemp()
+        zip_name = f"{os.path.basename(path)}.zip"
+        zip_path = os.path.join(temp_dir, zip_name)
+        
+        # Run zipping in thread pool as it can be slow
+        loop = asyncio.get_running_loop()
+        await loop.run_in_executor(
+            None, 
+            lambda: shutil.make_archive(os.path.splitext(zip_path)[0], 'zip', path)
+        )
+        
+        return FileResponse(
+            zip_path,
+            media_type='application/zip',
+            filename=zip_name
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to download backup: {str(e)}")

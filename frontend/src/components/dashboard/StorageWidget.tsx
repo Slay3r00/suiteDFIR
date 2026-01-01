@@ -85,7 +85,7 @@ export default function StorageWidget({ className }: StorageWidgetProps) {
         <Card className={`bg-transparent border-none shadow-none flex flex-col overflow-hidden h-full ${className}`}>
             <div className="px-0 h-10 bg-transparent flex justify-between items-center">
                 <h3 className="text-xs font-medium text-gray-400 uppercase tracking-wider flex items-center gap-2">
-                    <Database size={14} className="text-purple-400/70" />
+                    <Database size={14} className="text-gray-400/70" />
                     Storage
                 </h3>
                 <span className="text-[10px] text-gray-500 font-mono uppercase tracking-wider">
@@ -122,7 +122,7 @@ export default function StorageWidget({ className }: StorageWidgetProps) {
                                     {displayBreakdown.map((entry, index) => (
                                         <Cell
                                             key={`cell-${index}`}
-                                            fill={entry.color}
+                                            fill={entry.name === 'Backups' ? 'rgba(255, 255, 255, 0.8)' : 'rgba(255, 255, 255, 0.4)'}
                                         />
                                     ))}
                                 </Pie>
@@ -141,7 +141,10 @@ export default function StorageWidget({ className }: StorageWidgetProps) {
                         {displayBreakdown.map((item) => (
                             <div key={item.name} className="flex items-center justify-between text-sm">
                                 <div className="flex items-center gap-2 min-w-0 flex-1">
-                                    <div className="w-2.5 h-2.5 rounded-full opacity-70 shrink-0" style={{ backgroundColor: item.color }} />
+                                    <div
+                                        className="w-2.5 h-2.5 rounded-full opacity-70 shrink-0"
+                                        style={{ backgroundColor: item.name === 'Backups' ? 'rgba(255, 255, 255, 0.8)' : 'rgba(255, 255, 255, 0.4)' }}
+                                    />
                                     <span className="text-gray-300/80 truncate text-xs">{item.name}</span>
                                 </div>
                                 <span className="text-gray-500/70 font-mono text-[10px] shrink-0">{formatBytes(item.value)}</span>

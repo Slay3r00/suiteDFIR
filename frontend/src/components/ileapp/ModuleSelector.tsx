@@ -103,7 +103,7 @@ export default function ModuleSelector({ isProcessing }: ModuleSelectorProps) {
 
   return (
     <div className="flex-1 min-h-0 flex flex-col">
-      <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider ml-1 relative -top-[3px]">Modules</label>
+      <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider ml-1 relative -top-[3px]">Artifact Selection</label>
 
       <div className="flex items-center justify-between mb-3 gap-4">
         <div className="flex gap-3 shrink-0">

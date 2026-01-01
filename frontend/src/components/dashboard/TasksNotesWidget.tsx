@@ -161,9 +161,9 @@ export default function TasksNotesWidget() {
 
     const getPriorityColor = (p: string) => {
         switch (p) {
-            case 'High': return 'text-red-400/70 border-red-400/20 bg-red-400/5'
-            case 'Medium': return 'text-yellow-400/70 border-yellow-400/20 bg-yellow-400/5'
-            case 'Low': return 'text-blue-400/70 border-blue-400/20 bg-blue-400/5'
+            case 'High': return 'text-white/80 border-white/20 bg-white/10'
+            case 'Medium': return 'text-white/50 border-white/10 bg-white/5'
+            case 'Low': return 'text-white/30 border-white/5 bg-white/5'
             default: return 'text-gray-400/50 border-gray-400/10 bg-gray-400/5'
         }
     }
@@ -184,7 +184,7 @@ export default function TasksNotesWidget() {
             <div className="px-0 h-10 bg-transparent flex justify-between items-center">
                 <div className="flex items-center gap-2 w-full">
                     <h3 className="text-xs font-medium text-gray-400 uppercase tracking-wider flex items-center gap-2">
-                        <CheckSquare size={14} className="text-blue-400/70" />
+                        <CheckSquare size={14} className="text-gray-400/70" />
                         Tasks & Notes
                     </h3>
                     <div className="flex p-1 bg-[#212121] rounded-lg ml-auto">
@@ -258,7 +258,7 @@ export default function TasksNotesWidget() {
                     </div>
 
                     {/* List Section */}
-                    <div className="flex-1 overflow-y-auto p-2 space-y-1">
+                    <div className="flex-1 overflow-y-auto p-2 space-y-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
                         {activeTab === 'tasks' ? (
                             tasks.length === 0 ? (
                                 <div className="h-full flex flex-col items-center justify-center text-gray-500">
@@ -273,7 +273,7 @@ export default function TasksNotesWidget() {
                                         <button
                                             onClick={() => handleToggleTask(task.id)}
                                             className={`mt-1 h-3.5 w-3.5 rounded border flex items-center justify-center transition-colors shrink-0 ${task.completed
-                                                ? 'bg-green-500/10 border-green-500/20 text-green-400/70'
+                                                ? 'bg-white/10 border-white/20 text-white/70'
                                                 : 'border-gray-500/50 hover:border-gray-400'
                                                 }`}
                                         >

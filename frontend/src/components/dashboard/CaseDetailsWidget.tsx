@@ -57,7 +57,7 @@ export default function CaseDetailsWidget({ className }: { className?: string })
             <div className="px-0 h-10 bg-transparent flex justify-between items-center">
                 <div className="flex items-center gap-2">
                     <h3 className="text-xs font-medium text-gray-400 uppercase tracking-wider flex items-center gap-2">
-                        <FileText size={14} className="text-yellow-400/70" />
+                        <FileText size={14} className="text-gray-400/70" />
                         Case Overview
                     </h3>
                     {caseData && !isLoading && (

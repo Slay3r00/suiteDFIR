@@ -16,6 +16,7 @@ from typing import Optional
 
 from models import FilePathResponse
 from database import DB_PATH
+from utils import get_size_format, normalize_report_path
 from config import TOOLS_CONFIG, REPORTS_DIR
 from state import plugin_loaders, available_modules, event_clients
 
@@ -252,17 +253,20 @@ async def get_recent_activity(case_id: Optional[int] = None):
     
     # Get recent backups
     if case_id:
-        cursor.execute("SELECT id, name, 'backup' as type, status, created_at FROM backups WHERE case_id = ? ORDER BY created_at DESC LIMIT 5", (case_id,))
+        cursor.execute("SELECT id, name, 'backup' as type, status, created_at, path FROM backups WHERE case_id = ? ORDER BY created_at DESC LIMIT 5", (case_id,))
     else:
-        cursor.execute("SELECT id, name, 'backup' as type, status, created_at FROM backups ORDER BY created_at DESC LIMIT 5")
+        cursor.execute("SELECT id, name, 'backup' as type, status, created_at, path FROM backups ORDER BY created_at DESC LIMIT 5")
     backups = [dict(row) for row in cursor.fetchall()]
     
     # Get recent reports
     if case_id:
-        cursor.execute("SELECT id, name, 'report' as type, 'completed' as status, created_at FROM reports WHERE case_id = ? ORDER BY created_at DESC LIMIT 5", (case_id,))
+        cursor.execute("SELECT id, name, 'report' as type, 'completed' as status, created_at, path FROM reports WHERE case_id = ? ORDER BY created_at DESC LIMIT 5", (case_id,))
     else:
-        cursor.execute("SELECT id, name, 'report' as type, 'completed' as status, created_at FROM reports ORDER BY created_at DESC LIMIT 5")
+        cursor.execute("SELECT id, name, 'report' as type, 'completed' as status, created_at, path FROM reports ORDER BY created_at DESC LIMIT 5")
     reports = [dict(row) for row in cursor.fetchall()]
+    # Normalize report paths
+    for r in reports:
+        r['path'] = normalize_report_path(r['path'])
     
     conn.close()
     
@@ -347,8 +351,7 @@ async def get_kml_files(case_id: Optional[int] = None):
                         
                     # Look up user-defined name from DB, fallback to folder name
                     display_name = report_map.get(norm_report_dir, folder_name)
-                    
-                    group_name = f"{display_name} ({tool_name.upper()})"
+                    group_name = display_name
                     
                     if group_name not in kml_files:
                         kml_files[group_name] = []

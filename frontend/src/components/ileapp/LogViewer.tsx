@@ -29,8 +29,9 @@ export default function LogViewer({ logs, enabled = true }: LogViewerProps) {
           {logs.map((log, index) => formatLogLine(log, index))}
         </div>
       ) : (
-        <div className="flex items-center justify-center h-full text-gray-500">
-          <p>No logs yet. Start processing to see output.</p>
+        <div className="h-full flex flex-col items-center justify-center text-gray-500 select-none font-sans">
+          <p className="text-sm font-medium">No logs yet</p>
+          <p className="text-xs text-gray-600 mt-1">Start processing to see output</p>
         </div>
       )}
     </div>

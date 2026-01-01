@@ -52,9 +52,10 @@ export default function MapControls({ onSearch, onLayerChange, onDataUpload, onK
 
     const fetchKmlFiles = React.useCallback(async () => {
         try {
-            const url = selectedCaseId
+            const baseUrl = selectedCaseId
                 ? `http://localhost:8000/api/spatial/kml-files?case_id=${selectedCaseId}`
                 : 'http://localhost:8000/api/spatial/kml-files';
+            const url = `${baseUrl}${baseUrl.includes('?') ? '&' : '?'}t=${new Date().getTime()}`;
             const res = await fetch(url)
             if (res.ok) {
                 const data = await res.json()
@@ -253,8 +254,13 @@ export default function MapControls({ onSearch, onLayerChange, onDataUpload, onK
                                 ) : (
                                     Object.entries(kmlFiles).map(([groupName, files]) => (
                                         <div key={groupName} className="border-b border-[#262626] last:border-b-0">
-                                            <div className="bg-[#1f1f1f] px-3 py-1.5 text-[9px] font-bold text-blue-400/70 uppercase tracking-widest border-b border-[#262626]/50">
-                                                {groupName}
+                                            <div className="bg-[#1f1f1f] px-3 py-1.5 text-[9px] font-bold text-gray-400/70 uppercase tracking-widest border-b border-[#262626]/50">
+                                                {(() => {
+                                                    // Clean up potential duplicates from backend (e.g. "Name (Name)")
+                                                    // Only remove the suffix if it exactly matches the prefix
+                                                    const match = groupName.match(/^(.+)\s\(\1\)$/);
+                                                    return match ? match[1] : groupName;
+                                                })()}
                                             </div>
                                             <div className="divide-y divide-[#262626]/30">
                                                 {files.map((file) => (

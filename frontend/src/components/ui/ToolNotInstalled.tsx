@@ -26,7 +26,7 @@ export default function ToolNotInstalled({ tool }: ToolNotInstalledProps) {
   return (
     <div className="flex flex-col items-center justify-center h-full w-full bg-[#151515] text-center px-4">
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={logoPath} alt={`${info.name} Logo`} className={`${logoHeight} mb-6`} />
+      {/* <img src={logoPath} alt={`${info.name} Logo`} className={`${logoHeight} mb-6`} /> */}
 
       <h2 className="text-xl font-semibold text-white mb-2">Tool Not Installed</h2>
       <p className="text-sm text-white/50 mb-6 max-w-md">

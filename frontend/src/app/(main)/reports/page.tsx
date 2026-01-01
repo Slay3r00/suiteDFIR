@@ -4,6 +4,8 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Search, FileText, FolderOpen, Download, Trash2, X, Maximize2 } from 'lucide-react';
 import { Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui';
 import { useCase } from "@/context/CaseContext";
+import { useSearchParams } from 'next/navigation';
+import { Suspense } from 'react';
 
 interface Report {
     name: string;
@@ -16,6 +18,21 @@ interface Report {
 }
 
 export default function Reports() {
+    return (
+        <Suspense fallback={
+            <div className="h-screen w-screen flex items-center justify-center bg-[#151515] text-white">
+                <div className="flex flex-col items-center gap-3">
+                    <div className="w-8 h-8 border-2 border-white/20 border-t-white/80 rounded-full animate-spin" />
+                    <p className="text-xs font-medium text-gray-400 uppercase tracking-tighter">Loading Reports...</p>
+                </div>
+            </div>
+        }>
+            <ReportsContent />
+        </Suspense>
+    );
+}
+
+function ReportsContent() {
     const [reports, setReports] = useState<Report[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [filter, setFilter] = useState<'all' | 'ileapp' | 'aleapp'>('all');
@@ -27,6 +44,7 @@ export default function Reports() {
     const [reportToOpen, setReportToOpen] = useState<Report | null>(null);
     const [reportToDownload, setReportToDownload] = useState<Report | null>(null);
     const { selectedCaseId } = useCase();
+    const searchParams = useSearchParams();
 
     // Drag-to-scroll state
     const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -47,21 +65,6 @@ export default function Reports() {
             if (response.ok) {
                 const data = await response.json();
                 setReports(data);
-
-                // Smart selection logic
-                setSelectedReport(prev => {
-                    // If no reports, clear selection
-                    if (data.length === 0) return null;
-
-                    // If we have a previous selection, check if it still exists in the new list
-                    if (prev) {
-                        const stillExists = data.find((r: Report) => r.path === prev.path);
-                        if (stillExists) return prev;
-                    }
-
-                    // Otherwise (new case or previous selection gone), select the first one
-                    return data[0];
-                });
             }
         } catch (error) {
             console.error('Failed to fetch reports:', error);
@@ -75,6 +78,40 @@ export default function Reports() {
         setSelectedReport(null);
         fetchReports();
     }, [selectedCaseId, fetchReports]);
+
+    // Handle report selection logic (Deep Linking + Defaults)
+    useEffect(() => {
+        if (isLoading || reports.length === 0) return;
+
+        const urlPath = searchParams.get('path');
+
+        // 1. Priority: URL path
+        if (urlPath) {
+            const normalizedUrlPath = urlPath.replace(/\/$/, '').toLowerCase();
+            const targetReport = reports.find(r => r.path.replace(/\/$/, '').toLowerCase() === normalizedUrlPath);
+
+            if (targetReport) {
+                setSelectedReport(targetReport);
+                // Scroll to the selected report card
+                setTimeout(() => {
+                    const el = document.querySelector(`[data-report-path="${CSS.escape(targetReport.path)}"]`);
+                    if (el) {
+                        el.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+                    }
+                }, 100);
+                return;
+            }
+        }
+
+        // 2. Fallback: Keep current selection if it still exists
+        if (selectedReport) {
+            const stillExists = reports.find(r => r.path === selectedReport.path);
+            if (stillExists) return;
+        }
+
+        // 3. Last Fallback: First report
+        setSelectedReport(reports[0]);
+    }, [reports, searchParams, isLoading]);
 
     // Track scroll position for custom scrollbar
     useEffect(() => {
@@ -295,7 +332,6 @@ export default function Reports() {
                 ) : (
                     <div className="flex-1 bg-[#1A1A1A] rounded-lg flex items-center justify-center text-gray-500">
                         <div className="text-center">
-                            <FileText size={48} className="mx-auto mb-3 opacity-30" />
                             <p className="text-lg">Select a report to view</p>
                             <p className="text-sm mt-1">Choose from the reports below</p>
                         </div>
@@ -375,6 +411,7 @@ export default function Reports() {
                                     {filteredReports.map((report) => (
                                         <div
                                             key={report.path}
+                                            data-report-path={report.path}
                                             className={`report-card group flex-shrink-0 w-72 min-h-[60px] rounded-lg px-2.5 flex items-center gap-2 border transition-colors cursor-pointer ${selectedReport?.path === report.path ? 'bg-[#1A1A1A] border-white/40' : 'bg-[#1A1A1A] border-white/10 hover:border-white/20'
                                                 }`}
                                             onClick={() => handleViewReport(report)}
@@ -421,18 +458,7 @@ export default function Reports() {
                                                 >
                                                     <FolderOpen size={11} className="shrink-0" />
                                                 </Button>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        handleDownloadClick(report);
-                                                    }}
-                                                    title="Download ZIP"
-                                                    className="h-6 w-6 shrink-0 hover:bg-white/20 text-white"
-                                                >
-                                                    <Download size={11} className="shrink-0" />
-                                                </Button>
+
                                                 <Button
                                                     variant="ghost"
                                                     size="icon"

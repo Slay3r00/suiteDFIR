@@ -4,6 +4,7 @@ import json
 import logging
 import asyncio
 import importlib.util
+from pathlib import Path
 from state import event_clients
 from config import TOOLS_CONFIG
 from plugin_manager import safe_tool_execution
@@ -179,3 +180,24 @@ def check_backup_encryption(path):
     except Exception as e:
         logger.error(f"Error checking backup encryption: {e}")
         return {"error": str(e)}
+
+def normalize_report_path(path: str) -> str:
+    """
+    Normalize report path by handling common case mismatches (e.g., aleapp-reports vs aLEAPP-reports).
+    Returns the corrected path if found, otherwise the original path.
+    """
+    if not path:
+        return path
+        
+    if not os.path.exists(path):
+        # Handle case mismatch for aLEAPP reports (legacy or case-sensitive FS issues)
+        if 'aLEAPP-reports' in path:
+            alt_path = path.replace('aLEAPP-reports', 'aleapp-reports')
+            if os.path.exists(alt_path):
+                return alt_path
+        elif 'aleapp-reports' in path:
+            alt_path = path.replace('aleapp-reports', 'aLEAPP-reports')
+            if os.path.exists(alt_path):
+                return alt_path
+                
+    return path

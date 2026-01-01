@@ -9,7 +9,7 @@ import shutil
 import logging
 from models import Report
 from database import DB_PATH
-from utils import get_size_format
+from utils import get_size_format, normalize_report_path
 
 from config import REPORTS_DIR
 
@@ -40,20 +40,10 @@ async def get_reports(case_id: Optional[int] = None):
         for row in rows:
             name, path, tool, created_at = row
             
-            # Verify path exists
+            # Verify and normalize path
+            path = normalize_report_path(path)
             if not os.path.exists(path):
-                # Handle case mismatch for aLEAPP reports (DB has aLEAPP-reports, disk has aleapp-reports)
-                if 'aLEAPP-reports' in path:
-                    alt_path = path.replace('aLEAPP-reports', 'aleapp-reports')
-                    if os.path.exists(alt_path):
-                        # logger.debug(f"Found report at alternate path: {alt_path}")
-                        path = alt_path
-                    else:
-                        # logger.debug(f"Report path not found: {path}")
-                        continue
-                else:
-                    # print(f"DEBUG: Report path not found: {path}")
-                    continue
+                continue
             
             # logger.debug(f"Found report: {name} ({tool}) at {path}")
                 

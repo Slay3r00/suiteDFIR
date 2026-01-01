@@ -86,16 +86,16 @@ export default function ProcessControls({ inputFile, outputFolder, reportName, c
       <div className="w-full">
         {isProcessing ? (
           <Button
-            variant="destructive"
+            variant="secondary"
             onClick={stopProcessing}
-            className="w-full relative overflow-hidden"
+            className="w-full relative overflow-hidden bg-[#e5e5e5] text-black hover:bg-[#d4d4d4] border-none"
           >
             <div
-              className="absolute inset-0 bg-black/20 transition-all duration-500"
+              className="absolute inset-0 bg-black/5 transition-all duration-500"
               style={{ width: `${progress.total > 0 ? (progress.current / progress.total) * 100 : 0}%` }}
             />
             <div className="relative z-10 flex items-center justify-center gap-2">
-              <Square className="h-4 w-4" />
+              <div className="h-2 w-2 bg-red-500 rounded-full animate-pulse" />
               <span>Stop Processing ({Math.round(progress.total > 0 ? (progress.current / progress.total) * 100 : 0)}%)</span>
             </div>
           </Button>
@@ -115,21 +115,20 @@ export default function ProcessControls({ inputFile, outputFolder, reportName, c
       </div>
 
       <Dialog open={showPasswordDialog} onOpenChange={setShowPasswordDialog}>
-        <DialogContent>
+        <DialogContent className="max-w-[340px] p-5 bg-[#1A1A1A] border-[#333333] rounded-xl shadow-2xl">
           <DialogHeader>
-            <DialogTitle>Encrypted Backup Detected</DialogTitle>
-            <DialogDescription>
-              This iTunes backup is encrypted. Please enter the password to decrypt and analyze it.
-            </DialogDescription>
+            <DialogTitle className="text-sm font-semibold text-white tracking-wide uppercase">Encrypted Backup Detected</DialogTitle>
           </DialogHeader>
-
-          <div className="py-4">
+          <div className="py-4 space-y-3">
+            <p className="text-[11px] text-gray-400 leading-relaxed">
+              This iTunes backup is encrypted. Please enter the password to decrypt and analyze it.
+            </p>
             <div className="relative">
-              <Lock className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Lock className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-gray-500" />
               <Input
                 type="password"
                 placeholder="Backup Password"
-                className="pl-9"
+                className="pl-8 h-8 text-xs bg-[#222] border-white/10 focus:border-white/20"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 onKeyDown={(e) => {
@@ -139,12 +138,22 @@ export default function ProcessControls({ inputFile, outputFolder, reportName, c
             </div>
           </div>
 
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowPasswordDialog(false)}>
+          <DialogFooter className="flex gap-2">
+            <Button
+              variant="secondary"
+              size="sm"
+              className="flex-1 h-8 text-[11px] bg-[#222] hover:bg-[#2a2a2a] text-gray-300 border border-white/5"
+              onClick={() => setShowPasswordDialog(false)}
+            >
               Cancel
             </Button>
-            <Button onClick={handlePasswordSubmit} disabled={!password}>
-              Unlock & Process
+            <Button
+              onClick={handlePasswordSubmit}
+              disabled={!password}
+              size="sm"
+              className="flex-1 h-8 text-[11px] bg-white/10 hover:bg-white/20 text-white border border-white/10"
+            >
+              Unlock
             </Button>
           </DialogFooter>
         </DialogContent>

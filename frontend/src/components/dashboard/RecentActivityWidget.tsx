@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { Card, CardContent } from "@/components/ui/Card"
 import { Clock, FileText, Smartphone, CheckCircle, XCircle, AlertCircle } from 'lucide-react'
 import { useCase } from "@/context/CaseContext"
+import { useRouter } from 'next/navigation'
 
 interface Activity {
     id: number
@@ -15,6 +16,7 @@ interface Activity {
 
 export default function RecentActivityWidget() {
     const { selectedCaseId } = useCase()
+    const router = useRouter()
     const [activities, setActivities] = useState<Activity[]>([])
 
     useEffect(() => {
@@ -58,15 +60,15 @@ export default function RecentActivityWidget() {
 
     const getIcon = (type: string) => {
         return type === 'backup'
-            ? <Smartphone size={14} className="text-blue-400/70" />
-            : <FileText size={14} className="text-purple-400/70" />
+            ? <Smartphone size={14} className="text-gray-400/70" />
+            : <FileText size={14} className="text-gray-400/70" />
     }
 
     const getStatusIcon = (status: string) => {
         switch (status.toLowerCase()) {
-            case 'completed': return <CheckCircle size={12} className="text-green-500/70" />
-            case 'failed': return <XCircle size={12} className="text-red-500/70" />
-            case 'running': return <AlertCircle size={12} className="text-yellow-500/70" />
+            case 'completed': return <CheckCircle size={12} className="text-white/70" />
+            case 'failed': return <XCircle size={12} className="text-white/40" />
+            case 'running': return <AlertCircle size={12} className="text-white/60 animate-pulse" />
             default: return <div className="w-2 h-2 rounded-full bg-gray-500/50" />
         }
     }
@@ -98,33 +100,37 @@ export default function RecentActivityWidget() {
         <Card className="bg-transparent border-none shadow-none flex flex-col overflow-hidden h-full">
             <div className="px-0 h-10 bg-transparent flex justify-between items-center">
                 <h3 className="text-xs font-medium text-gray-400 uppercase tracking-wider flex items-center gap-2">
-                    <Clock size={14} className="text-orange-400/70" />
+                    <Clock size={14} className="text-gray-400/70" />
                     Recent Activity
                 </h3>
             </div>
             <CardContent className="flex-1 p-0 pt-0 flex flex-col min-h-0">
 
                 <div className="flex-1 overflow-y-auto pr-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-                    <div className="relative min-h-full flex flex-col justify-center pb-2">
+                    <div className="relative min-h-full flex flex-col justify-start pb-2">
                         {activities.length === 0 ? (
                             <div className="h-full flex items-center justify-center text-xs text-gray-500 py-4 font-medium">
                                 No recent activity
                             </div>
                         ) : (
-                            <div className="space-y-3 p-4">
+                            <div className="space-y-1 p-2">
                                 {activities.map((activity, i) => (
-                                    <div key={`${activity.type}-${activity.id}`} className="flex gap-3 relative z-10">
+                                    <div
+                                        key={`${activity.type}-${activity.id}`}
+                                        onClick={() => activity.type === 'report' && router.push(`/reports?path=${encodeURIComponent(activity.path)}`)}
+                                        className={`flex gap-3 relative z-10 p-2 rounded-lg transition-all duration-200 ${activity.type === 'report' ? 'cursor-pointer hover:bg-white/[0.03] group/item' : ''}`}
+                                    >
                                         <div className="w-10 flex flex-col items-center shrink-0 relative">
-                                            <div className="w-8 h-8 rounded-full bg-[#212121] border border-[#333333] flex items-center justify-center shadow-sm z-10 relative">
+                                            <div className="w-8 h-8 rounded-full bg-[#212121] border border-[#333333] flex items-center justify-center shadow-sm z-10 relative group-hover/item:border-white/20 transition-colors">
                                                 {getIcon(activity.type)}
                                             </div>
                                             {i !== activities.length - 1 && (
-                                                <div className="absolute top-8 bottom-[-12px] w-[1px] bg-[#333333]" />
+                                                <div className="absolute top-8 bottom-[-24px] w-[1px] bg-[#333333] left-1/2 -translate-x-1/2" />
                                             )}
                                         </div>
                                         <div className="flex-1 min-w-0 py-1">
                                             <div className="flex items-center justify-between">
-                                                <p className="text-xs font-medium text-gray-200 truncate pr-2">
+                                                <p className="text-xs font-medium text-gray-200 truncate pr-2 group-hover/item:text-white transition-colors">
                                                     {activity.type === 'backup' ? 'Backup: ' : 'Report: '}
                                                     {activity.name}
                                                 </p>
