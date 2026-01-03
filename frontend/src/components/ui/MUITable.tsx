@@ -24,6 +24,27 @@ export interface TimelineEvent {
 
 const columnHelper = createMRTColumnHelper<TimelineEvent>();
 
+/**
+ * Forensic databases often store timestamps as 'YYYY-MM-DD HH:MM:SS' without a timezone.
+ * JS 'new Date()' interprets these as local time, but in forensics they are almost always UTC.
+ * This helper ensures naive strings are treated as UTC.
+ */
+const parseForensicDate = (val: string): Date => {
+    if (!val) return new Date(NaN);
+
+    let processedVal = val.trim();
+    // If it looks like a standard ISO/SQL date but lacks a timezone marker (Z or +/-)
+    // and lacks a month name (to avoid matching human readable strings like "17 July 2001")
+    if (/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}/.test(processedVal) &&
+        !/[a-zA-Z]/.test(processedVal.replace('T', '')) &&
+        !/[+-]\d{2}:?\d{2}$/.test(processedVal) &&
+        !processedVal.endsWith('Z')) {
+        processedVal += '+00:00';
+    }
+
+    return new Date(processedVal);
+};
+
 const createColumns = (selectedTimezone?: string) => [
     columnHelper.accessor('id', {
         header: 'ID',
@@ -38,7 +59,8 @@ const createColumns = (selectedTimezone?: string) => [
         Cell: ({ cell }) => {
             const val = cell.getValue<string>();
             if (!val) return '';
-            const date = new Date(val);
+
+            const date = parseForensicDate(val);
             if (isNaN(date.getTime())) return val;
 
             // Use formatInTimeZone if a timezone is selected, otherwise use browser default
@@ -81,7 +103,7 @@ const createColumns = (selectedTimezone?: string) => [
                     // Artifact dates usually have separators like -, /, or :
                     // Or they look like "17 July 2001"
                     if (/[-\/:]/.test(v) || /^[0-9]+ [A-Za-z]+ [0-9]+/.test(v)) {
-                        const date = new Date(v);
+                        const date = parseForensicDate(v);
                         if (!isNaN(date.getTime())) {
                             if (selectedTimezone) {
                                 try {

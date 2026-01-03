@@ -4,9 +4,27 @@ import sqlite3
 import json
 import os
 import logging
+import re
+from datetime import datetime, timezone
 from database import get_db_connection, DB_PATH
 
 logger = logging.getLogger(__name__)
+
+def regex_extract_date(text: str) -> Optional[str]:
+    """
+    Regex-based timestamp extraction from raw text/JSON.
+    Focuses on SQL Core formats: YYYY-MM-DD HH:MM:SS (with optional precision and timezone).
+    """
+    if not text:
+        return None
+    
+    # SQL Core Pattern: YYYY-MM-DD [T/space] HH:MM:SS[.SSSSSS][Z/+HH:MM]
+    # This covers standard SQL, ISO 8601, and high-precision forensic timestamps.
+    match = re.search(r'(\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}(\.\d+)?([+-]\d{2}:?\d{2}|Z)?)', text)
+    if match:
+        return match.group(1)
+    
+    return None
 router = APIRouter(
     prefix="/api/cases/{case_id}/timeline",
     tags=["timeline"]
@@ -78,36 +96,31 @@ async def get_timeline(
         mem_cursor = mem_conn.cursor()
         
         select_parts = []
+        # Register regex extraction function in memory DB
+        mem_conn.create_function("regex_extract_date", 1, regex_extract_date)
+        
+        select_parts = []
         for i, db in enumerate(timeline_dbs):
             alias = f"db{i}"
             try:
                 mem_cursor.execute(f"ATTACH DATABASE ? AS {alias}", (db['path'],))
                 
-                # Extract timestamp
-                # Handle 'None' string explicitly by treating it as empty
-                # Comprehensive list of potential date/time keys found in forensic artifacts
-                date_keys = [
-                    'Timestamp', 'Sent', 'Date', 'Created', '"Received Time"', 
-                    '"Last Modified Timestamp"', '"Starting Timestamp"', '"Call Date/Time"', 
-                    '"Message Timestamp"', '"Read Timestamp"', '"Attachment Timestamp"', 
-                    '"Last update time"', '"Last Joined"', '"Added At"', 'Modified', '"Last opened"',
-                    '"Start Time"', '"End Time"', '"Added Date"', '"Creation Date"', 
-                    '"Modification Date"', '"Modified Time"', '"Visit Time"', '"Last Seen Time"',
-                    '"Date Created"', '"Date and Time"', '"Date and time"', 
-                    '"Last Associated/Roamed At"', '"Last Connection Time"', '"Last Modification Time"',
-                    '"Start Date"', '"End Date"', 'TimestampUTC', '"Update Time"', '"Visit Timestamp"',
-                    '"Creation Time"', '"Date Joined"', '"Date added to Health"', '"Fire Date"',
-                    '"First Usage Timestamp"', '"Last Connect Timestamp"', '"Last Update Date"',
-                    '"Last Usage Timestamp"', '"Last Used Date"', '"Timestamp Modified"',
-                    '"Created Time"', '"Date of Birth"', '"Last Modified"',
-                    '"Start Timestamp"', '"End Timestamp"', '"Timestamp added to Health"'
-                ]
-                
-                # Build COALESCE(NULLIF(NULLIF(..., 'None'), ''), ...) arguments
-                # This ensures we skip both 'None' strings and empty strings to find a real value
-                coalesce_args = ", ".join([f"NULLIF(NULLIF(json_extract(datalist, '$.{key}'), 'None'), '')" for key in date_keys])
+                # Guard Check: Inspect schema to see if event_date already exists as a column
+                # We prioritize existing columns over regex extraction.
+                db_conn = sqlite3.connect(db['path'])
+                db_cursor = db_conn.cursor()
+                db_cursor.execute("PRAGMA table_info(data)")
+                columns = [row[1].lower() for row in db_cursor.fetchall()]
+                db_conn.close()
 
-                timestamp_extract = f"COALESCE({coalesce_args}, '')"
+                # If the table has a date-like column, we use it as the primary event_date
+                # If that column is NULL or empty for a specific row, we fallback to regex extraction on datalist
+                existing_date_col = next((c for c in columns if c in ('date', 'timestamp', 'time', 'event_date')), None)
+                
+                if existing_date_col:
+                    timestamp_extract = f"COALESCE(NULLIF(NULLIF({existing_date_col}, 'None'), ''), regex_extract_date(datalist))"
+                else:
+                    timestamp_extract = "regex_extract_date(datalist)"
                 
                 # Escape single quotes for SQL
                 escaped_name = db['name'].replace("'", "''")

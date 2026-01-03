@@ -10,6 +10,7 @@ import {
     SelectTrigger,
     SelectValue
 } from "@/components/ui/Select"
+import { Input } from "@/components/ui/Input"
 
 interface Report {
     name: string
@@ -25,14 +26,69 @@ export default function Timeline() {
     const [isLoading, setIsLoading] = useState(false)
     const [reports, setReports] = useState<Report[]>([])
     const [selectedReport, setSelectedReport] = useState<string>("all")
-    const [selectedTimezone, setSelectedTimezone] = useState<string>(Intl.DateTimeFormat().resolvedOptions().timeZone)
+    const [selectedTimezone, setSelectedTimezone] = useState<string>("UTC")
+    const [tzSearch, setTzSearch] = useState("")
 
-    const timezones = useMemo(() => {
+    const timezonesWithOffsets = useMemo(() => {
+        let tzs: string[] = [];
         try {
-            return (Intl as any).supportedValuesOf('timeZone') as string[];
+            tzs = (Intl as any).supportedValuesOf('timeZone') as string[];
         } catch (e) {
-            return ["UTC", "America/New_York", "America/Chicago", "America/Denver", "America/Los_Angeles", "Europe/London", "Asia/Tokyo"];
+            tzs = ["UTC", "America/New_York", "America/Chicago", "America/Denver", "America/Los_Angeles", "Europe/London", "Asia/Tokyo"];
         }
+
+        // Ensure UTC is included and at the top for quick access
+        if (!tzs.includes("UTC")) {
+            tzs = ["UTC", ...tzs];
+        } else {
+            tzs = ["UTC", ...tzs.filter(t => t !== "UTC")];
+        }
+
+        return tzs.map(tz => {
+            try {
+                const parts = new Intl.DateTimeFormat('en-US', {
+                    timeZone: tz,
+                    timeZoneName: 'shortOffset'
+                }).formatToParts(new Date());
+                const offset = parts.find(p => p.type === 'timeZoneName')?.value || 'GMT+0';
+
+                // Format GMT to UTC for display consistency
+                const displayOffset = offset === 'GMT' ? 'UTC+0' : offset.replace('GMT', 'UTC');
+
+                // Extract minutes for sorting
+                const m = displayOffset.match(/([+-])(\d+):?(\d+)?/);
+                let offsetValue = 0;
+                if (m) {
+                    const mins = parseInt(m[2]) * 60 + (m[3] ? parseInt(m[3]) : 0);
+                    offsetValue = m[1] === '+' ? mins : -mins;
+                }
+
+                return {
+                    id: tz,
+                    offset: displayOffset,
+                    label: `${tz} (${displayOffset})`,
+                    offsetValue
+                };
+            } catch {
+                return { id: tz, offset: "UTC+0", label: `${tz} (UTC+0)`, offsetValue: 0 };
+            }
+        });
+    }, []);
+
+    const filteredTimezones = useMemo(() => {
+        if (!tzSearch) return timezonesWithOffsets;
+        const searchLower = tzSearch.toLowerCase();
+        return timezonesWithOffsets.filter(tz =>
+            tz.id.toLowerCase().includes(searchLower) ||
+            tz.offset.toLowerCase().includes(searchLower)
+        );
+    }, [timezonesWithOffsets, tzSearch]);
+
+    // Reset search when dropdown closes
+    useEffect(() => {
+        // Since Select doesn't expose open state easily to parent without refactoring Select itself,
+        // we can either refactor Select or just let the search persist.
+        // For simplicity, let's just let it persist for now, or use a local 'open' state if needed.
     }, []);
 
     // MRT State
@@ -147,7 +203,7 @@ export default function Timeline() {
     return (
         <div className="h-full w-full flex flex-col bg-[#151515] overflow-hidden">
             {/* Toolbar */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 bg-[#1A1A1A]">
+            <div className="flex items-center gap-8 px-4 py-3 border-b border-white/10 bg-[#1A1A1A]">
                 <div className="flex items-center gap-4">
                     <h2 className="text-sm font-medium text-gray-400">Filter by Report:</h2>
                     <Select value={selectedReport} onValueChange={setSelectedReport}>
@@ -174,16 +230,38 @@ export default function Timeline() {
 
                 <div className="flex items-center gap-4">
                     <h2 className="text-sm font-medium text-gray-400">Timezone:</h2>
-                    <Select value={selectedTimezone} onValueChange={setSelectedTimezone}>
-                        <SelectTrigger className="h-8 w-[250px] bg-[#212121] border-white/10 text-white focus:!ring-0 focus:!ring-offset-0">
-                            <SelectValue placeholder="Select timezone" />
+                    <Select value={selectedTimezone} onValueChange={(val) => {
+                        setSelectedTimezone(val);
+                        setTzSearch(""); // Clear search on selection
+                    }}>
+                        <SelectTrigger className="h-8 w-[350px] bg-[#212121] border-white/10 text-white focus:!ring-0 focus:!ring-offset-0">
+                            <SelectValue placeholder="Select timezone">
+                                {timezonesWithOffsets.find(t => t.id === selectedTimezone)?.label || selectedTimezone}
+                            </SelectValue>
                         </SelectTrigger>
-                        <SelectContent className="max-h-[300px] overflow-y-auto bg-[#212121] border-white/10 text-white">
-                            {timezones.map((tz: string) => (
-                                <SelectItem key={tz} value={tz}>
-                                    {tz}
-                                </SelectItem>
-                            ))}
+                        <SelectContent className="w-[300px] bg-[#212121] border-white/10 text-white p-0">
+                            <div className="p-2 border-b border-white/5 sticky top-0 bg-[#212121] z-10">
+                                <Input
+                                    placeholder="Search timezones..."
+                                    value={tzSearch}
+                                    onChange={(e) => setTzSearch(e.target.value)}
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="h-8 bg-white/5 border-white/10 text-xs"
+                                />
+                            </div>
+                            <div className="max-h-[300px] overflow-y-auto p-1">
+                                {filteredTimezones.length > 0 ? (
+                                    filteredTimezones.map((tz) => (
+                                        <SelectItem key={tz.id} value={tz.id}>
+                                            {tz.label}
+                                        </SelectItem>
+                                    ))
+                                ) : (
+                                    <div className="px-2 py-4 text-xs text-gray-500 text-center">
+                                        No timezones found
+                                    </div>
+                                )}
+                            </div>
                         </SelectContent>
                     </Select>
                 </div>
