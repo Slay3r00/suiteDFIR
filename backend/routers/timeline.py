@@ -85,23 +85,29 @@ async def get_timeline(
                 
                 # Extract timestamp
                 # Handle 'None' string explicitly by treating it as empty
-                timestamp_extract = """
-                    CASE 
-                        WHEN json_extract(datalist, '$.Timestamp') = 'None' THEN ''
-                        WHEN json_extract(datalist, '$.Sent') = 'None' THEN ''
-                        WHEN json_extract(datalist, '$.Date') = 'None' THEN ''
-                        WHEN json_extract(datalist, '$.Created') = 'None' THEN ''
-                        WHEN json_extract(datalist, '$."Received Time"') = 'None' THEN ''
-                        ELSE COALESCE(
-                            json_extract(datalist, '$.Timestamp'),
-                            json_extract(datalist, '$.Sent'),
-                            json_extract(datalist, '$.Date'),
-                            json_extract(datalist, '$.Created'),
-                            json_extract(datalist, '$."Received Time"'),
-                            ''
-                        )
-                    END
-                """
+                # Comprehensive list of potential date/time keys found in forensic artifacts
+                date_keys = [
+                    'Timestamp', 'Sent', 'Date', 'Created', '"Received Time"', 
+                    '"Last Modified Timestamp"', '"Starting Timestamp"', '"Call Date/Time"', 
+                    '"Message Timestamp"', '"Read Timestamp"', '"Attachment Timestamp"', 
+                    '"Last update time"', '"Last Joined"', '"Added At"', 'Modified', '"Last opened"',
+                    '"Start Time"', '"End Time"', '"Added Date"', '"Creation Date"', 
+                    '"Modification Date"', '"Modified Time"', '"Visit Time"', '"Last Seen Time"',
+                    '"Date Created"', '"Date and Time"', '"Date and time"', 
+                    '"Last Associated/Roamed At"', '"Last Connection Time"', '"Last Modification Time"',
+                    '"Start Date"', '"End Date"', 'TimestampUTC', '"Update Time"', '"Visit Timestamp"',
+                    '"Creation Time"', '"Date Joined"', '"Date added to Health"', '"Fire Date"',
+                    '"First Usage Timestamp"', '"Last Connect Timestamp"', '"Last Update Date"',
+                    '"Last Usage Timestamp"', '"Last Used Date"', '"Timestamp Modified"',
+                    '"Created Time"', '"Date of Birth"', '"Last Modified"',
+                    '"Start Timestamp"', '"End Timestamp"', '"Timestamp added to Health"'
+                ]
+                
+                # Build COALESCE(NULLIF(NULLIF(..., 'None'), ''), ...) arguments
+                # This ensures we skip both 'None' strings and empty strings to find a real value
+                coalesce_args = ", ".join([f"NULLIF(NULLIF(json_extract(datalist, '$.{key}'), 'None'), '')" for key in date_keys])
+
+                timestamp_extract = f"COALESCE({coalesce_args}, '')"
                 
                 # Escape single quotes for SQL
                 escaped_name = db['name'].replace("'", "''")
@@ -200,20 +206,9 @@ async def get_timeline(
             desc_json = row[2]
             date = row[3]
             
-            # Parse JSON to make description more readable?
-            # For now, just send the raw JSON or a summary.
-            # The frontend table expects 'description' string.
-            # Let's try to make a readable string from the JSON.
+            # The frontend table now handles JSON parsing and date formatting
+            # We just send the raw JSON string (desc_json)
             description = desc_json
-            try:
-                data_dict = json.loads(desc_json)
-                # Remove timestamp fields to avoid redundancy
-                for k in ['Timestamp', 'Sent', 'Date', 'Created', 'Received Time']:
-                    data_dict.pop(k, None)
-                # Join remaining values
-                description = ", ".join([f"{k}: {v}" for k, v in data_dict.items() if v and v != "None"])
-            except:
-                pass
 
             # Format ID sequentially
             current_page = page if limit != -1 else 0

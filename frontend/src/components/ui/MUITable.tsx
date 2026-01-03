@@ -59,6 +59,62 @@ const createColumns = (selectedTimezone?: string) => [
     columnHelper.accessor('description', {
         header: 'Description',
         size: 300,
+        Cell: ({ cell }) => {
+            const val = cell.getValue<string>();
+            if (!val) return '';
+
+            let data: Record<string, any>;
+            try {
+                // The backend now sends the raw JSON string
+                data = JSON.parse(val);
+            } catch {
+                return val; // Fallback if not valid JSON
+            }
+
+            if (typeof data !== 'object' || data === null) return val;
+
+            const formatValue = (v: any) => {
+                if (typeof v === 'string' && v.length >= 8) {
+                    if (v === 'None' || v === '') return v;
+
+                    // Heuristic to avoid converting things that aren't dates
+                    // Artifact dates usually have separators like -, /, or :
+                    // Or they look like "17 July 2001"
+                    if (/[-\/:]/.test(v) || /^[0-9]+ [A-Za-z]+ [0-9]+/.test(v)) {
+                        const date = new Date(v);
+                        if (!isNaN(date.getTime())) {
+                            if (selectedTimezone) {
+                                try {
+                                    return formatInTimeZone(date, selectedTimezone, 'MMM d, yyyy h:mm:ss a zzz');
+                                } catch {
+                                    return date.toLocaleString();
+                                }
+                            }
+                            return date.toLocaleString();
+                        }
+                    }
+                }
+                return String(v);
+            };
+
+            const entries = Object.entries(data).filter(([_, v]) => v !== null && v !== 'None' && v !== '');
+
+            return (
+                <Box sx={{ fontSize: '0.875rem', lineHeight: 1.4 }}>
+                    {entries.map(([k, v], i) => (
+                        <span key={k}>
+                            <Box component="span" sx={{ fontWeight: 600, color: 'text.secondary', mr: 0.5 }}>
+                                {k}:
+                            </Box>
+                            <Box component="span" sx={{ color: 'text.primary' }}>
+                                {formatValue(v)}
+                            </Box>
+                            {i < entries.length - 1 ? ', ' : ''}
+                        </span>
+                    ))}
+                </Box>
+            );
+        },
     }),
     columnHelper.accessor('source', {
         header: 'Source',
