@@ -53,16 +53,16 @@ interface StoredState {
     reportViewStates: Record<string, ReportViewState>;
 }
 
-// Helper to load initial state from localStorage
+// Helper to load initial state from sessionStorage
 function getInitialState(): StoredState | null {
     if (typeof window === 'undefined') return null;
     try {
-        const stored = localStorage.getItem(STORAGE_KEY);
+        const stored = sessionStorage.getItem(STORAGE_KEY);
         if (stored) {
             return JSON.parse(stored);
         }
     } catch (error) {
-        console.error('Failed to load reports state from localStorage:', error);
+        console.error('Failed to load reports state from sessionStorage:', error);
     }
     return null;
 }
@@ -97,7 +97,7 @@ export function ReportsProvider({ children }: { children: React.ReactNode }) {
         setIsStateLoaded(true);
     }, []);
 
-    // Save state to localStorage whenever it changes
+    // Save state to sessionStorage whenever it changes
     useEffect(() => {
         if (!isStateLoaded) return;
 
@@ -110,9 +110,9 @@ export function ReportsProvider({ children }: { children: React.ReactNode }) {
                 reportViewStates: {} // Don't persist scroll positions (session only)
             };
 
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+            sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state));
         } catch (error) {
-            console.error('Failed to save reports state to localStorage:', error);
+            console.error('Failed to save reports state to sessionStorage:', error);
         }
     }, [selectedReportPath, filter, sort, searchQuery, reportViewStates, isStateLoaded]);
 

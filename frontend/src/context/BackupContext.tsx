@@ -8,6 +8,8 @@ import { Device, Backup } from '../types/backup'
 interface BackupConfig {
     backupName: string;
     selectedDevice: string;
+    isEncrypted: boolean;
+    backupPassword: string;
 }
 
 interface BackupState {
@@ -35,7 +37,9 @@ const STORAGE_KEY = 'vdf_backup_config';
 
 const INITIAL_CONFIG: BackupConfig = {
     backupName: '',
-    selectedDevice: ''
+    selectedDevice: '',
+    isEncrypted: false,
+    backupPassword: ''
 };
 
 export function BackupProvider({ children }: { children: ReactNode }) {
@@ -57,9 +61,9 @@ export function BackupProvider({ children }: { children: ReactNode }) {
         selectedDeviceRef.current = config.selectedDevice;
     }, [config.selectedDevice]);
 
-    // Load from localStorage
+    // Load from sessionStorage
     useEffect(() => {
-        const stored = localStorage.getItem(STORAGE_KEY);
+        const stored = sessionStorage.getItem(STORAGE_KEY);
         if (stored) {
             try {
                 setConfig(JSON.parse(stored));
@@ -70,10 +74,10 @@ export function BackupProvider({ children }: { children: ReactNode }) {
         setIsLoaded(true);
     }, []);
 
-    // Save to localStorage
+    // Save to sessionStorage
     useEffect(() => {
         if (isLoaded) {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
+            sessionStorage.setItem(STORAGE_KEY, JSON.stringify(config));
         }
     }, [config, isLoaded]);
 
@@ -183,12 +187,15 @@ export function BackupProvider({ children }: { children: ReactNode }) {
             "NOTE: You may see a prompt on your device to enter your passcode to trust this computer."
         ]);
         try {
-            const response = await api.backup.startBackup(udid, name, caseId);
+            const password = config.isEncrypted ? config.backupPassword : undefined;
+            const response = await api.backup.startBackup(udid, name, caseId, password);
             if (response.backup_id) {
                 setActiveBackupId(response.backup_id);
                 connectToLogStream(response.backup_id, true);
             }
             fetchBackups(caseId?.toString());
+            // Clear encryption state after successful start
+            updateConfig({ isEncrypted: false, backupPassword: '' });
         } catch (error) {
             console.error('Failed to start backup:', error);
             setIsBackingUp(false);

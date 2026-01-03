@@ -68,10 +68,10 @@ export function LeappProvider({ children }: { children: ReactNode }) {
 
     const [isLoaded, setIsLoaded] = useState(false);
 
-    // Load configs from localStorage
+    // Load configs from sessionStorage
     useEffect(() => {
         try {
-            const stored = localStorage.getItem(STORAGE_KEY);
+            const stored = sessionStorage.getItem(STORAGE_KEY);
             if (stored) {
                 const parsedConfigs = JSON.parse(stored);
                 setStates(prev => {
@@ -93,14 +93,14 @@ export function LeappProvider({ children }: { children: ReactNode }) {
         setIsLoaded(true);
     }, []);
 
-    // Save configs to localStorage
+    // Save configs to sessionStorage
     useEffect(() => {
         if (!isLoaded) return;
         const configs = {
             ileapp: states.ileapp.config,
             aleapp: states.aleapp.config
         };
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(configs));
+        sessionStorage.setItem(STORAGE_KEY, JSON.stringify(configs));
     }, [states.ileapp.config, states.aleapp.config, isLoaded]);
 
     const updateConfig = useCallback((tool: string, updates: Partial<ToolConfig>) => {

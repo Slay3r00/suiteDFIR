@@ -42,10 +42,10 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     const [noteDescription, setNoteDescription] = useState('');
     const [isStateLoaded, setIsStateLoaded] = useState(false);
 
-    // Load state from localStorage on mount
+    // Load state from sessionStorage on mount
     useEffect(() => {
         try {
-            const stored = localStorage.getItem(STORAGE_KEY);
+            const stored = sessionStorage.getItem(STORAGE_KEY);
             if (stored) {
                 const parsed: StoredState = JSON.parse(stored);
                 if (parsed.activeTab) setActiveTab(parsed.activeTab);
@@ -61,7 +61,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
         setIsStateLoaded(true);
     }, []);
 
-    // Save state to localStorage on change
+    // Save state to sessionStorage on change
     useEffect(() => {
         if (!isStateLoaded) return;
 
@@ -74,7 +74,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
                 noteInput,
                 noteDescription
             };
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+            sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state));
         } catch (error) {
             console.error('Failed to save dashboard state:', error);
         }

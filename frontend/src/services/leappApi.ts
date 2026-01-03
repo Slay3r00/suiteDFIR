@@ -128,11 +128,11 @@ export function createLeappApi(tool: string) {
                 if (!response.ok) throw new Error('Failed to fetch devices');
                 return response.json();
             },
-            startBackup: async (udid: string, name: string, caseId?: number) => {
+            startBackup: async (udid: string, name: string, caseId?: number, password?: string) => {
                 const response = await fetch(`${API_BASE}/ios/backup`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ udid, name, case_id: caseId }),
+                    body: JSON.stringify({ udid, name, case_id: caseId, password }),
                 });
                 if (!response.ok) throw new Error('Failed to start backup');
                 return response.json();

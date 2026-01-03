@@ -11,6 +11,7 @@ import {
     SelectValue
 } from "@/components/ui/Select"
 import { Input } from "@/components/ui/Input"
+import { useTimeline } from "@/context/TimelineContext"
 
 interface Report {
     name: string
@@ -21,12 +22,21 @@ interface Report {
 
 export default function Timeline() {
     const { selectedCaseId } = useCase()
+    const { config, updateConfig, isLoaded } = useTimeline()
+
+    const {
+        selectedReportPath: selectedReport,
+        selectedTimezone,
+        pagination,
+        sorting,
+        globalFilter,
+        columnFilters
+    } = config
+
     const [data, setData] = useState<TimelineEvent[]>([])
     const [totalCount, setTotalCount] = useState(0)
     const [isLoading, setIsLoading] = useState(false)
     const [reports, setReports] = useState<Report[]>([])
-    const [selectedReport, setSelectedReport] = useState<string>("all")
-    const [selectedTimezone, setSelectedTimezone] = useState<string>("UTC")
     const [tzSearch, setTzSearch] = useState("")
 
     const timezonesWithOffsets = useMemo(() => {
@@ -91,14 +101,20 @@ export default function Timeline() {
         // For simplicity, let's just let it persist for now, or use a local 'open' state if needed.
     }, []);
 
-    // MRT State
-    const [pagination, setPagination] = useState({
-        pageIndex: 0,
-        pageSize: 50,
-    })
-    const [sorting, setSorting] = useState([{ id: 'date', desc: true }])
-    const [globalFilter, setGlobalFilter] = useState('')
-    const [columnFilters, setColumnFilters] = useState<{ id: string; value: unknown }[]>([])
+    // MRT State Handlers
+    const setPagination = (updater: any) => {
+        const next = typeof updater === 'function' ? updater(pagination) : updater
+        updateConfig({ pagination: next })
+    }
+    const setSorting = (updater: any) => {
+        const next = typeof updater === 'function' ? updater(sorting) : updater
+        updateConfig({ sorting: next })
+    }
+    const setGlobalFilter = (val: string) => updateConfig({ globalFilter: val })
+    const setColumnFilters = (updater: any) => {
+        const next = typeof updater === 'function' ? updater(columnFilters) : updater
+        updateConfig({ columnFilters: next })
+    }
 
     // Fetch Reports
     useEffect(() => {
@@ -120,7 +136,7 @@ export default function Timeline() {
 
     // Fetch Timeline Data
     useEffect(() => {
-        if (!selectedCaseId) return
+        if (!selectedCaseId || !isLoaded) return
 
         const fetchData = async () => {
             setIsLoading(true)
@@ -156,7 +172,7 @@ export default function Timeline() {
         }
 
         fetchData()
-    }, [selectedCaseId, pagination, sorting, selectedReport, globalFilter, columnFilters])
+    }, [selectedCaseId, pagination, sorting, selectedReport, globalFilter, columnFilters, isLoaded])
 
     const handleExportAll = async () => {
         if (!selectedCaseId) return
@@ -206,7 +222,7 @@ export default function Timeline() {
             <div className="flex items-center gap-8 px-4 py-3 border-b border-white/10 bg-[#1A1A1A]">
                 <div className="flex items-center gap-4">
                     <h2 className="text-sm font-medium text-gray-400">Filter by Report:</h2>
-                    <Select value={selectedReport} onValueChange={setSelectedReport}>
+                    <Select value={selectedReport} onValueChange={(val) => updateConfig({ selectedReportPath: val })}>
                         <SelectTrigger className="h-8 w-[300px] bg-[#212121] border-white/10 text-white focus:!ring-0 focus:!ring-offset-0">
                             <SelectValue placeholder="Select a report">
                                 {selectedReport === "all"
@@ -231,7 +247,7 @@ export default function Timeline() {
                 <div className="flex items-center gap-4">
                     <h2 className="text-sm font-medium text-gray-400">Timezone:</h2>
                     <Select value={selectedTimezone} onValueChange={(val) => {
-                        setSelectedTimezone(val);
+                        updateConfig({ selectedTimezone: val });
                         setTzSearch(""); // Clear search on selection
                     }}>
                         <SelectTrigger className="h-8 w-[350px] bg-[#212121] border-white/10 text-white focus:!ring-0 focus:!ring-offset-0">
@@ -282,6 +298,13 @@ export default function Timeline() {
                     onColumnFiltersChange={setColumnFilters}
                     onExportAll={handleExportAll}
                     selectedTimezone={selectedTimezone}
+                    density={config.density}
+                    onDensityChange={(updater) => {
+                        const next = typeof updater === 'function' ? updater(config.density) : updater;
+                        updateConfig({ density: next });
+                    }}
+                    scrollPosition={config.scrollPosition}
+                    onScroll={(pos) => updateConfig({ scrollPosition: pos })}
                 />
             </div>
         </div>

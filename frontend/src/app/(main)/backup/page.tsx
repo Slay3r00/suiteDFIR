@@ -35,9 +35,7 @@ export default function BackupPage() {
         clearLogs
     } = useBackup();
 
-    const { backupName, selectedDevice } = config;
-    const [isEncrypted, setIsEncrypted] = useState(false)
-    const [backupPassword, setBackupPassword] = useState('')
+    const { backupName, selectedDevice, isEncrypted, backupPassword } = config;
 
     const deviceDropdown = useDropdown()
     const { toast } = useToast()
@@ -229,7 +227,7 @@ export default function BackupPage() {
                                                         onChange={(e) => {
                                                             const device = devices.find(d => d.udid === selectedDevice);
                                                             if (device?.is_encrypted) return;
-                                                            setIsEncrypted(e.target.checked);
+                                                            updateConfig({ isEncrypted: e.target.checked });
                                                         }}
                                                         disabled={isBackingUp || (selectedDevice && devices.find(d => d.udid === selectedDevice)?.is_encrypted) || false}
                                                         className="appearance-none w-3.5 h-3.5 rounded border border-white/40 group-hover:border-white transition-colors focus:ring-0 focus:outline-none"
@@ -265,7 +263,7 @@ export default function BackupPage() {
                                             <Input
                                                 type="password"
                                                 value={backupPassword}
-                                                onChange={(e) => setBackupPassword(e.target.value)}
+                                                onChange={(e) => updateConfig({ backupPassword: e.target.value })}
                                                 placeholder="Enter password..."
                                                 disabled={isBackingUp}
                                                 className="w-full bg-[#1A1A1A] border-[#333] focus:border-blue-500/50 transition-colors"
