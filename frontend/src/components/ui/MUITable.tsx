@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo, useRef } from "react"
 import {
     MaterialReactTable,
     useMaterialReactTable,
@@ -164,6 +164,10 @@ interface EnhancedTableProps {
     onColumnFiltersChange?: (updaterOrValue: Updater<MRT_ColumnFiltersState>) => void;
     onExportAll?: () => Promise<TimelineEvent[]>;
     selectedTimezone?: string;
+    density?: MRT_DensityState;
+    onDensityChange?: (updaterOrValue: Updater<MRT_DensityState>) => void;
+    scrollPosition?: number;
+    onScroll?: (pos: number) => void;
 }
 const EnhancedTable = ({
     rows,
@@ -178,7 +182,11 @@ const EnhancedTable = ({
     columnFilters,
     onColumnFiltersChange,
     onExportAll,
-    selectedTimezone
+    selectedTimezone,
+    density,
+    onDensityChange,
+    scrollPosition,
+    onScroll
 }: EnhancedTableProps) => {
     const handleExportRows = (rows: MRT_Row<TimelineEvent>[]) => {
         const rowData = rows.map((row) => row.original);
@@ -413,14 +421,13 @@ const EnhancedTable = ({
             sorting,
             globalFilter,
             columnFilters,
-        },
-        initialState: {
-            density: 'compact',
+            density: density || 'compact',
         },
         onPaginationChange,
         onSortingChange,
         onGlobalFilterChange,
         onColumnFiltersChange,
+        onDensityChange,
         enableStickyHeader: true,
         enableSorting: false,
         enableRowSelection: true,
@@ -500,6 +507,7 @@ const EnhancedTable = ({
         paginationDisplayMode: 'pages',
         positionToolbarAlertBanner: 'bottom',
         renderTopToolbarCustomActions: ({ table }) => (
+            // ... (rest of the toolbar)
             <Box
                 sx={{
                     display: 'flex',
@@ -544,6 +552,44 @@ const EnhancedTable = ({
             </Box>
         ),
     });
+
+    // Scroll persistence logic
+    const hasRestoredScroll = useRef(false);
+    const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+    useEffect(() => {
+        const container = document.querySelector('.MuiTableContainer-root');
+        if (!container) return;
+
+        const handleScroll = () => {
+            // Throttled update to context (every 100ms)
+            if (scrollTimeoutRef.current) return;
+            scrollTimeoutRef.current = setTimeout(() => {
+                onScroll?.(container.scrollTop);
+                scrollTimeoutRef.current = null;
+            }, 100);
+        };
+
+        container.addEventListener('scroll', handleScroll, { passive: true });
+
+        // Restore scroll ONLY ONCE when data is first loaded/available
+        if (!isLoading && rows.length > 0 && !hasRestoredScroll.current) {
+            if (scrollPosition > 0) {
+                // Wait for layout to settle
+                setTimeout(() => {
+                    container.scrollTo({ top: scrollPosition });
+                    hasRestoredScroll.current = true;
+                }, 100);
+            } else {
+                hasRestoredScroll.current = true;
+            }
+        }
+
+        return () => {
+            container.removeEventListener('scroll', handleScroll);
+            if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
+        };
+    }, [isLoading, rows.length, scrollPosition, onScroll]);
 
     return (
         <ThemeProvider theme={theme}>

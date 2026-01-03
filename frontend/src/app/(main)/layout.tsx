@@ -8,6 +8,7 @@ import { DashboardProvider } from "@/context/DashboardContext";
 import { SpatialProvider } from "@/context/SpatialContext";
 import { LeappProvider } from "@/context/LeappContext";
 import { BackupProvider } from "@/context/BackupContext";
+import { TimelineProvider } from "@/context/TimelineContext";
 
 export default function MainLayout({
     children,
@@ -30,12 +31,14 @@ export default function MainLayout({
                 <SpatialProvider>
                     <LeappProvider>
                         <BackupProvider>
-                            <SidebarProvider defaultOpen={defaultOpen} className="h-full overflow-hidden">
-                                <AppSidebar />
-                                <SidebarInset className="bg-[#151515] flex flex-col overflow-hidden">
-                                    {children}
-                                </SidebarInset>
-                            </SidebarProvider>
+                            <TimelineProvider>
+                                <SidebarProvider defaultOpen={defaultOpen} className="h-full overflow-hidden">
+                                    <AppSidebar />
+                                    <SidebarInset className="bg-[#151515] flex flex-col overflow-hidden">
+                                        {children}
+                                    </SidebarInset>
+                                </SidebarProvider>
+                            </TimelineProvider>
                         </BackupProvider>
                     </LeappProvider>
                 </SpatialProvider>
