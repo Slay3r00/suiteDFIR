@@ -7,6 +7,7 @@ import { ReportsProvider } from "@/context/ReportsContext";
 import { DashboardProvider } from "@/context/DashboardContext";
 import { SpatialProvider } from "@/context/SpatialContext";
 import { LeappProvider } from "@/context/LeappContext";
+import { BackupProvider } from "@/context/BackupContext";
 
 export default function MainLayout({
     children,
@@ -28,12 +29,14 @@ export default function MainLayout({
             <DashboardProvider>
                 <SpatialProvider>
                     <LeappProvider>
-                        <SidebarProvider defaultOpen={defaultOpen} className="h-full overflow-hidden">
-                            <AppSidebar />
-                            <SidebarInset className="bg-[#151515] flex flex-col overflow-hidden">
-                                {children}
-                            </SidebarInset>
-                        </SidebarProvider>
+                        <BackupProvider>
+                            <SidebarProvider defaultOpen={defaultOpen} className="h-full overflow-hidden">
+                                <AppSidebar />
+                                <SidebarInset className="bg-[#151515] flex flex-col overflow-hidden">
+                                    {children}
+                                </SidebarInset>
+                            </SidebarProvider>
+                        </BackupProvider>
                     </LeappProvider>
                 </SpatialProvider>
             </DashboardProvider>
