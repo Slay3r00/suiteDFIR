@@ -12,7 +12,7 @@ import ToolNotInstalled from '../../components/ui/ToolNotInstalled';
 
 import { Button, Input, Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../../components/ui';
 import { useCase } from '@/context/CaseContext';
-import { FileText, FolderOpen, Calendar, Trash2, Loader2, Download } from 'lucide-react';
+import { FolderOpen, Calendar, Trash2, Loader2, Download } from 'lucide-react';
 
 import { getToolsStatus } from '@/lib/api/tools';
 import { cn } from '../../lib/utils';
@@ -32,7 +32,7 @@ interface Report {
     size: string;
 }
 
-function LeappContent({ logoPath, tool }: { logoPath: string; tool: string }) {
+function LeappContent({ tool }: { logoPath: string; tool: string }) {
     const outputFolder = '';
     const router = useRouter();
 
@@ -50,8 +50,7 @@ function LeappContent({ logoPath, tool }: { logoPath: string; tool: string }) {
         confirmLabel?: string;
     }>({ isOpen: false, title: '', message: '', onConfirm: () => { } });
 
-    // aLEAPP logo is 10% smaller than iLEAPP
-    const logoHeight = tool === 'aleapp' ? 'h-[57.6px]' : 'h-16';
+
 
     // Fetch reports for the current tool
     const fetchReports = useCallback(async () => {
@@ -72,6 +71,7 @@ function LeappContent({ logoPath, tool }: { logoPath: string; tool: string }) {
 
     // Fetch reports on mount and when case changes
     useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         fetchReports();
     }, [fetchReports]);
 
@@ -91,18 +91,7 @@ function LeappContent({ logoPath, tool }: { logoPath: string; tool: string }) {
         }
     }, [reports, processingReportName, clearProcessingReportName]);
 
-    const handleViewReport = () => {
-        setConfirmConfig({
-            isOpen: true,
-            title: 'View Report',
-            message: 'Navigate to Reports page to view this report?',
-            confirmLabel: 'Navigate',
-            onConfirm: () => {
-                router.push('/reports');
-                setConfirmConfig(prev => ({ ...prev, isOpen: false }));
-            }
-        });
-    };
+
 
     const handleOpenLocation = (path: string) => {
         setConfirmConfig({

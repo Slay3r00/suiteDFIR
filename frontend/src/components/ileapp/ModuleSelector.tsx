@@ -40,8 +40,19 @@ export default function ModuleSelector({ isProcessing }: ModuleSelectorProps) {
   const [profileNameInput, setProfileNameInput] = useState('');
   const [confirmDeleteProfileId, setConfirmDeleteProfileId] = useState<number | null>(null);
 
-  const loadProfileDropdown = useDropdown();
-  const saveProfileDropdown = useDropdown();
+  const {
+    isOpen: isLoadProfileOpen,
+    close: closeLoadProfile,
+    handleClick: handleLoadProfileClick,
+    buttonRef: loadProfileButtonRef
+  } = useDropdown();
+
+  const {
+    isOpen: isSaveProfileOpen,
+    close: closeSaveProfile,
+    handleClick: handleSaveProfileClick,
+    buttonRef: saveProfileButtonRef
+  } = useDropdown();
 
   const { modules, selectedModules, toggleModule, selectAll, selectNone, fetchModules, tool } = useModules();
   const { profiles, loadProfile, saveProfile, deleteProfile } = useProfiles(tool);
@@ -52,7 +63,7 @@ export default function ModuleSelector({ isProcessing }: ModuleSelectorProps) {
       // Refresh modules to get updated selection state
       await fetchModules();
       // Profile loaded successfully
-      loadProfileDropdown.close();
+      closeLoadProfile();
     } catch (error) {
       console.error('Failed to load profile:', error);
     }
@@ -68,7 +79,7 @@ export default function ModuleSelector({ isProcessing }: ModuleSelectorProps) {
     try {
       await saveProfile(trimmedName, Array.from(selectedModules));
       setProfileNameInput('');
-      saveProfileDropdown.close();
+      closeSaveProfile();
     } catch (error) {
       console.error('Failed to save profile:', error);
     }
@@ -109,9 +120,8 @@ export default function ModuleSelector({ isProcessing }: ModuleSelectorProps) {
         <div className="flex gap-3 shrink-0">
           <div className="relative">
             <Button
-              ref={loadProfileDropdown.buttonRef as React.RefObject<HTMLButtonElement>}
-              // eslint-disable-next-line react-hooks/refs
-              onClick={loadProfileDropdown.handleClick}
+              ref={loadProfileButtonRef as React.RefObject<HTMLButtonElement>}
+              onClick={handleLoadProfileClick}
               disabled={isProcessing}
               variant="secondary"
               size="sm"
@@ -120,12 +130,11 @@ export default function ModuleSelector({ isProcessing }: ModuleSelectorProps) {
               Load Profile
             </Button>
 
-            {/* eslint-disable-next-line react-hooks/refs */}
             <Dropdown
-              isOpen={loadProfileDropdown.isOpen}
-              onClose={loadProfileDropdown.close}
+              isOpen={isLoadProfileOpen}
+              onClose={closeLoadProfile}
               align="left"
-              buttonRef={loadProfileDropdown.buttonRef as React.RefObject<HTMLButtonElement>}
+              buttonRef={loadProfileButtonRef as React.RefObject<HTMLButtonElement>}
               className="min-w-[200px] whitespace-nowrap bg-[#1A1A1A] border border-[#333] rounded-lg shadow-xl overflow-hidden"
             >
               <div className="bg-[#212121] px-3 py-2 text-[10px] font-medium text-gray-400 uppercase tracking-wider border-b border-[#333]">
@@ -165,9 +174,8 @@ export default function ModuleSelector({ isProcessing }: ModuleSelectorProps) {
           <div className="relative">
             <Button
 
-              ref={saveProfileDropdown.buttonRef as React.RefObject<HTMLButtonElement>}
-              // eslint-disable-next-line react-hooks/refs
-              onClick={saveProfileDropdown.handleClick}
+              ref={saveProfileButtonRef as React.RefObject<HTMLButtonElement>}
+              onClick={handleSaveProfileClick}
               disabled={isProcessing}
               variant="secondary"
               size="sm"
@@ -176,12 +184,11 @@ export default function ModuleSelector({ isProcessing }: ModuleSelectorProps) {
               Save Profile
             </Button>
 
-            {/* eslint-disable-next-line react-hooks/refs */}
             <Dropdown
-              isOpen={saveProfileDropdown.isOpen}
-              onClose={saveProfileDropdown.close}
+              isOpen={isSaveProfileOpen}
+              onClose={closeSaveProfile}
               align="left"
-              buttonRef={saveProfileDropdown.buttonRef as React.RefObject<HTMLButtonElement>}
+              buttonRef={saveProfileButtonRef as React.RefObject<HTMLButtonElement>}
               className="min-w-[220px] bg-[#1A1A1A] border border-[#333] rounded-lg shadow-xl overflow-hidden"
             >
               <div className="bg-[#212121] px-3 py-2 text-[10px] font-medium text-gray-400 uppercase tracking-wider border-b border-[#333]">
@@ -205,7 +212,7 @@ export default function ModuleSelector({ isProcessing }: ModuleSelectorProps) {
                   </button>
                   <button
                     onClick={() => {
-                      saveProfileDropdown.close();
+                      closeSaveProfile();
                       setProfileNameInput('');
                     }}
                     disabled={isProcessing}

@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, Input } from '../ui';
+import { Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, Input } from '../ui';
 import { useProcessing } from '../../hooks/useProcessing';
 import { useModules } from '../../hooks/useModules';
-import { Square, Lock } from 'lucide-react';
+import { Lock } from 'lucide-react';
 import { createLeappApi } from '../../services/leappApi';
 import { useToast } from '../../hooks/use-toast';
 
