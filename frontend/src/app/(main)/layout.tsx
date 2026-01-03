@@ -6,6 +6,7 @@ import { AppSidebar } from "@/components/app-sidebar";
 import { ReportsProvider } from "@/context/ReportsContext";
 import { DashboardProvider } from "@/context/DashboardContext";
 import { SpatialProvider } from "@/context/SpatialContext";
+import { LeappProvider } from "@/context/LeappContext";
 
 export default function MainLayout({
     children,
@@ -26,12 +27,14 @@ export default function MainLayout({
         <ReportsProvider>
             <DashboardProvider>
                 <SpatialProvider>
-                    <SidebarProvider defaultOpen={defaultOpen} className="h-full overflow-hidden">
-                        <AppSidebar />
-                        <SidebarInset className="bg-[#151515] flex flex-col overflow-hidden">
-                            {children}
-                        </SidebarInset>
-                    </SidebarProvider>
+                    <LeappProvider>
+                        <SidebarProvider defaultOpen={defaultOpen} className="h-full overflow-hidden">
+                            <AppSidebar />
+                            <SidebarInset className="bg-[#151515] flex flex-col overflow-hidden">
+                                {children}
+                            </SidebarInset>
+                        </SidebarProvider>
+                    </LeappProvider>
                 </SpatialProvider>
             </DashboardProvider>
         </ReportsProvider>
