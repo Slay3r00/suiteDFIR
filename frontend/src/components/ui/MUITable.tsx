@@ -1,3 +1,4 @@
+import { useState, useEffect, useMemo } from "react"
 import {
     MaterialReactTable,
     useMaterialReactTable,
@@ -11,6 +12,7 @@ import type { Updater } from '@tanstack/react-table';
 import { Box, Button, ThemeProvider, createTheme } from '@mui/material';
 import FileDownloadIcon from '@mui/icons-material/FileDownload';
 import { mkConfig, generateCsv, download } from 'export-to-csv';
+import { formatInTimeZone } from 'date-fns-tz';
 
 export interface TimelineEvent {
     id: number;
@@ -22,7 +24,7 @@ export interface TimelineEvent {
 
 const columnHelper = createMRTColumnHelper<TimelineEvent>();
 
-const columns = [
+const createColumns = (selectedTimezone?: string) => [
     columnHelper.accessor('id', {
         header: 'ID',
         size: 40,
@@ -37,7 +39,17 @@ const columns = [
             const val = cell.getValue<string>();
             if (!val) return '';
             const date = new Date(val);
-            return isNaN(date.getTime()) ? val : date.toLocaleString();
+            if (isNaN(date.getTime())) return val;
+
+            // Use formatInTimeZone if a timezone is selected, otherwise use browser default
+            if (selectedTimezone) {
+                try {
+                    return formatInTimeZone(date, selectedTimezone, 'MMM d, yyyy h:mm:ss a zzz');
+                } catch {
+                    return date.toLocaleString();
+                }
+            }
+            return date.toLocaleString();
         },
     }),
     columnHelper.accessor('artifact', {
@@ -47,6 +59,62 @@ const columns = [
     columnHelper.accessor('description', {
         header: 'Description',
         size: 300,
+        Cell: ({ cell }) => {
+            const val = cell.getValue<string>();
+            if (!val) return '';
+
+            let data: Record<string, any>;
+            try {
+                // The backend now sends the raw JSON string
+                data = JSON.parse(val);
+            } catch {
+                return val; // Fallback if not valid JSON
+            }
+
+            if (typeof data !== 'object' || data === null) return val;
+
+            const formatValue = (v: any) => {
+                if (typeof v === 'string' && v.length >= 8) {
+                    if (v === 'None' || v === '') return v;
+
+                    // Heuristic to avoid converting things that aren't dates
+                    // Artifact dates usually have separators like -, /, or :
+                    // Or they look like "17 July 2001"
+                    if (/[-\/:]/.test(v) || /^[0-9]+ [A-Za-z]+ [0-9]+/.test(v)) {
+                        const date = new Date(v);
+                        if (!isNaN(date.getTime())) {
+                            if (selectedTimezone) {
+                                try {
+                                    return formatInTimeZone(date, selectedTimezone, 'MMM d, yyyy h:mm:ss a zzz');
+                                } catch {
+                                    return date.toLocaleString();
+                                }
+                            }
+                            return date.toLocaleString();
+                        }
+                    }
+                }
+                return String(v);
+            };
+
+            const entries = Object.entries(data).filter(([_, v]) => v !== null && v !== 'None' && v !== '');
+
+            return (
+                <Box sx={{ fontSize: '0.875rem', lineHeight: 1.4 }}>
+                    {entries.map(([k, v], i) => (
+                        <span key={k}>
+                            <Box component="span" sx={{ fontWeight: 600, color: 'text.secondary', mr: 0.5 }}>
+                                {k}:
+                            </Box>
+                            <Box component="span" sx={{ color: 'text.primary' }}>
+                                {formatValue(v)}
+                            </Box>
+                            {i < entries.length - 1 ? ', ' : ''}
+                        </span>
+                    ))}
+                </Box>
+            );
+        },
     }),
     columnHelper.accessor('source', {
         header: 'Source',
@@ -73,6 +141,7 @@ interface EnhancedTableProps {
     columnFilters?: MRT_ColumnFiltersState;
     onColumnFiltersChange?: (updaterOrValue: Updater<MRT_ColumnFiltersState>) => void;
     onExportAll?: () => Promise<TimelineEvent[]>;
+    selectedTimezone?: string;
 }
 const EnhancedTable = ({
     rows,
@@ -86,7 +155,8 @@ const EnhancedTable = ({
     onGlobalFilterChange,
     columnFilters,
     onColumnFiltersChange,
-    onExportAll
+    onExportAll,
+    selectedTimezone
 }: EnhancedTableProps) => {
     const handleExportRows = (rows: MRT_Row<TimelineEvent>[]) => {
         const rowData = rows.map((row) => row.original);
@@ -305,6 +375,8 @@ const EnhancedTable = ({
             },
         },
     });
+
+    const columns = useMemo(() => createColumns(selectedTimezone), [selectedTimezone]);
 
     const table = useMaterialReactTable({
         columns,

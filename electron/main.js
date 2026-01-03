@@ -5,6 +5,29 @@ const { spawn } = require('child_process');
 const isDev = require('electron-is-dev');
 const logger = require('./logger');
 
+// Prevent EBADF and other errors from showing dialogs
+process.on('uncaughtException', (error) => {
+  logger.error('Uncaught Exception:', error.message);
+  logger.error('Stack:', error.stack);
+});
+
+// Robust Linux stability fixes
+if (process.platform === 'linux') {
+  // Disable GPU acceleration to prevent rendering crashes
+  app.disableHardwareAcceleration();
+
+  // Suppress all writes to stdout/stderr to prevent EBADF errors from native modules or Electron internals
+  // This is a nuclear option but necessary if the streams are closed/invalid
+  try {
+    const noop = () => { };
+    process.stdout.write = noop;
+    process.stderr.write = noop;
+  } catch (e) {
+    // Ignore
+  }
+}
+
+
 // Immediate logging to track startup progress
 logger.info('main.js module starting - requires completed');
 logger.info('isDev:', isDev);

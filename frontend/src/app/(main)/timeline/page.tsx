@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import EnhancedTable, { TimelineEvent } from "@/components/ui/MUITable"
 import { useCase } from "@/context/CaseContext"
 import {
@@ -25,6 +25,15 @@ export default function Timeline() {
     const [isLoading, setIsLoading] = useState(false)
     const [reports, setReports] = useState<Report[]>([])
     const [selectedReport, setSelectedReport] = useState<string>("all")
+    const [selectedTimezone, setSelectedTimezone] = useState<string>(Intl.DateTimeFormat().resolvedOptions().timeZone)
+
+    const timezones = useMemo(() => {
+        try {
+            return (Intl as any).supportedValuesOf('timeZone') as string[];
+        } catch (e) {
+            return ["UTC", "America/New_York", "America/Chicago", "America/Denver", "America/Los_Angeles", "Europe/London", "Asia/Tokyo"];
+        }
+    }, []);
 
     // MRT State
     const [pagination, setPagination] = useState({
@@ -152,11 +161,27 @@ export default function Timeline() {
                                 }
                             </SelectValue>
                         </SelectTrigger>
-                        <SelectContent className="w-full left-0 bg-[#212121] border-white/10 text-white">
+                        <SelectContent className="w-full left-0 max-h-[300px] overflow-y-auto bg-[#212121] border-white/10 text-white">
                             <SelectItem value="all">All Reports</SelectItem>
                             {reports.map((report) => (
                                 <SelectItem key={report.path} value={report.path}>
                                     {report.name} ({report.tool})
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
+
+                <div className="flex items-center gap-4">
+                    <h2 className="text-sm font-medium text-gray-400">Timezone:</h2>
+                    <Select value={selectedTimezone} onValueChange={setSelectedTimezone}>
+                        <SelectTrigger className="h-8 w-[250px] bg-[#212121] border-white/10 text-white focus:!ring-0 focus:!ring-offset-0">
+                            <SelectValue placeholder="Select timezone" />
+                        </SelectTrigger>
+                        <SelectContent className="max-h-[300px] overflow-y-auto bg-[#212121] border-white/10 text-white">
+                            {timezones.map((tz: string) => (
+                                <SelectItem key={tz} value={tz}>
+                                    {tz}
                                 </SelectItem>
                             ))}
                         </SelectContent>
@@ -178,6 +203,7 @@ export default function Timeline() {
                     columnFilters={columnFilters}
                     onColumnFiltersChange={setColumnFilters}
                     onExportAll={handleExportAll}
+                    selectedTimezone={selectedTimezone}
                 />
             </div>
         </div>
