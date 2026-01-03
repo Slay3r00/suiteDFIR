@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef } from "react"
 import { MapContainer, TileLayer, useMap, GeoJSON } from "react-leaflet"
 import "leaflet/dist/leaflet.css"
 import L from "leaflet"
@@ -25,77 +25,138 @@ const DefaultIcon = L.icon({
 
 L.Marker.prototype.options.icon = DefaultIcon
 
-// Component to handle map flying
+// Component to handle map flying for external updates (like search)
 function MapUpdater({ center, zoom }: { center: [number, number], zoom: number }) {
     const map = useMap()
     useEffect(() => {
-        map.flyTo(center, zoom, { duration: 1.5 })
+        const currentCenter = map.getCenter()
+        const currentZoom = map.getZoom()
+
+        // Only fly if coordinates are significantly different (prevents loop during manual pan)
+        const latDiff = Math.abs(currentCenter.lat - center[0])
+        const lngDiff = Math.abs(currentCenter.lng - center[1])
+        const zoomDiff = Math.abs(currentZoom - zoom)
+
+        if (latDiff > 0.001 || lngDiff > 0.001 || zoomDiff > 0.5) {
+            map.flyTo(center, zoom, { duration: 1.5 })
+        }
     }, [center, zoom, map])
     return null
 }
 
-// Component to fit bounds to GeoJSON data
+import { useMapEvents } from "react-leaflet"
 
-function AutoFitBounds({ data }: { data: GeoJsonObject | null }) {
+// Component to track user movement and sync back to context
+function ViewStateTracker({ onUpdate }: { onUpdate: (center: [number, number], zoom: number) => void }) {
+    const map = useMapEvents({
+        moveend: () => {
+            const center = map.getCenter()
+            onUpdate([center.lat, center.lng], map.getZoom())
+        },
+        zoomend: () => {
+            const center = map.getCenter()
+            onUpdate([center.lat, center.lng], map.getZoom())
+        }
+    })
+    return null
+}
+
+// Component to fit bounds to GeoJSON data
+function AutoFitBounds({ data, path }: { data: GeoJsonObject | null, path?: string }) {
     const map = useMap()
+    const { fittedPaths, markPathFitted } = useSpatial()
+    const lastDataRef = useRef<GeoJsonObject | null>(null)
+
     useEffect(() => {
-        if (data) {
+        if (data && data !== lastDataRef.current) {
+            // If path provided, check if it's already been fitted in this session/state load
+            if (path && fittedPaths.has(path)) {
+                lastDataRef.current = data;
+                return;
+            }
+
             const geoJsonLayer = L.geoJSON(data)
             if (geoJsonLayer.getLayers().length > 0) {
                 map.flyToBounds(geoJsonLayer.getBounds(), { padding: [50, 50], duration: 1.5 })
+                if (path) markPathFitted(path);
             }
+            lastDataRef.current = data
         }
-    }, [data, map])
+    }, [data, map, path, fittedPaths, markPathFitted])
     return null
 }
 
 import { useCase } from "@/context/CaseContext"
+import { useSpatial } from "@/context/SpatialContext"
 
 export default function SpatialMap() {
-    const [center, setCenter] = useState<[number, number]>([40.7128, -74.0060]) // NYC default
-    const [zoom, setZoom] = useState(13)
-    const [layer, setLayer] = useState<'normal' | 'satellite' | 'hybrid'>('normal')
-    const [geoJsonData, setGeoJsonData] = useState<GeoJsonObject | null>(null)
+    const {
+        center, setCenter,
+        zoom, setZoom,
+        layer, setLayer,
+        selectedKmlsPaths, setSelectedKmlsPaths,
+        geoJsonData, setGeoJsonData,
+        isStateLoaded
+    } = useSpatial()
+
     const [browsedKmls, setBrowsedKmls] = useState<Record<string, GeoJsonObject>>({})
     const { selectedCaseId } = useCase()
+
+    // Fetch GeoJSON for selected KML paths
+    useEffect(() => {
+        if (!isStateLoaded) return;
+
+        const loadKmlData = async (path: string) => {
+            if (browsedKmls[path]) return; // Already loaded
+
+            try {
+                const res = await fetch(`http://localhost:8000/api/spatial/kml-data?path=${encodeURIComponent(path)}`)
+                if (res.ok) {
+                    const text = await res.text()
+                    const parser = new DOMParser()
+                    const kml = parser.parseFromString(text, 'text/xml')
+                    const toGeoJSON = await import("@mapbox/togeojson")
+                    const geojson = toGeoJSON.kml(kml) as GeoJsonObject & { features: unknown[] }
+
+                    setBrowsedKmls(prev => ({
+                        ...prev,
+                        [path]: geojson
+                    }))
+                }
+            } catch (error) {
+                console.error("Failed to load KML:", error)
+            }
+        }
+
+        // Load new selections
+        selectedKmlsPaths.forEach(path => loadKmlData(path));
+
+        // Cleanup unselected data to save memory
+        setBrowsedKmls(prev => {
+            const next = { ...prev };
+            let changed = false;
+            Object.keys(next).forEach(path => {
+                if (!selectedKmlsPaths.includes(path)) {
+                    delete next[path];
+                    changed = true;
+                }
+            });
+            return changed ? next : prev;
+        });
+    }, [selectedKmlsPaths, isStateLoaded, browsedKmls]);
 
     const handleSearch = (lat: number, lon: number) => {
         setCenter([lat, lon])
         setZoom(16)
     }
 
-    const handleKmlSelect = async (kmlUrl: string, selected: boolean) => {
-        if (!selected) {
-            const newKmls = { ...browsedKmls }
-            delete newKmls[kmlUrl]
-            setBrowsedKmls(newKmls)
-            return
-        }
-
-        try {
-            // Fetch enriched KML data from backend
-            const res = await fetch(`http://localhost:8000/api/spatial/kml-data?path=${encodeURIComponent(kmlUrl)}`)
-            if (res.ok) {
-                const text = await res.text()
-                const parser = new DOMParser()
-                const kml = parser.parseFromString(text, 'text/xml')
-                const toGeoJSON = await import("@mapbox/togeojson")
-                const geojson = toGeoJSON.kml(kml) as GeoJsonObject & { features: unknown[] }
-
-                if (geojson.features.length === 0) {
-                    console.warn('No features found in KML')
-                }
-
-                // Add to map
-                setBrowsedKmls(prev => ({
-                    ...prev,
-                    [kmlUrl]: geojson
-                }))
-            } else {
-                console.error('Failed to fetch KML:', res.status, res.statusText)
+    const handleKmlSelect = (kmlUrl: string, selected: boolean) => {
+        if (selected) {
+            if (!selectedKmlsPaths.includes(kmlUrl)) {
+                setSelectedKmlsPaths([...selectedKmlsPaths, kmlUrl]);
             }
-        } catch (error) {
-            console.error("Failed to load KML:", error)
+        } else {
+            setSelectedKmlsPaths(selectedKmlsPaths.filter(p => p !== kmlUrl));
         }
     }
 
@@ -231,11 +292,15 @@ export default function SpatialMap() {
                 zoomControl={false}
                 maxZoom={22}
             >
+                <ViewStateTracker onUpdate={(c, z) => {
+                    setCenter(c)
+                    setZoom(z)
+                }} />
                 <MapUpdater center={center} zoom={zoom} />
                 <AutoFitBounds data={geoJsonData} />
                 {/* Auto-fit for browsed KMLs */}
-                {Object.values(browsedKmls).map((data, i) => (
-                    <AutoFitBounds key={`autofit-${i}`} data={data} />
+                {Object.entries(browsedKmls).map(([url, data], i) => (
+                    <AutoFitBounds key={`autofit-${i}`} data={data} path={url} />
                 ))}
 
                 {getTileLayer()}
