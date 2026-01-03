@@ -34,3 +34,4 @@ frontend/out/
 
 # Generated files
 build.spec.spec
+package-lock.json
