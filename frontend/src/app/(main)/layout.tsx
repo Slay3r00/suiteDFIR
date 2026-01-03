@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { ReportsProvider } from "@/context/ReportsContext";
+import { DashboardProvider } from "@/context/DashboardContext";
 
 export default function MainLayout({
     children,
@@ -22,12 +23,14 @@ export default function MainLayout({
 
     return (
         <ReportsProvider>
-            <SidebarProvider defaultOpen={defaultOpen} className="h-full overflow-hidden">
-                <AppSidebar />
-                <SidebarInset className="bg-[#151515] flex flex-col overflow-hidden">
-                    {children}
-                </SidebarInset>
-            </SidebarProvider>
+            <DashboardProvider>
+                <SidebarProvider defaultOpen={defaultOpen} className="h-full overflow-hidden">
+                    <AppSidebar />
+                    <SidebarInset className="bg-[#151515] flex flex-col overflow-hidden">
+                        {children}
+                    </SidebarInset>
+                </SidebarProvider>
+            </DashboardProvider>
         </ReportsProvider>
     );
 }

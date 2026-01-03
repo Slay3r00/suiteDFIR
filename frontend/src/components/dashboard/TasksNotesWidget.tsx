@@ -8,6 +8,7 @@ import { Plus, Trash2, CheckSquare, FileText, Check, PlusCircle, Smartphone, Dat
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/Select"
 import { useToast } from "@/hooks/use-toast"
 import { useCase } from "@/context/CaseContext"
+import { useDashboard } from "@/context/DashboardContext"
 
 interface Task {
     id: number
@@ -29,12 +30,23 @@ interface Note {
 
 export default function TasksNotesWidget() {
     const { selectedCaseId } = useCase()
-    const [activeTab, setActiveTab] = useState<'tasks' | 'notes'>('tasks')
+    const {
+        activeTab,
+        setActiveTab,
+        taskInput,
+        setTaskInput,
+        taskDescription,
+        setTaskDescription,
+        taskPriority,
+        setTaskPriority,
+        noteInput,
+        setNoteInput,
+        noteDescription,
+        setNoteDescription
+    } = useDashboard()
+
     const [tasks, setTasks] = useState<Task[]>([])
     const [notes, setNotes] = useState<Note[]>([])
-    const [inputValue, setInputValue] = useState('')
-    const [descriptionValue, setDescriptionValue] = useState('')
-    const [priority, setPriority] = useState<'Low' | 'Medium' | 'High'>('Medium')
     const [isLoading, setIsLoading] = useState(false)
     const { toast } = useToast()
 
@@ -64,14 +76,17 @@ export default function TasksNotesWidget() {
     }, [selectedCaseId, fetchData])
 
     const handleAdd = async () => {
-        if (!inputValue.trim() || !selectedCaseId) return
+        const currentInput = activeTab === 'tasks' ? taskInput : noteInput
+        const currentDescription = activeTab === 'tasks' ? taskDescription : noteDescription
+
+        if (!currentInput.trim() || !selectedCaseId) return
 
         setIsLoading(true)
         try {
             const endpoint = activeTab === 'tasks' ? 'tasks' : 'notes'
             const body = activeTab === 'tasks'
-                ? { content: inputValue, description: descriptionValue, priority, case_id: parseInt(selectedCaseId) }
-                : { content: inputValue, description: descriptionValue, case_id: parseInt(selectedCaseId) }
+                ? { content: taskInput, description: taskDescription, priority: taskPriority, case_id: parseInt(selectedCaseId) }
+                : { content: noteInput, description: noteDescription, case_id: parseInt(selectedCaseId) }
 
             const res = await fetch(`http://localhost:8000/api/dashboard/${endpoint}`, {
                 method: 'POST',
@@ -85,12 +100,14 @@ export default function TasksNotesWidget() {
 
             if (activeTab === 'tasks') {
                 setTasks([newItem, ...tasks])
+                setTaskInput('')
+                setTaskDescription('')
+                setTaskPriority('Medium')
             } else {
                 setNotes([newItem, ...notes])
+                setNoteInput('')
+                setNoteDescription('')
             }
-            setInputValue('')
-            setDescriptionValue('')
-            setPriority('Medium') // Reset priority
         } catch {
             toast({
                 title: "Error",
@@ -216,16 +233,16 @@ export default function TasksNotesWidget() {
                     <div className="space-y-2.5 mb-4">
                         <div className="flex gap-2">
                             <Input
-                                value={inputValue}
-                                onChange={(e) => setInputValue(e.target.value)}
+                                value={activeTab === 'tasks' ? taskInput : noteInput}
+                                onChange={(e) => activeTab === 'tasks' ? setTaskInput(e.target.value) : setNoteInput(e.target.value)}
                                 onKeyDown={handleKeyDown}
                                 placeholder={activeTab === 'tasks' ? "Add a new task..." : "Add a new note..."}
                                 className="bg-[#1f1f1f] border-[#333333] text-white placeholder:text-gray-500 h-9 text-sm focus-visible:ring-1 focus-visible:ring-gray-500"
                             />
                             {activeTab === 'tasks' && (
                                 <Select
-                                    value={priority}
-                                    onValueChange={(val) => setPriority(val as 'Low' | 'Medium' | 'High')}
+                                    value={taskPriority}
+                                    onValueChange={(val) => setTaskPriority(val as 'Low' | 'Medium' | 'High')}
                                 >
                                     <SelectTrigger className="h-9 bg-[#1f1f1f] border-[#333333] text-white text-xs w-32 focus:ring-0 justify-center gap-2">
                                         <SelectValue placeholder="Priority" />
@@ -240,15 +257,15 @@ export default function TasksNotesWidget() {
                         </div>
                         <div className="flex gap-2">
                             <Input
-                                value={descriptionValue}
-                                onChange={(e) => setDescriptionValue(e.target.value)}
+                                value={activeTab === 'tasks' ? taskDescription : noteDescription}
+                                onChange={(e) => activeTab === 'tasks' ? setTaskDescription(e.target.value) : setNoteDescription(e.target.value)}
                                 onKeyDown={handleKeyDown}
                                 placeholder="Add a description (optional)..."
                                 className="bg-[#171717] border-[#333333] text-gray-300 placeholder:text-gray-500 h-9 text-xs focus-visible:ring-1 focus-visible:ring-gray-500 flex-1"
                             />
                             <Button
                                 onClick={handleAdd}
-                                disabled={isLoading || !inputValue.trim()}
+                                disabled={isLoading || (activeTab === 'tasks' ? !taskInput.trim() : !noteInput.trim())}
                                 size="icon"
                                 className="h-9 w-9 bg-white text-black hover:bg-gray-200 shrink-0"
                             >
