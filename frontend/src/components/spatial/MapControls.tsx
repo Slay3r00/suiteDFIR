@@ -24,14 +24,15 @@ interface MapControlsProps {
     selectedCaseId: string | null
 }
 
+import { useSpatial } from "@/context/SpatialContext"
+
 export default function MapControls({ onSearch, onLayerChange, onDataUpload, onKmlSelect, currentLayer, selectedCaseId }: MapControlsProps) {
-    const [searchQuery, setSearchQuery] = useState("")
+    const { selectedKmlsPaths, setSelectedKmlsPaths, searchQuery, setSearchQuery } = useSpatial()
     const [isSearching, setIsSearching] = useState(false)
     const [isUploading, setIsUploading] = useState(false)
     const [showLayerMenu, setShowLayerMenu] = useState(false)
     const [showKmlMenu, setShowKmlMenu] = useState(false)
     const [kmlFiles, setKmlFiles] = useState<Record<string, KmlFile[]>>({})
-    const [selectedKmls, setSelectedKmls] = useState<Set<string>>(new Set())
     const fileInputRef = useRef<HTMLInputElement>(null)
 
     const layerMenuRef = useRef<HTMLDivElement>(null)
@@ -73,16 +74,14 @@ export default function MapControls({ onSearch, onLayerChange, onDataUpload, onK
     }, [showKmlMenu, selectedCaseId, fetchKmlFiles])
 
     const toggleKmlSelection = (file: KmlFile) => {
-        const newSelected = new Set(selectedKmls)
-        const isSelected = newSelected.has(file.path)
+        const isSelected = selectedKmlsPaths.includes(file.url)
 
         if (isSelected) {
-            newSelected.delete(file.path)
+            setSelectedKmlsPaths(selectedKmlsPaths.filter(p => p !== file.url))
         } else {
-            newSelected.add(file.path)
+            setSelectedKmlsPaths([...selectedKmlsPaths, file.url])
         }
 
-        setSelectedKmls(newSelected)
         onKmlSelect(file.url, !isSelected)
     }
 
@@ -268,21 +267,21 @@ export default function MapControls({ onSearch, onLayerChange, onDataUpload, onK
                                                         key={file.path}
                                                         className={cn(
                                                             "flex items-center gap-3 px-3 py-2 cursor-pointer transition-colors hover:bg-[#2a2a2a]",
-                                                            selectedKmls.has(file.path) && "bg-[#262626]"
+                                                            selectedKmlsPaths.includes(file.url) && "bg-[#262626]"
                                                         )}
                                                         onClick={() => toggleKmlSelection(file)}
                                                     >
                                                         <div className={cn(
                                                             "w-3.5 h-3.5 border flex items-center justify-center transition-colors rounded",
-                                                            selectedKmls.has(file.path) ? "bg-white border-white" : "border-gray-500 hover:border-gray-400"
+                                                            selectedKmlsPaths.includes(file.url) ? "bg-white border-white" : "border-gray-500 hover:border-gray-400"
                                                         )}
                                                             style={{ borderWidth: '0.5px' }}
                                                         >
-                                                            {selectedKmls.has(file.path) && <Check className="h-2.5 w-2.5 text-black" strokeWidth={4} />}
+                                                            {selectedKmlsPaths.includes(file.url) && <Check className="h-2.5 w-2.5 text-black" strokeWidth={4} />}
                                                         </div>
                                                         <span className={cn(
                                                             "text-xs truncate flex-1 font-medium",
-                                                            selectedKmls.has(file.path) ? "text-white" : "text-gray-300 hover:text-white"
+                                                            selectedKmlsPaths.includes(file.url) ? "text-white" : "text-gray-300 hover:text-white"
                                                         )} title={file.name}>{file.name}</span>
                                                     </div>
                                                 ))}

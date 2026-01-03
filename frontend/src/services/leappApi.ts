@@ -1,6 +1,6 @@
 import { Module, Profile } from '../app/(main)/ileapp/types';
 
-const API_BASE = 'http://localhost:8000/api';
+export const API_BASE = 'http://localhost:8000/api';
 
 async function handleApiResponse<T>(response: Response): Promise<T> {
     if (!response.ok) {

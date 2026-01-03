@@ -2,13 +2,12 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { useProcessing, ProcessingProvider } from '../../hooks/useProcessing';
-import { ModulesProvider } from '../../hooks/useModules';
+import LogViewer from '../../components/ileapp/LogViewer';
 import FileSelector from '../../components/ileapp/FileSelector';
 import ModuleSelector from '../../components/ileapp/ModuleSelector';
 import ProcessControls from '../../components/ileapp/ProcessControls';
-import LogViewer from '../../components/ileapp/LogViewer';
 import ToolNotInstalled from '../../components/ui/ToolNotInstalled';
+import { useLeapp } from '@/context/LeappContext';
 
 import { Button, Input, Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../../components/ui';
 import { useCase } from '@/context/CaseContext';
@@ -35,11 +34,13 @@ interface Report {
 function LeappContent({ tool }: { logoPath: string; tool: string }) {
     const outputFolder = '';
     const router = useRouter();
+    const { states, updateConfig, clearLogs, clearProcessingReportName, fetchModules } = useLeapp();
+    const toolState = states[tool];
+    const { config, processing } = toolState;
+    const { inputFile, reportName } = config;
+    const { logs, isProcessing, processingReportName } = processing;
 
-    const [inputFile, setInputFile] = useState('');
-    const [reportName, setReportName] = useState('');
     const [reports, setReports] = useState<Report[]>([]);
-    const { logs, isProcessing, clearLogs, processingReportName, clearProcessingReportName } = useProcessing();
     const { selectedCaseId } = useCase();
     const [confirmConfig, setConfirmConfig] = useState<{
         isOpen: boolean;
@@ -84,12 +85,19 @@ function LeappContent({ tool }: { logoPath: string; tool: string }) {
         }
     }, [isProcessing, logs.length, fetchReports]);
 
-    // Clear processingReportName once the real report appears
     useEffect(() => {
         if (processingReportName && reports.some(r => r.name === processingReportName)) {
-            clearProcessingReportName();
+            clearProcessingReportName(tool);
         }
-    }, [reports, processingReportName, clearProcessingReportName]);
+    }, [reports, processingReportName, clearProcessingReportName, tool]);
+
+    // Fetch modules once on mount
+    useEffect(() => {
+        const toolState = states[tool];
+        if (toolState.modules.length === 0 && !toolState.isLoadingModules) {
+            fetchModules(tool);
+        }
+    }, [tool, fetchModules, states[tool].modules.length, states[tool].isLoadingModules]);
 
 
 
@@ -158,7 +166,7 @@ function LeappContent({ tool }: { logoPath: string; tool: string }) {
                             <Input
                                 type="text"
                                 value={reportName}
-                                onChange={(e) => setReportName(e.target.value)}
+                                onChange={(e) => updateConfig(tool, { reportName: e.target.value })}
                                 disabled={isProcessing}
                                 placeholder="Enter report name..."
                                 className="w-full h-8 text-xs"
@@ -168,7 +176,7 @@ function LeappContent({ tool }: { logoPath: string; tool: string }) {
                         <FileSelector
                             label="Input"
                             value={inputFile}
-                            onChange={setInputFile}
+                            onChange={(val) => updateConfig(tool, { inputFile: val })}
                             disabled={isProcessing}
                             placeholder="Select input..."
                             showFolderOption={true}
@@ -179,11 +187,13 @@ function LeappContent({ tool }: { logoPath: string; tool: string }) {
 
                     {/* Module Selection */}
                     <ModuleSelector
+                        tool={tool}
                         isProcessing={isProcessing}
                     />
 
                     {/* Process Controls */}
                     <ProcessControls
+                        tool={tool}
                         inputFile={inputFile}
                         outputFolder={outputFolder}
                         reportName={reportName}
@@ -198,7 +208,7 @@ function LeappContent({ tool }: { logoPath: string; tool: string }) {
                         <div className="px-4 py-2 border-b border-[#333333] bg-[#1A1A1A] flex justify-between items-center">
                             <h3 className="text-xs font-medium text-gray-400 uppercase tracking-wider">Processing Log</h3>
                             <Button
-                                onClick={clearLogs}
+                                onClick={() => clearLogs(tool)}
                                 variant="secondary"
                                 className="px-3 py-1 h-auto text-xs"
                             >
@@ -410,11 +420,7 @@ function LeappPageWithCheck({ tool, logoPath }: LeappPageProps) {
 
     // Tool installed - show normal content
     return (
-        <ProcessingProvider tool={tool}>
-            <ModulesProvider tool={tool}>
-                <LeappContent logoPath={logoPath} tool={tool} />
-            </ModulesProvider>
-        </ProcessingProvider>
+        <LeappContent logoPath={logoPath} tool={tool} />
     );
 }
 

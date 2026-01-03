@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Button, Input, Dropdown, Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../ui';
-import { useModules, useProfiles, useDropdown } from '../../hooks';
+import { useProfiles, useDropdown } from '../../hooks';
 import { Module } from '@/app/(main)/ileapp/types';
+import { useLeapp } from '@/context/LeappContext';
 import { Trash2 } from 'lucide-react';
 
 const slowModules = new Set([
@@ -32,10 +33,11 @@ const slowModules = new Set([
 ]);
 
 interface ModuleSelectorProps {
+  tool: string;
   isProcessing?: boolean;
 }
 
-export default function ModuleSelector({ isProcessing }: ModuleSelectorProps) {
+export default function ModuleSelector({ tool, isProcessing }: ModuleSelectorProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [profileNameInput, setProfileNameInput] = useState('');
   const [confirmDeleteProfileId, setConfirmDeleteProfileId] = useState<number | null>(null);
@@ -54,14 +56,32 @@ export default function ModuleSelector({ isProcessing }: ModuleSelectorProps) {
     buttonRef: saveProfileButtonRef
   } = useDropdown();
 
-  const { modules, selectedModules, toggleModule, selectAll, selectNone, fetchModules, tool } = useModules();
+  const { states, fetchModules, toggleModule, selectAll, selectNone, updateConfig } = useLeapp();
+  const toolState = states[tool];
+  const { modules, isLoadingModules } = toolState;
+  const { artifactScrollPos } = toolState.config;
+  const selectedModules = new Set(toolState.config.selectedModules);
   const { profiles, loadProfile, saveProfile, deleteProfile } = useProfiles(tool);
+
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Restore scroll position
+  useEffect(() => {
+    if (scrollRef.current && modules.length > 0 && !isLoadingModules) {
+      scrollRef.current.scrollTop = artifactScrollPos;
+    }
+  }, [artifactScrollPos, modules.length, isLoadingModules]);
+
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const target = e.currentTarget;
+    updateConfig(tool, { artifactScrollPos: target.scrollTop });
+  };
 
   const handleLoadProfile = async (profileId: number) => {
     try {
       await loadProfile(profileId);
       // Refresh modules to get updated selection state
-      await fetchModules();
+      await fetchModules(tool);
       // Profile loaded successfully
       closeLoadProfile();
     } catch (error) {
@@ -247,14 +267,14 @@ export default function ModuleSelector({ isProcessing }: ModuleSelectorProps) {
           </span>
           <div className="flex gap-2">
             <button
-              onClick={selectAll}
+              onClick={() => selectAll(tool)}
               disabled={isProcessing}
               className="text-[10px] font-bold text-gray-400 hover:text-white transition-colors px-2 py-0.5 rounded hover:bg-[#262626] uppercase tracking-wider"
             >
               All
             </button>
             <button
-              onClick={selectNone}
+              onClick={() => selectNone(tool)}
               disabled={isProcessing}
               className="text-[10px] font-bold text-gray-400 hover:text-white transition-colors px-2 py-0.5 rounded hover:bg-[#262626] uppercase tracking-wider"
             >
@@ -263,7 +283,11 @@ export default function ModuleSelector({ isProcessing }: ModuleSelectorProps) {
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-3 pt-2 custom-scrollbar">
+        <div
+          ref={scrollRef}
+          onScroll={handleScroll}
+          className="flex-1 overflow-y-auto p-3 pt-2 custom-scrollbar"
+        >
           {Object.entries(modulesByCategory).map(([category, categoryModules]) => (
             <div key={category} className="mb-2">
               <div className="text-xs font-medium text-gray-400 mb-1">
@@ -279,7 +303,7 @@ export default function ModuleSelector({ isProcessing }: ModuleSelectorProps) {
                       <input
                         type="checkbox"
                         checked={selectedModules.has(module.name)}
-                        onChange={() => toggleModule(module.name, !selectedModules.has(module.name))}
+                        onChange={() => toggleModule(tool, module.name, !selectedModules.has(module.name))}
                         disabled={isProcessing}
                         className="w-3.5 h-3.5 rounded border border-white focus:ring-1 focus:ring-gray-600 appearance-none"
                         style={{ borderWidth: '0.5px', backgroundColor: selectedModules.has(module.name) ? '#262626' : 'transparent' }}

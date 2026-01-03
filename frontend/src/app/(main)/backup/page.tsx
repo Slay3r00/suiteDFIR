@@ -14,37 +14,31 @@ import Iphone15Pro from "@/components/ui/shadcn-io/iphone-15-pro"
 import LogViewer from "@/components/ileapp/LogViewer"
 import { useToast } from "@/hooks/use-toast"
 import { useCase } from "@/context/CaseContext"
+import { useBackup } from "@/context/BackupContext"
+import { Device, Backup } from "@/types/backup"
 import { cn } from "@/lib/utils"
 
-interface Device {
-    udid: string
-    name: string
-    type: string
-    is_encrypted?: boolean
-}
-
-interface Backup {
-    id: number
-    name: string
-    device_udid: string
-    device_name: string
-    path: string
-    created_at: string
-    status: 'completed' | 'failed' | 'in_progress' | 'cancelled'
-    size?: string
-    progress?: number
-}
 
 export default function BackupPage() {
-    const [devices, setDevices] = useState<Device[]>([])
-    const [backups, setBackups] = useState<Backup[]>([])
-    const [selectedDevice, setSelectedDevice] = useState<string>('')
-    const [backupName, setBackupName] = useState('')
+    const {
+        config,
+        devices,
+        backups,
+        logs,
+        isBackingUp,
+        isLoadingDevices,
+        updateConfig,
+        fetchDevices,
+        fetchBackups,
+        startBackup,
+        stopBackup,
+        clearLogs
+    } = useBackup();
+
+    const { backupName, selectedDevice } = config;
     const [isEncrypted, setIsEncrypted] = useState(false)
     const [backupPassword, setBackupPassword] = useState('')
-    const [isBackingUp, setIsBackingUp] = useState(false)
-    const [isLoadingDevices, setIsLoadingDevices] = useState(false)
-    const [logs, setLogs] = useState<string[]>([])
+
     const deviceDropdown = useDropdown()
     const { toast } = useToast()
     const { selectedCaseId } = useCase()
@@ -57,189 +51,24 @@ export default function BackupPage() {
         confirmLabel?: string;
     }>({ isOpen: false, title: '', message: '', onConfirm: () => { } });
 
-    const api = useMemo(() => createLeappApi('ios'), []);
-    const selectedDeviceRef = useRef(selectedDevice);
-
-    // Keep ref in sync with state
+    // Initial fetch on mount for this specific page
     useEffect(() => {
-        selectedDeviceRef.current = selectedDevice;
-    }, [selectedDevice]);
+        fetchBackups(selectedCaseId || undefined);
+    }, [selectedCaseId, fetchBackups]);
 
-    const fetchDevices = useCallback(async () => {
-        setIsLoadingDevices(true)
-        try {
-            const data = await api.backup.getDevices()
-            setDevices(data)
-
-            // Auto-select logic (using ref to avoid stale closure)
-            if (data.length > 0) {
-                const currentDeviceStillConnected = data.find((d: Device) => d.udid === selectedDeviceRef.current)
-                if (!selectedDeviceRef.current || !currentDeviceStillConnected) {
-                    setSelectedDevice(data[0].udid)
-                }
-            } else {
-                setSelectedDevice('')
-            }
-        } catch (error) {
-            console.error('Failed to fetch devices:', error)
-            toast({
-                title: "Error",
-                description: "Failed to detect connected devices",
-                variant: "destructive"
-            })
-        } finally {
-            setIsLoadingDevices(false)
-        }
-    }, [api, toast]);
-
-    const fetchBackups = useCallback(async () => {
-        try {
-            const data = await api.backup.getBackups(selectedCaseId ? parseInt(selectedCaseId) : undefined)
-            setBackups(data)
-        } catch (error) {
-            console.error('Failed to fetch backups:', error)
-        }
-    }, [api, selectedCaseId]);
-
-    useEffect(() => {
-        let isMounted = true;
-        // Initial fetch
-        fetchDevices()
-        fetchBackups()
-
-        // Connect to unified SSE stream
-        const eventSource = new EventSource('http://localhost:8000/api/stream');
-
-        eventSource.onmessage = (event) => {
-            if (!isMounted) return;
-            try {
-                const message = JSON.parse(event.data);
-
-                if (message.type === 'device_update') {
-                    const data = message.data;
-                    setDevices(data);
-
-                    // Auto-select logic (using ref to avoid infinite loop)
-                    if (data.length > 0) {
-                        const currentDeviceStillConnected = data.find((d: Device) => d.udid === selectedDeviceRef.current)
-                        if (!selectedDeviceRef.current || !currentDeviceStillConnected) {
-                            setSelectedDevice(data[0].udid)
-                        }
-                    } else {
-                        setSelectedDevice('')
-                    }
-                } else if (message.type === 'backup_update') {
-                    fetchBackups();
-                }
-            } catch (error) {
-                console.error('Failed to parse SSE message:', error);
-            }
-        };
-
-        eventSource.onerror = (error) => {
-            if (!isMounted) return;
-            // Only log if it's not a clean close
-            if (eventSource.readyState !== EventSource.CLOSED) {
-                console.error('SSE connection error:', error);
-            }
-            eventSource.close();
-        };
-
-        return () => {
-            isMounted = false;
-            eventSource.close()
-        }
-    }, [fetchBackups, fetchDevices])
-
-    const connectToLogStream = useCallback((backupId: number, keepExistingLogs = false) => {
-        if (!keepExistingLogs) {
-            setLogs([]) // Clear previous logs only if requested
-        }
-
-        const eventSource = new EventSource(`http://localhost:8000/api/ios/backup/stream/${backupId}`)
-
-        eventSource.onmessage = (event) => {
-            const message = event.data
-            setLogs(prev => [...prev, message])
-        }
-
-        // Listen for custom "close" event from backend
-        eventSource.addEventListener('close', () => {
-            eventSource.close()
-            setIsBackingUp(false)
-            fetchBackups() // Refresh list to show final status
-        })
-
-        eventSource.onerror = (error) => {
-            // Only log error if stream wasn't closed intentionally (readyState 2 is CLOSED)
-            if (eventSource.readyState !== 2) {
-                console.error('EventSource failed:', error)
-            }
-            eventSource.close()
-
-            // If stream errors out, we should probably check status
-            // But don't immediately set isBackingUp(false) as it might be a temporary network blip
-            // However, if the backend closed the connection without a 'close' event, we might get stuck
-            // Let's rely on polling to eventually catch the status change, 
-            // OR set a timeout to check status?
-            // For now, let's assume if error happens, we should re-fetch backups to see if it's done
-            fetchBackups()
-        }
-
-        return eventSource
-    }, [fetchBackups])
-
-    // Reconnect to log stream if backup is in progress on mount/refresh
-    useEffect(() => {
-        const activeBackup = backups.find(b => b.status === 'in_progress')
-        if (activeBackup) {
-            setIsBackingUp(true)
-            // Only connect if we haven't already (or if it's a different backup)
-            // We check logs.length > 2 to allow for the initial "Initializing..." messages
-            // But we need a way to track WHICH backup we are connected to.
-            // For now, let's just check if we are already backing up.
-            // Actually, the issue is that this effect runs when 'backups' updates (polling),
-            // and calls connectToLogStream, which defaults keepExistingLogs=false.
-
-            // We should track the current backup ID in a ref or state to avoid reconnecting
-            // But for now, let's just pass true to keep logs if we are already backing up
-            connectToLogStream(activeBackup.id, true)
-        } else if (isBackingUp) {
-            // If we think we're backing up but the list says otherwise, check if we just finished
-            // This handles the case where the backup finishes/fails/cancels and we need to reset UI
-            // But we should be careful not to reset if we just started and the list hasn't updated yet
-            // The 'close' event from SSE usually handles this, but this is a fallback
-        }
-    }, [backups, connectToLogStream, isBackingUp])
 
     const handleStartBackup = async () => {
         if (!selectedDevice || !backupName) return
 
-        const name = backupName // Name is now required
-
-        setIsBackingUp(true)
-        setLogs([
-            "Initializing backup process...",
-            "Please wait while we prepare the device...",
-            "NOTE: You may see a prompt on your device to enter your passcode to trust this computer."
-        ])
         try {
-            const response = await api.backup.startBackup(selectedDevice, name, selectedCaseId ? parseInt(selectedCaseId) : undefined)
+            await startBackup(selectedDevice, backupName, selectedCaseId ? parseInt(selectedCaseId) : undefined)
             toast({
                 title: "Backup Started",
-                description: `Backup '${name}' has started in the background.`,
+                description: `Backup '${backupName}' has started in the background.`,
             })
-            setBackupName('')
-
-            // Connect to log stream immediately with the backup_id from response
-            if (response.backup_id) {
-                connectToLogStream(response.backup_id, true) // Keep the "Initializing..." logs
-            }
-
-            fetchBackups()
+            updateConfig({ backupName: '' })
         } catch (error) {
             console.error('Failed to start backup:', error)
-            setIsBackingUp(false) // Only reset on error
             toast({
                 title: "Error",
                 description: "Failed to start backup process",
@@ -250,15 +79,11 @@ export default function BackupPage() {
 
     const handleStopBackup = async (backupId: number) => {
         try {
-            await fetch(`http://localhost:8000/api/ios/backup/${backupId}/stop`, {
-                method: 'POST'
-            })
+            await stopBackup(backupId)
             toast({
                 title: "Backup Stopping",
                 description: "Backup cancellation requested...",
             })
-            // Force immediate refresh
-            fetchBackups()
         } catch (error) {
             console.error('Failed to stop backup:', error)
             toast({
@@ -291,12 +116,13 @@ export default function BackupPage() {
 
     const handleDeleteBackup = async (id: number) => {
         try {
+            const api = createLeappApi('ios');
             await api.backup.deleteBackup(id)
             toast({
                 title: "Backup Deleted",
                 description: "Backup files have been removed.",
             })
-            fetchBackups()
+            fetchBackups(selectedCaseId || undefined)
         } catch (error) {
             console.error('Failed to delete backup:', error)
             toast({
@@ -355,7 +181,7 @@ export default function BackupPage() {
                                         <Input
                                             type="text"
                                             value={backupName}
-                                            onChange={(e) => setBackupName(e.target.value)}
+                                            onChange={(e) => updateConfig({ backupName: e.target.value })}
                                             placeholder="Enter backup name..."
                                             disabled={isBackingUp}
                                             className="w-full"
@@ -503,7 +329,7 @@ export default function BackupPage() {
                         <div className="px-4 py-2 border-b border-[#333333] bg-[#1A1A1A] flex justify-between items-center">
                             <h3 className="text-xs font-medium text-gray-400 uppercase tracking-wider">Processing Log</h3>
                             <Button
-                                onClick={() => setLogs([])}
+                                onClick={clearLogs}
                                 variant="secondary"
                                 className="px-3 py-1 h-auto text-xs"
                             >

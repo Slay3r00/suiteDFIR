@@ -1,21 +1,23 @@
 import { useState, useEffect } from 'react';
 import { Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, Input } from '../ui';
-import { useProcessing } from '../../hooks/useProcessing';
-import { useModules } from '../../hooks/useModules';
+import { useLeapp } from '../../context/LeappContext';
 import { Lock } from 'lucide-react';
 import { createLeappApi } from '../../services/leappApi';
 import { useToast } from '../../hooks/use-toast';
 
 interface ProcessControlsProps {
+  tool: string;
   inputFile: string;
   outputFolder: string;
   reportName?: string;
   caseId?: number;
 }
 
-export default function ProcessControls({ inputFile, outputFolder, reportName, caseId }: ProcessControlsProps) {
-  const { selectedModules } = useModules();
-  const { isProcessing, startProcessing, stopProcessing, progress, encryptionDetected } = useProcessing();
+export default function ProcessControls({ tool, inputFile, outputFolder, reportName, caseId }: ProcessControlsProps) {
+  const { states, startProcessing, stopProcessing } = useLeapp();
+  const toolState = states[tool];
+  const { isProcessing, progress, encryptionDetected } = toolState.processing;
+  const { selectedModules } = toolState.config;
   const { toast } = useToast();
 
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
@@ -57,13 +59,13 @@ export default function ProcessControls({ inputFile, outputFolder, reportName, c
         setShowPasswordDialog(true);
       } else {
         // Not encrypted, proceed normally
-        await startProcessing(inputFile, outputFolder, Array.from(selectedModules), reportName, undefined, caseId);
+        await startProcessing(tool, inputFile, outputFolder, reportName, undefined, caseId);
       }
     } catch (error) {
       console.error("Validation failed:", error);
       // If validation fails (e.g. not a backup folder), just try to process anyway
       // It might be a zip or tar that the validator doesn't handle yet
-      await startProcessing(inputFile, outputFolder, Array.from(selectedModules), reportName, undefined, caseId);
+      await startProcessing(tool, inputFile, outputFolder, reportName, undefined, caseId);
     } finally {
       setIsValidating(false);
     }
@@ -72,14 +74,14 @@ export default function ProcessControls({ inputFile, outputFolder, reportName, c
   const handlePasswordSubmit = async () => {
     setShowPasswordDialog(false);
     try {
-      await startProcessing(inputFile, outputFolder, Array.from(selectedModules), reportName, password, caseId);
+      await startProcessing(tool, inputFile, outputFolder, reportName, password, caseId);
       setPassword(''); // Clear password after sending
     } catch (error) {
       console.error("Processing failed:", error);
     }
   };
 
-  const canStart = !isProcessing && selectedModules.size > 0 && !!reportName;
+  const canStart = !isProcessing && selectedModules.length > 0 && !!reportName;
 
   return (
     <>
@@ -87,7 +89,7 @@ export default function ProcessControls({ inputFile, outputFolder, reportName, c
         {isProcessing ? (
           <Button
             variant="secondary"
-            onClick={stopProcessing}
+            onClick={() => stopProcessing(tool)}
             className="w-full relative overflow-hidden bg-[#e5e5e5] text-black hover:bg-[#d4d4d4] border-none"
           >
             <div
