@@ -14,26 +14,17 @@ psutil==5.9.0
 bcrypt==3.2.0
 beautifulsoup4==4.8.2
 bencoding
-blackboxprotobuf
+bbpb
 fitdecode==0.10.0
 folium==0.14.0
 geopy==2.3.0
 pillow
 polyline==2.0.0
-protobuf==4.25.3
-PyCryptodome
-pytz
-simplekml
-wheel
-xlsxwriter==3.1.1
-xmltodict
 
 #iLEAPP
 
 astc_decomp_faster
-bencoding
 biplist
-blackboxprotobuf
 bs4
 ijson
 mmh3
@@ -45,19 +36,8 @@ packaging==24.1
 pandas
 pathlib2==2.3.5
 PGPy
-pillow
 pillow_heif
 pycryptodome
 pyinstaller
 
-# pyliblzfse for Windows
-whl_files/pyliblzfse-0.4.1-cp310-cp310-win_amd64.whl; python_version == "3.10" and platform_system == "Windows"
-whl_files/pyliblzfse-0.4.1-cp311-cp311-win_amd64.whl; python_version == "3.11" and platform_system == "Windows"
-whl_files/pyliblzfse-0.4.1-cp312-cp312-win_amd64.whl; python_version == "3.12" and platform_system == "Windows"
-
 pyliblzfse
-
-pytz
-simplekml
-
-

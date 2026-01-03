@@ -10,8 +10,8 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 
-// Fallback log path before app is ready (uses home directory)
-const FALLBACK_LOG_DIR = path.join(os.homedir(), 'Library', 'Application Support', 'VDF Tools');
+// Fallback log path before app is ready (uses local directory for debugging)
+const FALLBACK_LOG_DIR = path.join(__dirname, 'logs');
 const FALLBACK_LOG_PATH = path.join(FALLBACK_LOG_DIR, 'startup.log');
 
 // Log file configuration
@@ -31,7 +31,11 @@ function writeSync(message) {
         fs.appendFileSync(logPath, message + '\n');
     } catch (e) {
         // Last resort - write to console
-        console.error('Logger write failed:', e.message);
+        try {
+            console.error('Logger write failed:', e.message);
+        } catch (consoleErr) {
+            // Ignore console errors if even that fails
+        }
     }
 }
 
@@ -110,11 +114,17 @@ function log(level, message, ...args) {
     // Write to file (always use sync for reliability in packaged apps)
     writeSync(logLine);
 
-    // Also write to console for dev mode
-    if (level === 'error') {
-        console.error(logLine);
-    } else {
-        console.log(logLine);
+    // Also write to console for dev mode, but SKIP on Linux to prevent EBADF
+    if (process.platform !== 'linux') {
+        try {
+            if (level === 'error') {
+                console.error(logLine);
+            } else {
+                console.log(logLine);
+            }
+        } catch (e) {
+            // Ignore console errors
+        }
     }
 }
 
