@@ -12,6 +12,7 @@ interface Activity {
     type: 'backup' | 'report'
     status: string
     created_at: string
+    path: string
 }
 
 export default function RecentActivityWidget() {

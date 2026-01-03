@@ -193,7 +193,7 @@ export default function CaseManagementPage() {
                                 {statusFilter === 'All' ? 'All Status' : statusFilter}
                             </SelectValue>
                         </SelectTrigger>
-                        <SelectContent className="bg-[#1A1A1A] border-[#333333] text-gray-300">
+                        <SelectContent className="bg-[#1A1A1A] border-[#333333] text-gray-300 max-h-[300px] overflow-y-auto">
                             <SelectItem value="All">All Status</SelectItem>
                             <SelectItem value="Active">Active</SelectItem>
                             <SelectItem value="Closed">Closed</SelectItem>

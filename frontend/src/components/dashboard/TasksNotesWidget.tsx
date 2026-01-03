@@ -230,7 +230,7 @@ export default function TasksNotesWidget() {
                                     <SelectTrigger className="h-9 bg-[#1f1f1f] border-[#333333] text-white text-xs w-32 focus:ring-0 justify-center gap-2">
                                         <SelectValue placeholder="Priority" />
                                     </SelectTrigger>
-                                    <SelectContent className="bg-[#1A1A1A] border-[#333333] text-white">
+                                    <SelectContent className="bg-[#1A1A1A] border-[#333333] text-white max-h-[300px] overflow-y-auto">
                                         <SelectItem value="Low">Low</SelectItem>
                                         <SelectItem value="Medium">Medium</SelectItem>
                                         <SelectItem value="High">High</SelectItem>

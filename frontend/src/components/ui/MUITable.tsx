@@ -1,3 +1,4 @@
+import { useState, useEffect, useMemo } from "react"
 import {
     MaterialReactTable,
     useMaterialReactTable,
@@ -11,6 +12,7 @@ import type { Updater } from '@tanstack/react-table';
 import { Box, Button, ThemeProvider, createTheme } from '@mui/material';
 import FileDownloadIcon from '@mui/icons-material/FileDownload';
 import { mkConfig, generateCsv, download } from 'export-to-csv';
+import { formatInTimeZone } from 'date-fns-tz';
 
 export interface TimelineEvent {
     id: number;
@@ -22,7 +24,7 @@ export interface TimelineEvent {
 
 const columnHelper = createMRTColumnHelper<TimelineEvent>();
 
-const columns = [
+const createColumns = (selectedTimezone?: string) => [
     columnHelper.accessor('id', {
         header: 'ID',
         size: 40,
@@ -37,7 +39,17 @@ const columns = [
             const val = cell.getValue<string>();
             if (!val) return '';
             const date = new Date(val);
-            return isNaN(date.getTime()) ? val : date.toLocaleString();
+            if (isNaN(date.getTime())) return val;
+
+            // Use formatInTimeZone if a timezone is selected, otherwise use browser default
+            if (selectedTimezone) {
+                try {
+                    return formatInTimeZone(date, selectedTimezone, 'MMM d, yyyy h:mm:ss a zzz');
+                } catch {
+                    return date.toLocaleString();
+                }
+            }
+            return date.toLocaleString();
         },
     }),
     columnHelper.accessor('artifact', {
@@ -73,6 +85,7 @@ interface EnhancedTableProps {
     columnFilters?: MRT_ColumnFiltersState;
     onColumnFiltersChange?: (updaterOrValue: Updater<MRT_ColumnFiltersState>) => void;
     onExportAll?: () => Promise<TimelineEvent[]>;
+    selectedTimezone?: string;
 }
 const EnhancedTable = ({
     rows,
@@ -86,7 +99,8 @@ const EnhancedTable = ({
     onGlobalFilterChange,
     columnFilters,
     onColumnFiltersChange,
-    onExportAll
+    onExportAll,
+    selectedTimezone
 }: EnhancedTableProps) => {
     const handleExportRows = (rows: MRT_Row<TimelineEvent>[]) => {
         const rowData = rows.map((row) => row.original);
@@ -305,6 +319,8 @@ const EnhancedTable = ({
             },
         },
     });
+
+    const columns = useMemo(() => createColumns(selectedTimezone), [selectedTimezone]);
 
     const table = useMaterialReactTable({
         columns,
