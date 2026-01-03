@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Search, FileText, FolderOpen, Download, Trash2, X, Maximize2 } from 'lucide-react';
 import { Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui';
 import { useCase } from "@/context/CaseContext";
+import { ReportsProvider, useReports, ReportIframeState } from '@/context/ReportsContext';
 import { useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
 
@@ -35,10 +36,6 @@ export default function Reports() {
 function ReportsContent() {
     const [reports, setReports] = useState<Report[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [filter, setFilter] = useState<'all' | 'ileapp' | 'aleapp'>('all');
-    const [sort, setSort] = useState<'newest' | 'oldest' | 'name'>('newest');
-    const [searchQuery, setSearchQuery] = useState('');
-    const [selectedReport, setSelectedReport] = useState<Report | null>(null);
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [reportToDelete, setReportToDelete] = useState<Report | null>(null);
     const [reportToOpen, setReportToOpen] = useState<Report | null>(null);
@@ -46,15 +43,54 @@ function ReportsContent() {
     const { selectedCaseId } = useCase();
     const searchParams = useSearchParams();
 
+    // Use context for persistent state
+    const {
+        selectedReportPath,
+        setSelectedReportPath,
+        filter,
+        setFilter,
+        sort,
+        setSort,
+        searchQuery,
+        setSearchQuery,
+        saveReportScrollPosition,
+        getReportScrollPosition,
+        saveReportIframeState,
+        getReportIframeState,
+        isStateLoaded
+    } = useReports();
+
+    // Derive selectedReport from reports and selectedReportPath
+    const selectedReport = reports.find(r => r.path === selectedReportPath) || null;
+
+    // State-driven iframe URL (to restore artifact page)
+    const [iframeUrl, setIframeUrl] = useState<string | null>(() => {
+        if (selectedReportPath) {
+            const saved = getReportIframeState(selectedReportPath);
+            if (saved?.currentPage) return `http://localhost:8000${saved.currentPage}`;
+        }
+        return null;
+    });
+
     // Drag-to-scroll state
     const scrollContainerRef = useRef<HTMLDivElement>(null);
     const scrollbarRef = useRef<HTMLDivElement>(null);
+    const iframeRef = useRef<HTMLIFrameElement>(null);
     const [isDragging, setIsDragging] = useState(false);
     const [startX, setStartX] = useState(0);
     const [scrollLeft, setScrollLeft] = useState(0);
     const [scrollProgress, setScrollProgress] = useState(0);
     const [thumbWidth, setThumbWidth] = useState(20);
     const [isScrollbarDragging, setIsScrollbarDragging] = useState(false);
+
+    // Track the previous report path for saving scroll position on switch
+    const previousReportPathRef = useRef<string | null>(null);
+    const restorationInProgressRef = useRef<boolean>(false);
+    const pendingScrollRestoreRef = useRef<number | null>(null);
+    // Enhanced state restoration (includes sidebar scroll and current page)
+    const pendingIframeRestoreRef = useRef<ReportIframeState | null>(null);
+    // Track which report path a pending state save should go to (fixes race condition)
+    const pendingStateSavePathRef = useRef<string | null>(null);
 
     const fetchReports = useCallback(async () => {
         try {
@@ -74,15 +110,18 @@ function ReportsContent() {
     }, [selectedCaseId]);
 
     useEffect(() => {
-        // Clear selection when switching cases to prevent showing old case's report
-        setSelectedReport(null);
         fetchReports();
     }, [selectedCaseId, fetchReports]);
 
     // Handle report selection logic (Deep Linking + Defaults)
     useEffect(() => {
-        if (isLoading || reports.length === 0) return;
+        // Wait for reports to load AND persistent state to be restored
+        if (isLoading || reports.length === 0 || !isStateLoaded) {
+            console.log('[ReportsPage] Selection waiting. Loading:', isLoading, 'Reports:', reports.length, 'StateLoaded:', isStateLoaded);
+            return;
+        }
 
+        console.log('[ReportsPage] Selecting report. Current path:', selectedReportPath);
         const urlPath = searchParams.get('path');
 
         // 1. Priority: URL path
@@ -91,7 +130,8 @@ function ReportsContent() {
             const targetReport = reports.find(r => r.path.replace(/\/$/, '').toLowerCase() === normalizedUrlPath);
 
             if (targetReport) {
-                setSelectedReport(targetReport);
+                console.log('[ReportsPage] Priority 1: URL path found:', targetReport.path);
+                setSelectedReportPath(targetReport.path);
                 // Scroll to the selected report card
                 setTimeout(() => {
                     const el = document.querySelector(`[data-report-path="${CSS.escape(targetReport.path)}"]`);
@@ -103,15 +143,142 @@ function ReportsContent() {
             }
         }
 
-        // 2. Fallback: Keep current selection if it still exists
-        if (selectedReport) {
-            const stillExists = reports.find(r => r.path === selectedReport.path);
-            if (stillExists) return;
+        // 2. Fallback: Keep current selection if it still exists (from context)
+        if (selectedReportPath) {
+            const stillExists = reports.find(r => r.path === selectedReportPath);
+            if (stillExists) {
+                return;
+            }
         }
 
         // 3. Last Fallback: First report
-        setSelectedReport(reports[0]);
-    }, [reports, searchParams, isLoading]);
+        if (reports.length > 0) {
+            setSelectedReportPath(reports[0].path);
+        }
+    }, [reports, searchParams, isLoading, selectedReportPath, setSelectedReportPath, isStateLoaded]);
+
+    // Listen for scroll messages from iframe (enhanced state)
+    useEffect(() => {
+        const handleMessage = (event: MessageEvent) => {
+            // Security check - only accept messages from our backend
+            if (event.origin !== 'http://localhost:8000') return;
+
+            // Handle enhanced reportState messages
+            if (event.data?.type === 'reportState') {
+                // Use pending save path if set (for state captured before switch)
+                // Otherwise use current selectedReportPath (for continuous scroll tracking)
+                const targetPath = pendingStateSavePathRef.current || selectedReportPath;
+                if (targetPath) {
+                    let newState = {
+                        mainScrollY: event.data.mainScrollY,
+                        sidebarScrollY: event.data.sidebarScrollY,
+                        currentPage: event.data.currentPage,
+                        dtPage: event.data.dtPage
+                    };
+
+                    // Race condition fix: If we are in the middle of restoring state,
+                    // and the incoming update says "Page 0" (default initialization),
+                    // but we have a saved state saying "Page X", IGNORE the "Page 0" update.
+                    if (restorationInProgressRef.current) {
+                        const existingState = getReportIframeState(targetPath);
+                        if (existingState && (existingState.dtPage || 0) > 0 && (event.data.dtPage === 0 || event.data.dtPage === undefined)) {
+                            // console.log('[ReportsPage] Ignoring "Page 0" update during restoration to preserve Page', existingState.dtPage);
+                            newState.dtPage = existingState.dtPage;
+                        }
+                    }
+
+                    saveReportIframeState(targetPath, newState);
+                    // Also save to legacy scroll position for backwards compatibility
+                    saveReportScrollPosition(targetPath, event.data.mainScrollY);
+                }
+                // Clear pending save path after use
+                pendingStateSavePathRef.current = null;
+            }
+
+            // Legacy scroll message support
+            if (event.data?.type === 'scroll' && selectedReportPath) {
+                saveReportScrollPosition(selectedReportPath, event.data.scrollY);
+            }
+        };
+
+        window.addEventListener('message', handleMessage);
+        return () => window.removeEventListener('message', handleMessage);
+    }, [selectedReportPath, saveReportScrollPosition, saveReportIframeState]);
+
+    // Consolidated effect: When switching reports, update URL and restore state
+    useEffect(() => {
+        if (!selectedReport) return;
+
+        const reportPath = selectedReport.path;
+
+        // Update URL if report changed or not set yet
+        if (reportPath !== previousReportPathRef.current || !iframeUrl) {
+            // Default to report base URL
+            let targetUrl = `http://localhost:8000${selectedReport.url}`;
+            let restoreIframeState = null;
+            let restoreScroll = null;
+
+            // Try enhanced state first (session-based with sidebar scroll)
+            const savedIframeState = getReportIframeState(reportPath);
+            if (savedIframeState && savedIframeState.currentPage) {
+                restoreIframeState = savedIframeState;
+                // Use saved artifact page
+                targetUrl = `http://localhost:8000${savedIframeState.currentPage}`;
+            } else {
+                // Fallback to legacy scroll position
+                const savedScroll = getReportScrollPosition(reportPath);
+                if (savedScroll > 0) {
+                    restoreScroll = savedScroll;
+                }
+            }
+
+            pendingIframeRestoreRef.current = restoreIframeState;
+            pendingScrollRestoreRef.current = restoreScroll;
+            previousReportPathRef.current = reportPath;
+            restorationInProgressRef.current = true; // Flag that we expect a restore
+
+            setIframeUrl(targetUrl);
+        }
+    }, [selectedReport, iframeUrl, getReportIframeState, getReportScrollPosition]);
+
+    // Restore scroll/state when iframe loads
+    const handleIframeLoad = useCallback(() => {
+        if (!iframeRef.current) return;
+
+        // Restore enhanced state (with sidebar scroll)
+        if (pendingIframeRestoreRef.current !== null) {
+            const state = pendingIframeRestoreRef.current;
+            pendingIframeRestoreRef.current = null;
+            pendingScrollRestoreRef.current = null;
+
+            setTimeout(() => {
+                iframeRef.current?.contentWindow?.postMessage(
+                    { type: 'restoreState', mainScrollY: state.mainScrollY, sidebarScrollY: state.sidebarScrollY, dtPage: state.dtPage },
+                    'http://localhost:8000'
+                );
+                // Mark restoration as complete after a short buffer
+                setTimeout(() => {
+                    restorationInProgressRef.current = false;
+                }, 300);
+            }, 150);
+            return;
+        }
+
+        // Fallback: restore legacy scroll position
+        if (pendingScrollRestoreRef.current !== null) {
+            const scrollY = pendingScrollRestoreRef.current;
+            pendingScrollRestoreRef.current = null;
+
+            setTimeout(() => {
+                iframeRef.current?.contentWindow?.postMessage(
+                    { type: 'scrollTo', scrollY },
+                    'http://localhost:8000'
+                );
+            }, 100);
+        }
+    }, []);
+
+
 
     // Track scroll position for custom scrollbar
     useEffect(() => {
@@ -245,7 +412,7 @@ function ReportsContent() {
             if (response.ok) {
                 // If deleted report was selected, clear selection
                 if (selectedReport?.path === reportToDelete.path) {
-                    setSelectedReport(null);
+                    setSelectedReportPath(null);
                 }
                 fetchReports(); // Refresh list
                 setReportToDelete(null); // Close dialog
@@ -256,7 +423,17 @@ function ReportsContent() {
     };
 
     const handleViewReport = (report: Report) => {
-        setSelectedReport(report);
+        // Save current report's state before switching
+        if (selectedReportPath && iframeRef.current) {
+            // Set pending path so async response saves to correct report
+            pendingStateSavePathRef.current = selectedReportPath;
+            // Request current state (including sidebar scroll, currentPage) from iframe
+            iframeRef.current.contentWindow?.postMessage(
+                { type: 'getState' },
+                'http://localhost:8000'
+            );
+        }
+        setSelectedReportPath(report.path);
     };
 
     // Drag-to-scroll handlers
@@ -320,9 +497,12 @@ function ReportsContent() {
                         style={{ WebkitMaskImage: isFullscreen ? 'none' : '-webkit-radial-gradient(white, black)' }}
                     >
                         <iframe
-                            src={`http://localhost:8000${selectedReport.url}`}
+                            ref={iframeRef}
+                            src={iframeUrl || `http://localhost:8000${selectedReport.url}`}
                             className={`w-full h-full border-none ${isFullscreen ? 'rounded-none' : 'rounded-xl'}`}
                             title={selectedReport.name}
+                            onLoad={handleIframeLoad}
+                            sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-downloads"
                         />
                         {/* Border Overlay - physically blocks corner artifacts */}
                         {!isFullscreen && (

@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/sidebar"
 
 import { usePathname, useRouter } from "next/navigation"
+import Link from "next/link"
 
 // Menu items.
 const data = {
@@ -81,7 +82,6 @@ const data = {
     ],
 }
 
-
 export function AppSidebar() {
     const { toggleSidebar } = useSidebar()
     const pathname = usePathname()
@@ -109,10 +109,10 @@ export function AppSidebar() {
                             {data.case.map((item) => (
                                 <SidebarMenuItem key={item.title}>
                                     <SidebarMenuButton asChild tooltip={item.title} isActive={pathname === item.url}>
-                                        <a href={item.url}>
+                                        <Link href={item.url}>
                                             <item.icon />
                                             <span className="text-[11px] uppercase tracking-wider font-medium">{item.title}</span>
-                                        </a>
+                                        </Link>
                                     </SidebarMenuButton>
                                 </SidebarMenuItem>
                             ))}
@@ -130,7 +130,7 @@ export function AppSidebar() {
                                 {data.ios.map((item) => (
                                     <SidebarMenuItem key={item.title}>
                                         <SidebarMenuButton asChild tooltip={item.title} isActive={pathname === item.url}>
-                                            <a href={item.url}>
+                                            <Link href={item.url}>
                                                 <item.icon />
                                                 <span className="text-[11px] uppercase tracking-wider font-medium">
                                                     {item.title.split(" (")[0]}
@@ -140,7 +140,7 @@ export function AppSidebar() {
                                                         </span>
                                                     )}
                                                 </span>
-                                            </a>
+                                            </Link>
                                         </SidebarMenuButton>
                                     </SidebarMenuItem>
                                 ))}
@@ -155,7 +155,7 @@ export function AppSidebar() {
                                 {data.android.map((item) => (
                                     <SidebarMenuItem key={item.title}>
                                         <SidebarMenuButton asChild tooltip={item.title} isActive={pathname === item.url}>
-                                            <a href={item.url}>
+                                            <Link href={item.url}>
                                                 <item.icon />
                                                 <span className="text-[11px] uppercase tracking-wider font-medium">
                                                     {item.title.split(" (")[0]}
@@ -165,7 +165,7 @@ export function AppSidebar() {
                                                         </span>
                                                     )}
                                                 </span>
-                                            </a>
+                                            </Link>
                                         </SidebarMenuButton>
                                     </SidebarMenuItem>
                                 ))}
@@ -181,10 +181,10 @@ export function AppSidebar() {
                             {data.data_analysis.map((item) => (
                                 <SidebarMenuItem key={item.title}>
                                     <SidebarMenuButton asChild tooltip={item.title} isActive={pathname === item.url}>
-                                        <a href={item.url}>
+                                        <Link href={item.url}>
                                             <item.icon />
                                             <span className="text-[11px] uppercase tracking-wider font-medium">{item.title}</span>
-                                        </a>
+                                        </Link>
                                     </SidebarMenuButton>
                                 </SidebarMenuItem>
                             ))}
@@ -211,9 +211,9 @@ export function AppSidebar() {
                             isActive={pathname === "/preferences"}
                             className="justify-center h-10 hover:bg-sidebar-accent"
                         >
-                            <a href="/preferences">
+                            <Link href="/preferences">
                                 <Settings className="h-5 w-5" />
-                            </a>
+                            </Link>
                         </SidebarMenuButton>
                     </SidebarMenuItem>
                 </SidebarMenu>

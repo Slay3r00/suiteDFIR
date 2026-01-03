@@ -59,9 +59,9 @@ async def get_reports(case_id: Optional[int] = None):
                         file_count += 1
                 
                 # Calculate relative path for URL
-                # REPORTS_DIR is parent of tool-specific report dirs
+                # Use /api/reports/view/ endpoint for scroll tracking injection
                 rel_path = os.path.relpath(path, REPORTS_DIR)
-                url = f"/reports/{rel_path}/index.html"
+                url = f"/api/reports/view/{rel_path}/index.html"
 
                 reports.append(Report(
                     name=name,
@@ -152,3 +152,222 @@ async def download_report(path: str):
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to download report: {str(e)}")
+
+
+# Enhanced scroll tracking script to inject into HTML reports
+# Tracks: sidebar scroll, main content scroll, and current page URL
+SCROLL_TRACKING_SCRIPT = """
+<script>
+(function() {
+    // Throttle for performance
+    let scrollTimeout;
+    let sidebarTimeout;
+    let dtTimeout;
+    
+    // Get sidebar element (LEAPP uses #sidebar_id)
+    function getSidebar() {
+        return document.getElementById('sidebar_id') || 
+               document.querySelector('.sidebar-sticky') || 
+               document.querySelector('.sidebar');
+    }
+
+    // Get DataTables page info if present
+    function getDtPage() {
+        if (typeof $ === 'undefined' || !$.fn.dataTable) return undefined;
+
+        // Method 1: Global API
+        const tables = $.fn.dataTable.tables({ visible: true, api: true });
+        if (tables.any()) return tables.page();
+
+        // Method 2: Fallback selector
+        const fallbackTable = $('table.dataTable, table.display, table.table-striped').first();
+        if (fallbackTable.length && fallbackTable.DataTable) {
+             return fallbackTable.DataTable().page();
+        }
+        return undefined;
+    }
+    
+    // Send combined state to parent
+    function sendState() {
+        const sidebar = getSidebar();
+        let dtPageVal = undefined;
+
+        try {
+            dtPageVal = getDtPage();
+        } catch (e) {
+            // console.error(e);
+        }
+
+        const state = {
+            type: 'reportState',
+            mainScrollY: window.scrollY || document.documentElement.scrollTop,
+            sidebarScrollY: sidebar ? sidebar.scrollTop : 0,
+            currentPage: window.location.pathname + window.location.search,
+            dtPage: dtPageVal
+        };
+        window.parent.postMessage(state, '*');
+    }
+    
+    // Track main window scroll
+    window.addEventListener('scroll', function() {
+        clearTimeout(scrollTimeout);
+        scrollTimeout = setTimeout(sendState, 100);
+    }, { passive: true });
+    
+    // Track sidebar scroll if present
+    function attachSidebarListener() {
+        const sidebar = getSidebar();
+        if (sidebar) {
+            sidebar.addEventListener('scroll', function() {
+                clearTimeout(sidebarTimeout);
+                sidebarTimeout = setTimeout(sendState, 100);
+            }, { passive: true });
+        }
+    }
+
+    // Track DataTables pagination events
+    function attachDtListener() {
+        if (typeof $ !== 'undefined' && $.fn.dataTable) {
+            $(document).on('page.dt length.dt', function() {
+                clearTimeout(dtTimeout);
+                dtTimeout = setTimeout(sendState, 100);
+            });
+        }
+    }
+    
+    // Handle messages from parent
+    window.addEventListener('message', function(event) {
+        if (!event.data) return;
+        
+        // Restore full state
+        if (event.data.type === 'restoreState') {
+            const hasDt = typeof $ !== 'undefined' && $.fn.dataTable;
+            console.log('[Injected] Restoring state:', event.data, 'HasDT:', hasDt);
+
+            // 1. Restore DataTables Page (if applicable)
+            // 1. Restore DataTables Page (if applicable)
+            if (event.data.dtPage !== undefined && hasDt) {
+                // Method 1: Global API
+                let tables = $.fn.dataTable.tables({ visible: true, api: true });
+                let targetTableApi = null;
+
+                if (tables.any()) {
+                    targetTableApi = tables;
+                } else {
+                    // Method 2: Fallback selector
+                    const fallbackTable = $('table.dataTable, table.display, table.table-striped').first();
+                    if (fallbackTable.length && fallbackTable.DataTable) {
+                         targetTableApi = fallbackTable.DataTable();
+                    }
+                }
+                
+                if (targetTableApi) {
+                    const currentPage = targetTableApi.page();
+                    const targetPage = event.data.dtPage;
+                    // console.log('[Injected] Table page - Current:', currentPage, 'Target:', targetPage);
+                    
+                    if (currentPage !== targetPage) {
+                        // console.log('[Injected] Changing table page to:', targetPage);
+                        targetTableApi.page(targetPage).draw('page');
+                    }
+                }
+            }
+
+            // 2. Restore Scroll Positions
+            if (event.data.mainScrollY !== undefined) {
+                window.scrollTo({ top: event.data.mainScrollY, behavior: 'instant' });
+            }
+            if (event.data.sidebarScrollY !== undefined) {
+                const sidebar = getSidebar();
+                if (sidebar) {
+                    sidebar.scrollTop = event.data.sidebarScrollY;
+                }
+            }
+        }
+        
+        // Legacy support for simple scroll
+        if (event.data.type === 'scrollTo') {
+            window.scrollTo({ top: event.data.scrollY, behavior: 'instant' });
+        }
+        
+        // Request current state
+        if (event.data.type === 'getState' || event.data.type === 'getScroll') {
+            sendState();
+        }
+    });
+    
+    // Initialize on load
+    window.addEventListener('load', function() {
+        attachSidebarListener();
+        attachDtListener();
+        // Send initial state after a short delay
+        setTimeout(sendState, 200);
+    });
+    
+    // Also try to attach immediately in case DOM is already ready
+    if (document.readyState === 'complete' || document.readyState === 'interactive') {
+        attachSidebarListener();
+        attachDtListener();
+    }
+})();
+</script>
+"""
+
+
+
+from fastapi import Response
+import mimetypes
+
+@router.get("/view/{file_path:path}")
+async def serve_report_file(file_path: str):
+    """Serve report files with scroll tracking script injection for HTML files"""
+    full_path = os.path.join(REPORTS_DIR, file_path)
+    
+    # Security check: ensure path is within reports directory
+    if not os.path.abspath(full_path).startswith(os.path.abspath(REPORTS_DIR)):
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    if not os.path.exists(full_path):
+        raise HTTPException(status_code=404, detail="File not found")
+    
+    if os.path.isdir(full_path):
+        # If directory, try to serve index.html
+        full_path = os.path.join(full_path, "index.html")
+        if not os.path.exists(full_path):
+            raise HTTPException(status_code=404, detail="index.html not found")
+    
+    # Determine content type
+    content_type, _ = mimetypes.guess_type(full_path)
+    if content_type is None:
+        content_type = "application/octet-stream"
+    
+    # For HTML files, inject the scroll tracking script
+    if full_path.endswith('.html') or full_path.endswith('.htm'):
+        with open(full_path, 'r', encoding='utf-8', errors='replace') as f:
+            content = f.read()
+        
+        # Inject script before </body> or at end if no </body>
+        if '</body>' in content.lower():
+            # Find </body> case-insensitively and inject before it
+            import re
+            content = re.sub(
+                r'(</body>)',
+                SCROLL_TRACKING_SCRIPT + r'\1',
+                content,
+                count=1,
+                flags=re.IGNORECASE
+            )
+        else:
+            # No </body> tag, append at end
+            content += SCROLL_TRACKING_SCRIPT
+        
+        headers = {
+            "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+            "Pragma": "no-cache",
+            "Expires": "0"
+        }
+        return Response(content=content, media_type="text/html", headers=headers)
+    
+    # For non-HTML files, serve directly
+    return FileResponse(full_path, media_type=content_type)
+

@@ -12,7 +12,7 @@ interface Activity {
     type: 'backup' | 'report'
     status: string
     created_at: string
-    path: string
+    path?: string  // Report path for deep linking
 }
 
 export default function RecentActivityWidget() {
@@ -118,7 +118,7 @@ export default function RecentActivityWidget() {
                                 {activities.map((activity, i) => (
                                     <div
                                         key={`${activity.type}-${activity.id}`}
-                                        onClick={() => activity.type === 'report' && router.push(`/reports?path=${encodeURIComponent(activity.path)}`)}
+                                        onClick={() => activity.type === 'report' && activity.path && router.push(`/reports?path=${encodeURIComponent(activity.path)}`)}
                                         className={`flex gap-3 relative z-10 p-2 rounded-lg transition-all duration-200 ${activity.type === 'report' ? 'cursor-pointer hover:bg-white/[0.03] group/item' : ''}`}
                                     >
                                         <div className="w-10 flex flex-col items-center shrink-0 relative">
