@@ -14,6 +14,7 @@ from config import TOOLS_CONFIG, REPORTS_DIR
 
 from plugin_manager import load_plugins
 from routers import cases, reports, profiles, tasks, processing, backups, system, timeline, tools
+from device_watcher import start_device_watcher, stop_device_watcher
 
 # Setup logging
 setup_logging()
@@ -29,7 +30,15 @@ async def lifespan(app: FastAPI):
     # Init each tool
     load_plugins()
     
+    # Start device watcher for real-time iOS device detection
+    await start_device_watcher()
+    logger.info("Device watcher started")
+    
     yield
+    
+    # Cleanup on shutdown
+    await stop_device_watcher()
+    logger.info("Device watcher stopped")
 
 app = FastAPI(lifespan=lifespan)
 
