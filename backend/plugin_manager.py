@@ -148,7 +148,7 @@ def load_plugins():
 
                                     # 3. If neither above work, log the failure
                                     if func is None:
-                                        print(f"Warning: No matching function found for artifact '{name}' in module '{py_file.stem}'")
+                                        logger.warning(f"No matching function found for artifact '{name}' in module '{py_file.stem}'")
                                         continue
 
                                     # Store the entire artifact dictionary as artifact_info

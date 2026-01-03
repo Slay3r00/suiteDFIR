@@ -140,7 +140,6 @@ export function ReportsProvider({ children }: { children: React.ReactNode }) {
 
     const getReportIframeState = useCallback((reportPath: string) => {
         const state = iframeStatesRef.current.get(reportPath) ?? null;
-        console.log('[ReportsContext] Retrieving iframe state for:', reportPath, state ? JSON.stringify(state) : 'null');
         return state;
     }, []);
 

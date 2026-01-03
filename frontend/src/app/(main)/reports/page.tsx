@@ -117,11 +117,9 @@ function ReportsContent() {
     useEffect(() => {
         // Wait for reports to load AND persistent state to be restored
         if (isLoading || reports.length === 0 || !isStateLoaded) {
-            console.log('[ReportsPage] Selection waiting. Loading:', isLoading, 'Reports:', reports.length, 'StateLoaded:', isStateLoaded);
             return;
         }
 
-        console.log('[ReportsPage] Selecting report. Current path:', selectedReportPath);
         const urlPath = searchParams.get('path');
 
         // 1. Priority: URL path
@@ -130,7 +128,6 @@ function ReportsContent() {
             const targetReport = reports.find(r => r.path.replace(/\/$/, '').toLowerCase() === normalizedUrlPath);
 
             if (targetReport) {
-                console.log('[ReportsPage] Priority 1: URL path found:', targetReport.path);
                 setSelectedReportPath(targetReport.path);
                 // Scroll to the selected report card
                 setTimeout(() => {

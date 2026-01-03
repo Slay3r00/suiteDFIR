@@ -71,3 +71,4 @@ backups/*
 vdf_tools.db
 vdf_tools.db-wal
 vdf_tools.db-shm
+coordinates.db

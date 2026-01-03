@@ -46,20 +46,16 @@ export default function FileSelector({
 
   const fetchBackups = useCallback(async () => {
     try {
-      console.log('Fetching backups for tool:', tool);
       const url = caseId
         ? `http://localhost:8000/api/backups?case_id=${caseId}`
         : 'http://localhost:8000/api/backups';
       const res = await fetch(url);
       if (res.ok) {
         const json = await res.json();
-        console.log('Fetched backups:', json);
         // Filter backups based on tool
         // ileapp -> ios, aleapp -> android
         const targetType = tool === 'ileapp' ? 'ios' : 'android';
-        console.log('Target type:', targetType);
         const filtered = json.filter((b: Backup) => b.type === targetType && b.status === 'completed');
-        console.log('Filtered backups:', filtered);
         setBackups(filtered);
       }
     } catch (error) {

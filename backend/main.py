@@ -108,7 +108,7 @@ if __name__ == "__main__":
             sys.exit(e.code)
         except Exception as e:
             import traceback
-            print(f"Wrapper execution failed: {e}", file=sys.stderr)
+            logger.error(f"Wrapper execution failed: {e}")
             traceback.print_exc()
             sys.exit(1)
 
