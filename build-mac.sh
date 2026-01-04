@@ -34,6 +34,7 @@ echo ""
 echo "Packaging Electron app..."
 cd electron
 rm -rf out
+npm install
 npx electron-forge package
 
 # Copy resources manually (extraResource doesn't work reliably)

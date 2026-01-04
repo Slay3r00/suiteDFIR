@@ -64,7 +64,7 @@ htmlcov/
 
 # LEAPP
 
-forensic-tools/leapp-tools/*
+forensic-tools/
 reports/aleapp-reports/*
 reports/ileapp-reports/*
 backups/*
