@@ -47,15 +47,28 @@ def main():
         os.chmod(dst, 0o755)
         all_files.append(dst)
 
-    # 2. Find and Copy Dependencies (Recursive-ish)
-    # We'll just check dependencies of binaries first.
-    # ideally we should check dependencies of dependencies, but usually flat is fine for brewed stuff
+    # 2. Find and Copy Dependencies (Recursive)
     libs_to_copy = set()
+    processed_files = set(all_files) # Files we have already scanned
+    queue = list(all_files)          # Files to scan
     
-    for bin_file in all_files:
-        deps = get_dependencies(bin_file)
-        libs_to_copy.update(deps)
+    print("Scanning for recursive dependencies...")
+    while queue:
+        current_file = queue.pop(0)
+        deps = get_dependencies(current_file)
         
+        for dep in deps:
+            if dep not in libs_to_copy:
+                libs_to_copy.add(dep)
+                # We need to copy this new lib, so we must also scan IT for dependencies
+                # But we can only scan it after we copy it to our destination, 
+                # or we just assume its source path is scanable. Dylibs in brew are scanable.
+                
+                # Check if we've already processed this specific source file path
+                if dep not in processed_files:
+                     queue.append(dep)
+                     processed_files.add(dep)
+
     print(f"Found {len(libs_to_copy)} dylibs to bundle: {libs_to_copy}")
 
     for lib_src in libs_to_copy:
@@ -70,7 +83,7 @@ def main():
             all_files.append(dst)
 
     # 3. Fix references using install_name_tool
-    print("Fixing dylib references...")
+    print("Fixing dylib references & Re-signing...")
     
     for target in all_files:
         # Get its current dependencies
@@ -87,6 +100,9 @@ def main():
             # We want it to look in the same folder as executable
             new_path = f"@executable_path/{dep_name}"
             run_cmd(["install_name_tool", "-change", dep, new_path, target])
+            
+        # Ad-hoc sign to prevent Gatekeeper issues on other machines
+        subprocess.run(["codesign", "-s", "-", "--force", target], check=False)
 
     print("Bundling complete. Verify with otool -L backend/bin/idevicebackup2")
 
