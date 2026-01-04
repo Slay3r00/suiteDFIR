@@ -167,15 +167,12 @@ def check_backup_encryption(path):
             
             backup_type = get_itunes_backup_type(path)
             if not backup_type:
-                return {"encrypted": False, "type": "unknown", "supported": False}
+                return {"encrypted": False}
             
             supported, encrypted, message = check_itunes_backup_status(path, backup_type)
             
             return {
-                "encrypted": encrypted,
-                "type": backup_type,
-                "supported": supported,
-                "message": message
+                "encrypted": encrypted
             }
     except Exception as e:
         logger.error(f"Error checking backup encryption: {e}")

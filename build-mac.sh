@@ -44,6 +44,10 @@ RESOURCES_PATH="$APP_PATH/Contents/Resources"
 echo "  Copying Python backend..."
 cp -R ../backend/dist/VDF\ Tools\ Backend "$RESOURCES_PATH/"
 
+echo "  Copying helper binaries..."
+cp -R ../backend/bin "$RESOURCES_PATH/"
+
+
 echo "  Copying frontend..."
 cp -R ../frontend/out "$RESOURCES_PATH/"
 

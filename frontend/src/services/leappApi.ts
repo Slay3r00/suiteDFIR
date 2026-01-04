@@ -109,7 +109,7 @@ export function createLeappApi(tool: string) {
                 return handleApiResponse(response);
             },
 
-            validateBackup: async (inputPath: string): Promise<{ encrypted: boolean, type: string, supported: boolean, message?: string }> => {
+            validateBackup: async (inputPath: string): Promise<{ encrypted: boolean }> => {
                 const response = await fetch(`${API_BASE}/ios/validate-backup`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },

@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 load_dotenv()
 from logger import setup_logging
 from database import init_database
-from config import TOOLS_CONFIG, REPORTS_DIR
+from config import BASE_DIR
 
 from plugin_manager import load_plugins
 from routers import cases, reports, profiles, tasks, processing, backups, system, timeline, tools
@@ -63,9 +63,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Ensure reports directory exists
-if not os.path.exists(REPORTS_DIR):
-    os.makedirs(REPORTS_DIR)
+from config import TOOLS_CONFIG, REPORTS_DIR, BACKUPS_DIR, TOOLS_DIR
+
+# Ensure required directories exist
+for d in [REPORTS_DIR, BACKUPS_DIR, TOOLS_DIR]:
+    if not os.path.exists(d):
+        os.makedirs(d, exist_ok=True)
 
 # Mount the root reports directory to serve report files
 app.mount("/reports", StaticFiles(directory=REPORTS_DIR), name="reports")

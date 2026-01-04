@@ -1,7 +1,10 @@
 import sqlite3
+import asyncio
+from typing import Optional
 import os
+from config import BASE_DIR
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "vdf_tools.db")
+DB_PATH = str(BASE_DIR / "vdf_tools.db")
 
 # Schema Definitions
 SCHEMA = {
@@ -115,3 +118,26 @@ def init_database():
         
     conn.commit()
     conn.close()
+
+async def db_execute(query: str, params: tuple = ()) -> None:
+    """Execute a write operation (INSERT/UPDATE/DELETE) in a thread pool."""
+    loop = asyncio.get_running_loop()
+    def _do_execute():
+        with sqlite3.connect(DB_PATH) as conn:
+            conn.execute(query, params)
+            # Context manager automatically commits on success
+    await loop.run_in_executor(None, _do_execute)
+
+async def db_fetch_one(query: str, params: tuple = ()) -> Optional[dict]:
+    """Execute a read operation and return one row."""
+    loop = asyncio.get_running_loop()
+    def _do_fetch():
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        try:
+            cursor = conn.execute(query, params)
+            row = cursor.fetchone()
+            return dict(row) if row else None
+        finally:
+            conn.close()
+    return await loop.run_in_executor(None, _do_fetch)

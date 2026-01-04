@@ -1,4 +1,25 @@
 import os
+import sys
+import platform
+from pathlib import Path
+
+def get_base_dir() -> Path:
+    """Get the base directory for persistent data, handling both dev and bundled environments."""
+    if getattr(sys, 'frozen', False):
+        # Bundled: store in user's Application Support / AppData
+        if platform.system() == "Darwin":
+            base = Path.home() / "Library" / "Application Support" / "VDF Tools"
+        elif platform.system() == "Windows":
+            base = Path.home() / "AppData" / "Local" / "VDF Tools"
+        else:
+            base = Path.home() / ".vdf-tools"
+    else:
+        # Development: use backend directory
+        base = Path(__file__).parent
+    
+    return base
+
+BASE_DIR = get_base_dir()
 
 # Tool Configuration
 TOOLS_CONFIG = {
@@ -6,7 +27,6 @@ TOOLS_CONFIG = {
         "name": "iLEAPP",
         "subdir": "iLEAPP",
         "github_url": "https://github.com/abrignoni/iLEAPP",
-        "path": os.path.join(os.path.dirname(__file__), "forensic-tools", "leapp-tools", "iLEAPP"),
         "script": "ileapp.py",
         "profile_ext": ".ilprofile",
         "description": "iOS Logs, Events, And Plist Parser",
@@ -16,7 +36,6 @@ TOOLS_CONFIG = {
         "name": "aLEAPP",
         "subdir": "ALEAPP",
         "github_url": "https://github.com/abrignoni/ALEAPP",
-        "path": os.path.join(os.path.dirname(__file__), "forensic-tools", "leapp-tools", "ALEAPP"),
         "script": "aleapp.py",
         "profile_ext": ".alprofile",
         "description": "Android Logs, Events, And Protobuf Parser",
@@ -24,5 +43,7 @@ TOOLS_CONFIG = {
     }
 }
 
-# Reports Directory
-REPORTS_DIR = os.path.join(os.path.dirname(__file__), "reports")
+# Directories
+REPORTS_DIR = str(BASE_DIR / "reports")
+BACKUPS_DIR = str(BASE_DIR / "backups")
+TOOLS_DIR = str(BASE_DIR / "forensic-tools")

@@ -16,7 +16,7 @@ from datetime import datetime
 
 import requests
 
-from config import TOOLS_CONFIG
+from config import TOOLS_CONFIG, TOOLS_DIR
 
 logger = logging.getLogger(__name__)
 
@@ -25,23 +25,8 @@ class ToolManager:
     """Manages forensic tool installations with GitHub downloads."""
     
     def __init__(self):
-        self.tools_dir = self._get_tools_directory()
+        self.tools_dir = Path(TOOLS_DIR)
         self.tools_dir.mkdir(parents=True, exist_ok=True)
-        
-    def _get_tools_directory(self) -> Path:
-        """Get the tools directory, handling both dev and bundled environments."""
-        if getattr(sys, 'frozen', False):
-            # Bundled: store in user's Application Support
-            if platform.system() == "Darwin":
-                base = Path.home() / "Library" / "Application Support" / "VDF Tools"
-            elif platform.system() == "Windows":
-                base = Path.home() / "AppData" / "Local" / "VDF Tools"
-            else:
-                base = Path.home() / ".vdf-tools"
-            return base / "forensic-tools"
-        else:
-            # Development: use backend/forensic-tools
-            return Path(__file__).parent / "forensic-tools"
     
     def get_tool_path(self, tool_name: str) -> Optional[Path]:
         """Get the path to an installed tool. Returns None if not installed."""

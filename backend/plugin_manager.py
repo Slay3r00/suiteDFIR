@@ -3,7 +3,7 @@ import sys
 import gc
 import logging
 import contextlib
-from config import TOOLS_CONFIG
+from config import TOOLS_CONFIG, TOOLS_DIR
 from state import plugin_loaders, available_modules
 
 logger = logging.getLogger(__name__)
@@ -95,10 +95,11 @@ def load_plugins():
                 if tool_path:
                     tool_path = str(tool_path)
             
-            # Fall back to config path (development mode)
+            # Fall back to derived path (development mode / pre-installed)
             if not tool_path:
-                tool_path = config["path"]
-                logger.info(f"Using config path: {tool_path}")
+                tool_subdir = config.get("subdir", tool_id)
+                tool_path = os.path.join(TOOLS_DIR, "leapp-tools", tool_subdir)
+                logger.info(f"Using derived path: {tool_path}")
             
             if not os.path.exists(tool_path):
                 logger.warning(f"{config['name']} path not found: {tool_path}")

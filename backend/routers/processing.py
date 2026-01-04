@@ -40,8 +40,9 @@ async def start_processing(request: ProcessRequest, background_tasks: Background
     if not os.path.exists(request.input_path):
         raise HTTPException(status_code=400, detail="Input path does not exist")
         
+    from config import REPORTS_DIR
     # Create output directory
-    output_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "reports", f"{tool}-reports", request.case_name)
+    output_dir = os.path.join(REPORTS_DIR, f"{tool}-reports", request.case_name)
     os.makedirs(output_dir, exist_ok=True)
     
     # Create temporary profile file for module selection
