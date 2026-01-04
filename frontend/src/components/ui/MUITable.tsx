@@ -7,6 +7,7 @@ import {
     type MRT_PaginationState,
     type MRT_SortingState,
     type MRT_ColumnFiltersState,
+    type MRT_DensityState,
 } from 'material-react-table';
 import type { Updater } from '@tanstack/react-table';
 import { Box, Button, ThemeProvider, createTheme } from '@mui/material';
@@ -574,7 +575,7 @@ const EnhancedTable = ({
 
         // Restore scroll ONLY ONCE when data is first loaded/available
         if (!isLoading && rows.length > 0 && !hasRestoredScroll.current) {
-            if (scrollPosition > 0) {
+            if (scrollPosition !== undefined && scrollPosition > 0) {
                 // Wait for layout to settle
                 setTimeout(() => {
                     container.scrollTo({ top: scrollPosition });
