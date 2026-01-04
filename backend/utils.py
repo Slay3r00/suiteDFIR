@@ -20,17 +20,42 @@ def get_size_format(b, factor=1024, suffix="B"):
     return f"{b:.2f}Y{suffix}"
 
 def get_binary_path(binary_name):
-    """Resolve path to a binary, preferring bundled versions"""
-    # Check if we are running in a bundled app
+    """Resolve path to a binary, handling Dev (source) and Prod (frozen) modes."""
+    
+    # Potential locations for the 'bin' folder
+    possible_paths = []
+
     if getattr(sys, 'frozen', False):
-        # In bundled app, binaries are in the _internal/bin folder
-        # sys._MEIPASS is the temp folder for PyInstaller onefile, but for onedir it's adjacent
-        base_path = sys._MEIPASS if hasattr(sys, '_MEIPASS') else os.path.dirname(os.path.abspath(__file__))
-        bundled_path = os.path.join(base_path, 'bin', binary_name)
-        if os.path.exists(bundled_path):
-            return bundled_path
-            
-    # Fallback to system path (just the name)
+        # --- PRODUCTION (PyInstaller/Electron) ---
+        base_dir = os.path.dirname(sys.executable)
+        
+        # 1. Standard PyInstaller: inside the one-file temp dir or next to executable
+        if hasattr(sys, '_MEIPASS'):
+            possible_paths.append(os.path.join(sys._MEIPASS, 'bin'))
+        
+        possible_paths.append(os.path.join(base_dir, 'bin'))
+        
+        # 2. Electron Structure: The backend is in "VDF Tools Backend", bin is up one level in "Resources"
+        # contents/Resources/VDF Tools Backend/vdf-backend (executable)
+        # contents/Resources/bin
+        possible_paths.append(os.path.join(base_dir, '..', 'bin'))
+        possible_paths.append(os.path.join(base_dir, '..', '..', 'bin')) # Just in case extra nesting
+        
+    else:
+        # --- DEVELOPMENT ---
+        # backend/utils.py -> backend/bin
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        possible_paths.append(os.path.join(base_dir, 'bin'))
+
+    # Search
+    for p in possible_paths:
+        full_path = os.path.join(p, binary_name)
+        if os.path.exists(full_path):
+            logger.info(f"Found binary {binary_name} at {full_path}")
+            return os.path.abspath(full_path)
+
+    # Fallback to system PATH if not found in bundle
+    logger.warning(f"Binary {binary_name} not found in bundle, falling back to system PATH")
     return binary_name
 
 async def broadcast_event(event_type: str, data: dict):
