@@ -15,6 +15,7 @@ from config import BASE_DIR
 from plugin_manager import load_plugins
 from routers import cases, reports, profiles, tasks, processing, backups, system, timeline, tools
 from device_watcher import start_device_watcher, stop_device_watcher
+from case_manager import case_manager
 
 # Setup logging
 setup_logging()
@@ -33,6 +34,9 @@ async def lifespan(app: FastAPI):
     # Start device watcher for real-time iOS device detection
     await start_device_watcher()
     logger.info("Device watcher started")
+    
+    # Run orphaned file cleanup sweep
+    asyncio.create_task(case_manager.cleanup_orphaned_files())
     
     yield
     

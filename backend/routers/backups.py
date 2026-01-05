@@ -138,8 +138,6 @@ async def get_backups(case_id: Optional[int] = None):
         backups = await db_fetch_all("SELECT id, name, device_udid, device_name, path, created_at, status, size, progress, type FROM backups ORDER BY created_at DESC")
     
     return backups
-    
-    return backups
 
 @router.delete("/backups/{backup_id}")
 async def delete_backup(backup_id: int):
