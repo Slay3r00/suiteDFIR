@@ -25,6 +25,34 @@ class BackupManager:
         """List connected iOS devices."""
         return await get_connected_devices()
 
+    async def get_backups(self, case_id: Optional[int] = None) -> List[Dict[str, Any]]:
+        """Get list of backups, optionally filtered by case_id."""
+        if case_id:
+            return await db_fetch_all(
+                "SELECT id, name, device_udid, device_name, path, created_at, status, size, progress, type FROM backups WHERE case_id = ? ORDER BY created_at DESC",
+                (case_id,)
+            )
+        return await db_fetch_all(
+            "SELECT id, name, device_udid, device_name, path, created_at, status, size, progress, type FROM backups ORDER BY created_at DESC"
+        )
+
+    async def delete_backup_by_id(self, backup_id: int) -> Dict[str, Any]:
+        """Delete a backup by ID from DB and filesystem."""
+        row = await db_fetch_one("SELECT path FROM backups WHERE id = ?", (backup_id,))
+        
+        if not row:
+            return {"success": False, "error": "Backup not found", "status_code": 404}
+        
+        path = row['path']
+        
+        # Delete from DB
+        await db_execute("DELETE FROM backups WHERE id = ?", (backup_id,))
+        
+        # Delete from filesystem
+        await self.cleanup_backup_files(path)
+        
+        return {"success": True}
+
     async def start_backup(self, request: Any, background_tasks: Any) -> Dict[str, Any]:
         """Start an iOS backup process."""
         # Check if device is still connected

@@ -1,20 +1,15 @@
 import asyncio
 import os
 import logging
-import shutil
-import sqlite3
-import subprocess
 import platform
-from datetime import datetime
-from typing import List, Optional
-from models import BackupRequest, ValidateBackupRequest
+import subprocess
+from typing import Optional
 from config import BACKUPS_DIR
-from database import DB_PATH, db_execute, db_fetch_one, db_fetch_all, db_execute_return_id
-from state import backup_tasks, active_backups
-from utils import broadcast_event, get_binary_path
+from state import backup_tasks
 from backup_manager import backup_manager
 from fastapi import APIRouter, HTTPException, BackgroundTasks
 from fastapi.responses import StreamingResponse
+from models import BackupRequest, ValidateBackupRequest
 
 logger = logging.getLogger(__name__)
 
@@ -22,8 +17,6 @@ router = APIRouter(
     prefix="/api",
     tags=["backups"]
 )
-
-os.makedirs(BACKUPS_DIR, exist_ok=True)
 
 @router.get("/ios/devices")
 async def list_devices():
@@ -132,29 +125,15 @@ async def stop_backup(backup_id: int):
 @router.get("/backups")
 async def get_backups(case_id: Optional[int] = None):
     """Get list of backups"""
-    if case_id:
-        backups = await db_fetch_all("SELECT id, name, device_udid, device_name, path, created_at, status, size, progress, type FROM backups WHERE case_id = ? ORDER BY created_at DESC", (case_id,))
-    else:
-        backups = await db_fetch_all("SELECT id, name, device_udid, device_name, path, created_at, status, size, progress, type FROM backups ORDER BY created_at DESC")
-    
-    return backups
+    return await backup_manager.get_backups(case_id)
 
 @router.delete("/backups/{backup_id}")
 async def delete_backup(backup_id: int):
     """Delete backup"""
-    # Get path
-    row = await db_fetch_one("SELECT path FROM backups WHERE id = ?", (backup_id,))
+    result = await backup_manager.delete_backup_by_id(backup_id)
     
-    if not row:
-        raise HTTPException(status_code=404, detail="Backup not found")
-        
-    path = row['path']
-    
-    # Delete from DB
-    await db_execute("DELETE FROM backups WHERE id = ?", (backup_id,))
-    
-    # Delete from filesystem
-    await backup_manager.cleanup_backup_files(path)
+    if not result.get("success"):
+        raise HTTPException(status_code=result.get("status_code", 404), detail=result.get("error"))
     
     return {"message": "Backup deleted"}
 

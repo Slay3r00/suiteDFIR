@@ -146,10 +146,6 @@ class BackupRequest(BaseModel):
     password: Optional[str] = None
     case_id: Optional[int] = None
 
-# BACKUP MODELS
-class BackupRequest(BaseModel):
-    """Payload for triggering a device backup."""
-    udid: str
-    name: str
-    password: Optional[str] = None
-    case_id: Optional[int] = None
+class StopRequest(BaseModel):
+    """Payload for stopping a processing job."""
+    task_id: Optional[str] = None
