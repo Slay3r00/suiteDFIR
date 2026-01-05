@@ -1,6 +1,6 @@
 import sqlite3
 import asyncio
-from typing import Optional
+from typing import Optional, List
 import os
 from config import BASE_DIR
 
@@ -141,3 +141,25 @@ async def db_fetch_one(query: str, params: tuple = ()) -> Optional[dict]:
         finally:
             conn.close()
     return await loop.run_in_executor(None, _do_fetch)
+
+async def db_fetch_all(query: str, params: tuple = ()) -> List[dict]:
+    """Execute a read operation and return all rows."""
+    loop = asyncio.get_running_loop()
+    def _do_fetch():
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        try:
+            cursor = conn.execute(query, params)
+            return [dict(row) for row in cursor.fetchall()]
+        finally:
+            conn.close()
+    return await loop.run_in_executor(None, _do_fetch)
+
+async def db_execute_return_id(query: str, params: tuple = ()) -> int:
+    """Execute a write operation and return the lastrowid."""
+    loop = asyncio.get_running_loop()
+    def _do_execute():
+        with sqlite3.connect(DB_PATH) as conn:
+            cursor = conn.execute(query, params)
+            return cursor.lastrowid
+    return await loop.run_in_executor(None, _do_execute)
