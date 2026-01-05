@@ -47,6 +47,11 @@ cp -R ../backend/dist/VDF\ Tools\ Backend "$RESOURCES_PATH/"
 echo "  Copying helper binaries..."
 cp -R ../backend/bin "$RESOURCES_PATH/"
 
+echo "  Relinking and signing binaries for portability..."
+# Run from electron directory, script is in root scripts folder
+../scripts/relink_binaries.sh "$RESOURCES_PATH/bin"
+codesign --force --deep --sign - "$RESOURCES_PATH/bin/"*
+
 
 echo "  Copying frontend..."
 cp -R ../frontend/out "$RESOURCES_PATH/"
