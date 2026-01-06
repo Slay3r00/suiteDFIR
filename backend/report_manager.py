@@ -3,10 +3,9 @@ import shutil
 import logging
 import asyncio
 from typing import List, Dict, Any, Optional
-
 from database import db_execute, db_fetch_all
 from config import REPORTS_DIR
-from utils import get_size_format, normalize_report_path
+from utils import get_size_format
 
 logger = logging.getLogger(__name__)
 
@@ -15,23 +14,17 @@ class ReportManager:
     """Manages forensic report data and filesystem operations."""
 
     async def get_reports(self, case_id: Optional[int] = None) -> List[Dict[str, Any]]:
-        """
-        Get all reports from DB with computed stats (size, file count, URL).
-        Returns only reports whose paths exist on disk.
-        """
-        if case_id:
-            rows = await db_fetch_all(
-                'SELECT name, path, tool, created_at FROM reports WHERE case_id = ? ORDER BY created_at DESC',
-                (case_id,)
-            )
-        else:
-            rows = await db_fetch_all(
-                'SELECT name, path, tool, created_at FROM reports ORDER BY created_at DESC'
-            )
+        """Get reports from DB for case with computed stats (size, file count, URL)."""
+        if not case_id:
+            return []
+        rows = await db_fetch_all(
+            'SELECT name, path, tool, created_at FROM reports WHERE case_id = ? ORDER BY created_at DESC',
+            (case_id,)
+        )
 
         reports = []
         for row in rows:
-            path = normalize_report_path(row['path'])
+            path = row['path']
             
             if not os.path.exists(path):
                 continue
@@ -59,10 +52,7 @@ class ReportManager:
         return reports
 
     async def delete_report(self, path: str) -> Dict[str, Any]:
-        """
-        Delete a report from DB and filesystem.
-        Returns success status and message.
-        """
+        """Delete a report from DB and filesystem"""
         # Security check: ensure path is within reports directory
         if not os.path.abspath(path).startswith(os.path.abspath(REPORTS_DIR)):
             return {"success": False, "error": "Access denied", "status_code": 403}

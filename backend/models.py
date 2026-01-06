@@ -77,7 +77,7 @@ class ProcessRequest(BaseModel):
     input_path: str
     selected_modules: List[str]
     case_name: str
-    case_id: Optional[int] = None
+    case_id: int
     output_folder: Optional[str] = None
     timezone_offset: str = "UTC"
     report_name: Optional[str] = None
@@ -110,7 +110,7 @@ class TaskBase(BaseModel):
     content: str
     description: Optional[str] = None
     priority: Priority = Priority.MEDIUM
-    case_id: Optional[int] = None
+    case_id: int
 
 class TaskCreate(TaskBase):
     """Payload for creating a new task."""
@@ -126,7 +126,7 @@ class Task(TaskBase):
 class NoteBase(BaseModel):
     content: str
     description: Optional[str] = None
-    case_id: Optional[int] = None
+    case_id: int
 
 class NoteCreate(NoteBase):
     """Payload for creating a new note."""
@@ -144,7 +144,7 @@ class BackupRequest(BaseModel):
     udid: str
     name: str
     password: Optional[str] = None
-    case_id: Optional[int] = None
+    case_id: int
 
 class StopRequest(BaseModel):
     """Payload for stopping a processing job."""

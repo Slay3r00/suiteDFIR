@@ -26,14 +26,12 @@ class BackupManager:
         return await get_connected_devices()
 
     async def get_backups(self, case_id: Optional[int] = None) -> List[Dict[str, Any]]:
-        """Get list of backups, optionally filtered by case_id."""
-        if case_id:
-            return await db_fetch_all(
-                "SELECT id, name, device_udid, device_name, path, created_at, status, size, progress, type FROM backups WHERE case_id = ? ORDER BY created_at DESC",
-                (case_id,)
-            )
+        """Get list of backups for a specific case."""
+        if not case_id:
+            return []
         return await db_fetch_all(
-            "SELECT id, name, device_udid, device_name, path, created_at, status, size, progress, type FROM backups ORDER BY created_at DESC"
+            "SELECT id, name, device_udid, device_name, path, created_at, status, size, progress, type FROM backups WHERE case_id = ? ORDER BY created_at DESC",
+            (case_id,)
         )
 
     async def delete_backup_by_id(self, backup_id: int) -> Dict[str, Any]:

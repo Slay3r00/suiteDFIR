@@ -16,7 +16,7 @@ from typing import Optional
 
 from models import FilePathResponse
 from database import DB_PATH
-from utils import get_size_format, normalize_report_path
+from utils import get_size_format
 from config import TOOLS_CONFIG, REPORTS_DIR
 from state import plugin_loaders, available_modules, event_clients
 
@@ -264,9 +264,7 @@ async def get_recent_activity(case_id: Optional[int] = None):
     else:
         cursor.execute("SELECT id, name, 'report' as type, 'completed' as status, created_at, path FROM reports ORDER BY created_at DESC LIMIT 5")
     reports = [dict(row) for row in cursor.fetchall()]
-    # Normalize report paths
-    for r in reports:
-        r['path'] = normalize_report_path(r['path'])
+    # Path normalization no longer needed as casing is enforced at creation
     
     conn.close()
     
