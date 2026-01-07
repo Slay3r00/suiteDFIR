@@ -1,8 +1,8 @@
 import logging
 from typing import List
-from case_manager import case_manager
+from services.case_manager import case_manager
 from fastapi import APIRouter, HTTPException
-from models import Case, CaseCreate, CaseUpdate
+from core.models import Case, CaseCreate, CaseUpdate
 
 logger = logging.getLogger(__name__)
 

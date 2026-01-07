@@ -1,4 +1,5 @@
 import os
+import sys
 import asyncio
 import logging
 from fastapi import FastAPI
@@ -7,15 +8,20 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 
-load_dotenv()
-from logger import setup_logging
-from database import init_database
-from config import BASE_DIR
+# Ensure src directory is in Python path for imports
+_current_dir = os.path.dirname(os.path.abspath(__file__))
+if _current_dir not in sys.path:
+    sys.path.insert(0, _current_dir)
 
-from plugin_manager import load_plugins
-from routers import cases, reports, profiles, tasks, processing, backups, system, timeline, tools
-from device_watcher import start_device_watcher, stop_device_watcher
-from case_manager import case_manager
+load_dotenv()
+from core.logger import setup_logging
+from core.database import init_database
+from core.config import BASE_DIR
+
+from services.plugin_manager import load_plugins
+from api import cases, reports, profiles, tasks, processing, backups, system, timeline, tools
+from utils.device_watcher import start_device_watcher, stop_device_watcher
+from services.case_manager import case_manager
 
 # Setup logging
 setup_logging()
@@ -67,7 +73,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-from config import TOOLS_CONFIG, REPORTS_DIR, BACKUPS_DIR, TOOLS_DIR
+from core.config import TOOLS_CONFIG, REPORTS_DIR, BACKUPS_DIR, TOOLS_DIR
 
 # Ensure required directories exist
 for d in [REPORTS_DIR, BACKUPS_DIR, TOOLS_DIR]:

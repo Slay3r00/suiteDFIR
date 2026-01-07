@@ -5,9 +5,9 @@ import logging
 import asyncio
 import importlib.util
 from pathlib import Path
-from state import event_clients
-from config import TOOLS_CONFIG
-from plugin_manager import safe_tool_execution
+from core.state import event_clients
+from core.config import TOOLS_CONFIG
+from services.plugin_manager import safe_tool_execution
 
 logger = logging.getLogger(__name__)
 

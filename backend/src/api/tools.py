@@ -7,8 +7,8 @@ from fastapi.responses import StreamingResponse
 import json
 import asyncio
 
-from tool_manager import tool_manager
-from config import TOOLS_CONFIG
+from services.tool_manager import tool_manager
+from core.config import TOOLS_CONFIG
 
 router = APIRouter(
     prefix="/api/tools",

@@ -9,10 +9,10 @@ import platform
 from typing import Optional
 from fastapi import APIRouter, HTTPException, Response
 from fastapi.responses import FileResponse
-from models import Report
-from config import REPORTS_DIR
-from report_manager import report_manager
-from scroll_tracking import SCROLL_TRACKING_SCRIPT
+from core.models import Report
+from core.config import REPORTS_DIR
+from services.report_manager import report_manager
+from utils.constants import SCROLL_TRACKING_SCRIPT
 
 logger = logging.getLogger(__name__)
 

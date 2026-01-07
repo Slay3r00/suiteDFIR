@@ -1,8 +1,8 @@
 from fastapi import APIRouter, HTTPException
 from typing import List, Optional
 import sqlite3
-from models import Task, TaskCreate, Note, NoteCreate
-from database import DB_PATH
+from core.models import Task, TaskCreate, Note, NoteCreate
+from core.database import DB_PATH
 
 router = APIRouter(
     prefix="/api/dashboard",

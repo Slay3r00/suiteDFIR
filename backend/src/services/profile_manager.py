@@ -2,9 +2,9 @@ import json
 import logging
 from typing import List, Dict, Any, Optional
 
-from database import db_execute, db_fetch_one, db_fetch_all, db_execute_return_id
-from config import TOOLS_CONFIG
-from state import available_modules
+from core.database import db_execute, db_fetch_one, db_fetch_all, db_execute_return_id
+from core.config import TOOLS_CONFIG
+from core.state import available_modules
 
 logger = logging.getLogger(__name__)
 

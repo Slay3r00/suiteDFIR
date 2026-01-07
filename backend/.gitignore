@@ -63,11 +63,11 @@ htmlcov/
 .python-version
 
 # LEAPP
-
 forensic-tools/
 reports/
 backups/
+data/                    # All runtime data (reports, backups, cache, logs)
 vdf_tools.db
 vdf_tools.db-wal
 vdf_tools.db-shm
-coordinates.db
+coordinates.db           # Legacy location (now in data/cache/)

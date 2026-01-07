@@ -2,10 +2,10 @@ import sqlite3
 import logging
 from typing import Dict
 from fastapi import APIRouter, HTTPException, Body
-from models import Profile, ProfileCreate
-from config import TOOLS_CONFIG
-from state import available_modules
-from profile_manager import profile_manager
+from core.models import Profile, ProfileCreate
+from core.config import TOOLS_CONFIG
+from core.state import available_modules
+from services.profile_manager import profile_manager
 
 logger = logging.getLogger(__name__)
 

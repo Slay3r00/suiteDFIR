@@ -3,8 +3,8 @@ import sys
 import gc
 import logging
 import contextlib
-from config import TOOLS_CONFIG, TOOLS_DIR
-from state import plugin_loaders, available_modules
+from core.config import TOOLS_CONFIG, TOOLS_DIR
+from core.state import plugin_loaders, available_modules
 
 logger = logging.getLogger(__name__)
 

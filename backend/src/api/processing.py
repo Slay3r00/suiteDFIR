@@ -1,10 +1,10 @@
 import asyncio
 import logging
-from state import processing_tasks
+from core.state import processing_tasks
 from fastapi import APIRouter, HTTPException, BackgroundTasks
 from fastapi.responses import StreamingResponse
-from models import ProcessRequest, StopRequest
-from process_manager import process_manager
+from core.models import ProcessRequest, StopRequest
+from services.process_manager import process_manager
 
 logger = logging.getLogger(__name__)
 

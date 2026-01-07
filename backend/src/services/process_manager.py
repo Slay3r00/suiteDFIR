@@ -11,11 +11,11 @@ from datetime import datetime
 
 from fastapi import HTTPException
 
-from config import TOOLS_CONFIG, REPORTS_DIR
-from database import db_execute
-from state import processing_tasks, available_modules
-from utils import broadcast_event
-from tool_manager import tool_manager
+from core.config import TOOLS_CONFIG, REPORTS_DIR, CACHE_DIR
+from core.database import db_execute
+from core.state import processing_tasks, available_modules
+from utils.helpers import broadcast_event
+from services.tool_manager import tool_manager
 
 logger = logging.getLogger(__name__)
 
@@ -81,12 +81,10 @@ class ProcessManager:
                 "--output_path", output_dir
             ]
         else:
-            # Development: Run main.py with wrapper flag (assuming main.py is in parent of parent of current file in original structure, 
-            # but ProcessManager is in backend/, so main.py is in backend/)
-            # processing.py was in backend/routers, so os.path.dirname(os.path.dirname(__file__)) -> backend/
-            # Here ProcessManager is in backend/, so os.path.dirname(__file__) -> backend/
-            # main.py is in backend/main.py
-            main_py_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "main.py")
+            # Development: Run main.py with wrapper flag
+            # ProcessManager is in backend/src/services/, so we go up 2 levels to backend/src/
+            # main.py is in backend/src/main.py
+            main_py_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "main.py")
             cmd = [
                 sys.executable,
                 "-u",
@@ -166,11 +164,15 @@ class ProcessManager:
             env["PYTHONUNBUFFERED"] = "1"
             env["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python"
 
+            # Ensure cache directory exists for LEAPP geocoding database
+            os.makedirs(CACHE_DIR, exist_ok=True)
+
             process = await asyncio.create_subprocess_exec(
                 *cmd,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
-                env=env
+                env=env,
+                cwd=CACHE_DIR  # Set CWD to cache dir so coordinates.db is created there
             )
             
             if task_id in processing_tasks:

@@ -2,7 +2,7 @@ import sqlite3
 import asyncio
 from typing import Optional, List
 import os
-from config import BASE_DIR
+from core.config import BASE_DIR
 
 DB_PATH = str(BASE_DIR / "vdf_tools.db")
 

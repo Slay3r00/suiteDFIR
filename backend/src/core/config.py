@@ -14,9 +14,9 @@ def get_base_dir() -> Path:
         else:
             base = Path.home() / ".vdf-tools"
     else:
-        # Development: use backend directory
-        base = Path(__file__).parent
-    
+        # Development: use backend directory (go up from src/core to backend)
+        base = Path(__file__).parent.parent.parent
+
     return base
 
 BASE_DIR = get_base_dir()
@@ -47,3 +47,7 @@ TOOLS_CONFIG = {
 REPORTS_DIR = str(BASE_DIR / "reports")
 BACKUPS_DIR = str(BASE_DIR / "backups")
 TOOLS_DIR = str(BASE_DIR / "forensic-tools")
+
+# Cache directories for LEAPP geocoding database
+CACHE_DIR = BASE_DIR / "data" / "cache"
+COORDS_DB = str(CACHE_DIR / "coordinates.db")

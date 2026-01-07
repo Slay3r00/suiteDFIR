@@ -16,7 +16,7 @@ from datetime import datetime
 
 import requests
 
-from config import TOOLS_CONFIG, TOOLS_DIR
+from core.config import TOOLS_CONFIG, TOOLS_DIR
 
 logger = logging.getLogger(__name__)
 

@@ -53,7 +53,7 @@ const PYTHON_PATH = process.platform === 'win32'
 
 logger.info('PYTHON_PATH:', PYTHON_PATH);
 
-const BACKEND_FILE = path.join(__dirname, '../backend/main.py');
+const BACKEND_FILE = path.join(__dirname, '../backend/src/main.py');
 
 // In production, use custom app:// protocol for proper static file routing
 // In development, load from dev server
@@ -305,7 +305,7 @@ async function startPythonBackend() {
   if (isDev) {
     // Development: Run uvicorn with Python interpreter
     cmd = PYTHON_PATH;
-    args = ['-m', 'uvicorn', 'main:app', '--host', '0.0.0.0', '--port', BACKEND_PORT.toString()];
+    args = ['-m', 'uvicorn', 'src.main:app', '--host', '0.0.0.0', '--port', BACKEND_PORT.toString()];
     logger.info('Dev mode - running uvicorn');
   } else {
     // Production: Run bundled executable directly

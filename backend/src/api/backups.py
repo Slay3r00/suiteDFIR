@@ -4,12 +4,12 @@ import logging
 import platform
 import subprocess
 from typing import Optional
-from config import BACKUPS_DIR
-from state import backup_tasks
-from backup_manager import backup_manager
+from core.config import BACKUPS_DIR
+from core.state import backup_tasks
+from services.backup_manager import backup_manager
 from fastapi import APIRouter, HTTPException, BackgroundTasks
 from fastapi.responses import StreamingResponse
-from models import BackupRequest, ValidateBackupRequest
+from core.models import BackupRequest, ValidateBackupRequest
 
 logger = logging.getLogger(__name__)
 

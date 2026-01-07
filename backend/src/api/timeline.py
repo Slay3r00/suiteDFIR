@@ -6,7 +6,7 @@ import os
 import logging
 import re
 from datetime import datetime, timezone
-from database import get_db_connection, DB_PATH
+from core.database import get_db_connection, DB_PATH
 
 logger = logging.getLogger(__name__)
 
