@@ -79,9 +79,9 @@ export default function ModuleSelector({ tool, isProcessing }: ModuleSelectorPro
 
   const handleLoadProfile = async (profileId: number) => {
     try {
-      await loadProfile(profileId);
-      // Refresh modules to get updated selection state
-      await fetchModules(tool);
+      const data = await loadProfile(profileId);
+      // Update local artifact selection from loaded profile
+      updateConfig(tool, { selectedModules: data.modules });
       // Profile loaded successfully
       closeLoadProfile();
     } catch (error) {

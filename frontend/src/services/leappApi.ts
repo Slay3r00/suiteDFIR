@@ -36,8 +36,8 @@ export function createLeappApi(tool: string) {
                 return handleApiResponse(response);
             },
 
-            load: async (profileId: number): Promise<{ message: string }> => {
-                const response = await fetch(`${API_BASE}/profiles/${profileId}/load`, {
+            load: async (profile_id: number): Promise<{ message: string, modules: string[] }> => {
+                const response = await fetch(`${API_BASE}/profiles/${profile_id}/load`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ tool }),

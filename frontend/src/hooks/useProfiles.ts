@@ -24,7 +24,7 @@ export function useProfiles(tool: string) {
     try {
       const data = await api.profiles.load(profileId);
       await fetchProfiles();
-      return data.message;
+      return data;
     } catch (error) {
       console.error('Failed to load profile:', error);
       throw error;

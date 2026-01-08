@@ -5,6 +5,7 @@ import { Card, CardContent } from "@/components/ui/Card"
 import { Clock, FileText, Smartphone, CheckCircle, XCircle, AlertCircle } from 'lucide-react'
 import { useCase } from "@/context/CaseContext"
 import { useRouter } from 'next/navigation'
+import { cn } from "@/lib/utils"
 
 interface Activity {
     id: number
@@ -108,9 +109,12 @@ export default function RecentActivityWidget() {
             <CardContent className="flex-1 p-0 pt-0 flex flex-col min-h-0">
 
                 <div className="flex-1 overflow-y-auto pr-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-                    <div className="relative min-h-full flex flex-col justify-start pb-2">
+                    <div className={cn(
+                        "relative min-h-full flex flex-col pb-2",
+                        activities.length === 0 ? "justify-center" : "justify-start"
+                    )}>
                         {activities.length === 0 ? (
-                            <div className="h-full flex items-center justify-center text-xs text-gray-500 py-4 font-medium">
+                            <div className="flex items-center justify-center text-xs text-gray-500 py-4 font-medium">
                                 No recent activity
                             </div>
                         ) : (

@@ -99,7 +99,7 @@ export default function CaseDetailsWidget({ className }: { className?: string })
                                         <User size={12} />
                                         <span className="text-[9px] font-medium uppercase tracking-wider">Client Name</span>
                                     </div>
-                                    <p className="text-sm text-gray-200 font-medium truncate">{caseData.client_name || 'N/A'}</p>
+                                    <p className="text-sm text-gray-200 font-medium truncate">{caseData.client_name || ''}</p>
                                 </div>
 
                                 {/* Client Email */}
@@ -108,7 +108,7 @@ export default function CaseDetailsWidget({ className }: { className?: string })
                                         <Mail size={12} />
                                         <span className="text-[9px] font-medium uppercase tracking-wider">Client Email</span>
                                     </div>
-                                    <p className="text-sm text-gray-200 font-medium truncate">{caseData.client_email || 'N/A'}</p>
+                                    <p className="text-sm text-gray-200 font-medium truncate">{caseData.client_email || ''}</p>
                                 </div>
 
                                 {/* Client Phone */}
@@ -117,7 +117,7 @@ export default function CaseDetailsWidget({ className }: { className?: string })
                                         <Phone size={12} />
                                         <span className="text-[9px] font-medium uppercase tracking-wider">Client Phone</span>
                                     </div>
-                                    <p className="text-sm text-gray-200 font-medium truncate">{caseData.client_phone || 'N/A'}</p>
+                                    <p className="text-sm text-gray-200 font-medium truncate">{caseData.client_phone || ''}</p>
                                 </div>
 
                                 {/* Status */}
