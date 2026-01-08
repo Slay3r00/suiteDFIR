@@ -66,8 +66,11 @@ htmlcov/
 forensic-tools/
 reports/
 backups/
-data/                    # All runtime data (reports, backups, cache, logs)
+data/
+*.db
+*.db-wal
+*.db-shm
 vdf_tools.db
 vdf_tools.db-wal
 vdf_tools.db-shm
-coordinates.db           # Legacy location (now in data/cache/)
+coordinates.db

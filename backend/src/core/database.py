@@ -2,9 +2,11 @@ import sqlite3
 import asyncio
 from typing import Optional, List
 import os
-from core.config import BASE_DIR
+import shutil
+from pathlib import Path
+from core.config import BASE_DIR, VDF_DB_PATH
 
-DB_PATH = str(BASE_DIR / "vdf_tools.db")
+DB_PATH = VDF_DB_PATH
 
 # Schema Definitions
 SCHEMA = {
@@ -89,15 +91,26 @@ def get_db_connection():
 
 def init_database():
     """Initialize SQLite database for profiles and reports"""
+    # Ensure data directory exists
+    data_dir = Path(DB_PATH).parent
+    data_dir.mkdir(parents=True, exist_ok=True)
+
+    # Migration: Check if old database exists in backend root
+    old_db_path = BASE_DIR / "vdf_tools.db"
+    if old_db_path.exists() and not Path(DB_PATH).exists():
+        print(f"Migrating database from {old_db_path} to {DB_PATH}")
+        shutil.copy2(old_db_path, DB_PATH)
+        print(f"Database migrated successfully. Old database preserved at {old_db_path}")
+
     conn = sqlite3.connect(DB_PATH)
     # Enable WAL mode for better concurrency
     conn.execute("PRAGMA journal_mode=WAL")
     cursor = conn.cursor()
-    
+
     # Create tables if they don't exist
     for table_name, create_sql in SCHEMA.items():
         cursor.execute(create_sql)
-        
+
     # Migrations
     # Add last_visited_at to cases if it doesn't exist
     try:
@@ -110,12 +123,12 @@ def init_database():
         cursor.execute("SELECT client_phone FROM cases LIMIT 1")
     except sqlite3.OperationalError:
         cursor.execute("ALTER TABLE cases ADD COLUMN client_phone TEXT")
-    
+
     try:
         cursor.execute("SELECT client_email FROM cases LIMIT 1")
     except sqlite3.OperationalError:
         cursor.execute("ALTER TABLE cases ADD COLUMN client_email TEXT")
-        
+
     conn.commit()
     conn.close()
 
