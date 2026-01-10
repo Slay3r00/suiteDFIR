@@ -19,6 +19,7 @@ import {
 import { Button } from "@/components/ui/Button"
 import { Input } from "@/components/ui/Input"
 import { Card, CardContent } from "@/components/ui/Card"
+import { LoadingPage } from "@/components/ui/LoadingPage"
 import { cn } from "@/lib/utils"
 
 
@@ -229,9 +230,7 @@ export default function CaseManagementPage() {
             {/* Content Area */}
             <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
                 {isLoading ? (
-                    <div className="flex-1 min-h-[400px] flex flex-col items-center justify-center text-gray-500">
-                        <p>Loading cases...</p>
-                    </div>
+                    <LoadingPage />
                 ) : filteredCases.length === 0 ? (
                     <div className="flex-1 min-h-[400px] flex flex-col items-center justify-center text-gray-500">
                         <p className="text-xl font-medium text-gray-400">No cases found</p>

@@ -77,7 +77,7 @@ export default function CaseDetailsWidget({ className }: { className?: string })
             <CardContent className="flex-1 p-0 pt-0 flex flex-col min-h-0 gap-4">
                 {isLoading || !caseData ? (
                     <div className="flex items-center justify-center h-full text-gray-500">
-                        <p className="text-sm">{isLoading ? "Loading case details..." : "Case not found"}</p>
+                        <p className="text-sm">{isLoading ? "Loading..." : "Case not found"}</p>
                     </div>
                 ) : (
                     <>

@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/Select"
 import { Input } from "@/components/ui/Input"
 import { useTimeline } from "@/context/TimelineContext"
+import { LoadingPage } from "@/components/ui/LoadingPage"
 
 interface Report {
     name: string
@@ -214,6 +215,13 @@ export default function Timeline() {
             setIsLoading(false)
         }
         return []
+
+
+
+    }
+
+    if (isLoading) {
+        return <LoadingPage />;
     }
 
     return (

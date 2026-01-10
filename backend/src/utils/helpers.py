@@ -43,9 +43,10 @@ def get_binary_path(binary_name):
         
     else:
         # --- DEVELOPMENT ---
-        # backend/utils.py -> backend/bin
+        # backend/src/utils/helpers.py -> backend/bin
+        # We need to go up two levels from utils (src, then backend) to find bin
         base_dir = os.path.dirname(os.path.abspath(__file__))
-        possible_paths.append(os.path.join(base_dir, 'bin'))
+        possible_paths.append(os.path.join(base_dir, '..', '..', 'bin'))
 
     # Search
     for p in possible_paths:

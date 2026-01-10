@@ -12,6 +12,7 @@ import { useLeapp } from '@/context/LeappContext';
 import { Button, Input, Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../../components/ui';
 import { useCase } from '@/context/CaseContext';
 import { FolderOpen, Calendar, Trash2, Loader2, Download } from 'lucide-react';
+import { LoadingPage } from '../ui/LoadingPage';
 
 import { getToolsStatus } from '@/lib/api/tools';
 import { cn } from '../../lib/utils';
@@ -404,17 +405,8 @@ function LeappPageWithCheck({ tool, logoPath }: LeappPageProps) {
         checkTool();
     }, [tool]);
 
-    // Loading state
-    if (toolInstalled === null) {
-        return (
-            <div className="h-full w-full flex items-center justify-center bg-[#151515] text-white">
-                <div className="text-sm text-gray-500">Loading...</div>
-            </div>
-        );
-    }
-
     // Tool not installed - show blocking screen
-    if (!toolInstalled) {
+    if (toolInstalled === false) {
         return <ToolNotInstalled tool={tool} />;
     }
 

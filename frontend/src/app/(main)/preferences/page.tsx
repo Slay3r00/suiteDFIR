@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { getToolsStatus, installTool, uninstallTool, ToolsStatusResponse } from "@/lib/api/tools";
+import { LoadingPage } from "@/components/ui/LoadingPage";
 
 
 type Tab = "general" | "tools";
@@ -159,7 +160,7 @@ export default function PreferencesPage() {
                         <div className="space-y-4">
 
                             {loading ? (
-                                <div className="text-sm text-[#888] py-4">Loading...</div>
+                                <LoadingPage />
                             ) : toolsStatus ? (
                                 <div className="space-y-0">
                                     {renderToolItem('ileapp')}

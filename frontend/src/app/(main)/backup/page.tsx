@@ -145,7 +145,7 @@ export default function BackupPage() {
 
                                 <div className="relative transform transition-transform duration-700 hover:scale-[1.02]">
                                     <Iphone15Pro
-                                        className="h-[420px] w-auto drop-shadow-2xl"
+                                        className="h-[378px] w-auto drop-shadow-2xl"
                                     >
                                         {!selectedDevice && (
                                             <div className="h-full w-full flex flex-col items-center justify-center bg-[#050505] text-gray-500 space-y-4">

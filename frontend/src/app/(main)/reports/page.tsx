@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Search, FileText, FolderOpen, Download, Trash2, X, Maximize2 } from 'lucide-react';
-import { Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui';
+import { Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, LoadingPage } from '@/components/ui';
 import { useCase } from "@/context/CaseContext";
 import { ReportsProvider, useReports, ReportIframeState } from '@/context/ReportsContext';
 import { useSearchParams } from 'next/navigation';
@@ -20,14 +20,7 @@ interface Report {
 
 export default function Reports() {
     return (
-        <Suspense fallback={
-            <div className="h-screen w-screen flex items-center justify-center bg-[#151515] text-white">
-                <div className="flex flex-col items-center gap-3">
-                    <div className="w-8 h-8 border-2 border-white/20 border-t-white/80 rounded-full animate-spin" />
-                    <p className="text-xs font-medium text-gray-400 uppercase tracking-tighter">Loading Reports...</p>
-                </div>
-            </div>
-        }>
+        <Suspense fallback={<LoadingPage />}>
             <ReportsContent />
         </Suspense>
     );
@@ -580,7 +573,7 @@ function ReportsContent() {
                             onMouseMove={handleMouseMove}
                         >
                             {isLoading ? (
-                                <div className="h-full flex items-center justify-center text-gray-500 text-sm">Loading reports...</div>
+                                <LoadingPage />
                             ) : filteredReports.length === 0 ? (
                                 <div className="h-full flex items-center justify-center text-gray-500 text-sm">No reports found</div>
                             ) : (
