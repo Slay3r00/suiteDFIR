@@ -4,9 +4,7 @@ from typing import Optional, List
 import os
 import shutil
 from pathlib import Path
-from core.config import BASE_DIR, VDF_DB_PATH
-
-DB_PATH = VDF_DB_PATH
+from core.config import BASE_DIR, DB_PATH
 
 # Schema Definitions
 SCHEMA = {
@@ -95,12 +93,25 @@ def init_database():
     data_dir = Path(DB_PATH).parent
     data_dir.mkdir(parents=True, exist_ok=True)
 
-    # Migration: Check if old database exists in backend root
-    old_db_path = BASE_DIR / "vdf_tools.db"
-    if old_db_path.exists() and not Path(DB_PATH).exists():
-        print(f"Migrating database from {old_db_path} to {DB_PATH}")
-        shutil.copy2(old_db_path, DB_PATH)
-        print(f"Database migrated successfully. Old database preserved at {old_db_path}")
+    # Migration: Check if old database exists in backend root or data dir
+    old_db_name = "vdf_tools.db"
+    
+    # Check data/vdf_tools.db (most likely location for recent versions)
+    old_data_db = Path(DB_PATH).parent / old_db_name
+    
+    # Check root level vdf_tools.db (very old versions)
+    old_root_db = BASE_DIR / old_db_name
+
+    source_db = None
+    if old_data_db.exists():
+        source_db = old_data_db
+    elif old_root_db.exists():
+        source_db = old_root_db
+
+    if source_db and not Path(DB_PATH).exists():
+        print(f"Migrating database from {source_db} to {DB_PATH}")
+        shutil.copy2(source_db, DB_PATH)
+        print(f"Database migrated successfully. Old database preserved at {source_db}")
 
     conn = sqlite3.connect(DB_PATH)
     # Enable WAL mode for better concurrency

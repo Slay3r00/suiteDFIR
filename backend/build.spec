@@ -18,7 +18,7 @@ datas = [
     ('bin', 'bin'),
     ('src', 'src'),  # Include the src directory
     # Only include the database schema if it exists
-    # (os.path.join(backend_dir, 'vdf_tools.db'), '.'),
+    # (os.path.join(backend_dir, 'app.db'), '.'),
 ]
 datas += collect_data_files('google.protobuf')
 datas += collect_data_files('grpc')

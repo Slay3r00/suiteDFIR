@@ -49,7 +49,7 @@ BACKUPS_DIR = str(BASE_DIR / "backups")
 TOOLS_DIR = str(BASE_DIR / "forensic-tools")
 
 # Database paths
-VDF_DB_PATH = str(BASE_DIR / "data" / "vdf_tools.db")
+DB_PATH = str(BASE_DIR / "data" / "app.db")
 
 # Cache directories for LEAPP geocoding database
 CACHE_DIR = BASE_DIR / "data" / "cache"
