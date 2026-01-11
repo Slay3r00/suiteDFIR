@@ -1,10 +1,11 @@
-import asyncio
 import logging
-from core.state import processing_tasks
-from fastapi import APIRouter, HTTPException, BackgroundTasks
-from fastapi.responses import StreamingResponse
+
+from fastapi import APIRouter, BackgroundTasks, HTTPException
+
 from core.models import ProcessRequest, StopRequest
+from core.state import processing_tasks
 from services.process_manager import process_manager
+from utils.sse import create_task_sse_response
 
 logger = logging.getLogger(__name__)
 
@@ -30,36 +31,9 @@ async def stream_processing_logs(task_id: str):
     if task_id not in processing_tasks:
         raise HTTPException(status_code=404, detail="Task not found")
         
-    async def event_generator():
-        if task_id not in processing_tasks:
-            return
-            
-        queue = processing_tasks[task_id]["queue"]
-        
-        while True:
-            if task_id not in processing_tasks:
-                break
-                
-            # Check if completed and empty
-            if processing_tasks[task_id]["status"] in ["success", "error", "cancelled"] and queue.empty():
-                yield f"event: close\ndata: Stream ended\n\n"
-                break
-                
-            try:
-                message = await asyncio.wait_for(queue.get(), timeout=1.0)
-                yield f"data: {message}\n\n"
-            except asyncio.TimeoutError:
-                continue
-            except Exception as e:
-                yield f"data: Error reading log: {str(e)}\n\n"
-                break
-                
-    return StreamingResponse(
-        event_generator(),
-        media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "Connection": "keep-alive",
-            "Access-Control-Allow-Origin": "*",
-        }
+    return create_task_sse_response(
+        task_id=task_id,
+        task_dict=processing_tasks,
+        terminal_statuses=["success", "error", "cancelled"],
+        cleanup=False  # Processing tasks cleaned up elsewhere
     )

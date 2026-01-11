@@ -19,7 +19,7 @@ from core.database import init_database
 from core.config import BASE_DIR
 
 from services.plugin_manager import load_plugins
-from api import cases, reports, profiles, tasks, processing, backups, system, timeline, tools
+from api import cases, reports, profiles, dashboard, processing, backups, system, timeline, tools
 from utils.device_watcher import start_device_watcher, stop_device_watcher
 from services.case_manager import case_manager
 
@@ -52,12 +52,31 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
+@app.exception_handler(Exception)
+async def global_exception_handler(request, exc):
+    from fastapi import HTTPException
+    from starlette.exceptions import HTTPException as StarletteHTTPException
+    
+    # Allow explicit HTTPExceptions to pass through with their status code
+    if isinstance(exc, (HTTPException, StarletteHTTPException)):
+        return JSONResponse(
+            status_code=exc.status_code,
+            content={"detail": exc.detail},
+        )
+
+    # For everything else, log it and return 500
+    logger.error(f"Unhandled error: {exc}", exc_info=True)
+    return JSONResponse(
+        status_code=500,
+        content={"detail": f"Internal Server Error: {str(exc)}"},
+    )
+
 # Include Routers
 app.include_router(system.router)
 app.include_router(cases.router)
 app.include_router(reports.router)
 app.include_router(profiles.router)
-app.include_router(tasks.router)
+app.include_router(dashboard.router)
 app.include_router(processing.router)
 app.include_router(backups.router)
 app.include_router(timeline.router)

@@ -64,7 +64,7 @@ const FRONTEND_URL = isDev
 logger.info('FRONTEND_URL:', FRONTEND_URL);
 
 // Health check configuration
-const HEALTH_CHECK_URL = 'http://127.0.0.1:8000/health';
+const HEALTH_CHECK_URL = 'http://127.0.0.1:8000/api/health';
 const MAX_HEALTH_CHECK_RETRIES = 30;
 const HEALTH_CHECK_INTERVAL = 1000; // 1 second
 
@@ -413,7 +413,7 @@ async function stopPythonBackend() {
 
     try {
       // Try graceful shutdown via API first
-      await fetch('http://localhost:8000/shutdown', { method: 'POST' });
+      await fetch('http://localhost:8000/api/shutdown', { method: 'POST' });
 
       // Wait a moment for shutdown to complete
       await new Promise(resolve => setTimeout(resolve, 1000));

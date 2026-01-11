@@ -72,18 +72,14 @@ class ProfileManager:
         await db_execute('DELETE FROM profiles WHERE id = ?', (profile_id,))
         return True
 
-    def get_modules(self, tool: str) -> Optional[Dict[str, Any]]:
+    async def get_modules(self, tool: str) -> Optional[Dict[str, Any]]:
         """Get available modules for a tool from state. Returns None if tool not loaded."""
         if tool not in available_modules or len(available_modules.get(tool, {})) == 0:
             logger.info(f"Tool '{tool}' not in available_modules, attempting reload...")
-            try:
-                from tool_manager import tool_manager
-                tool_path = tool_manager.get_tool_path(tool)
-                if tool_path:
-                    from plugin_manager import load_plugins
-                    load_plugins()
-            except Exception as e:
-                logger.error(f"Error reloading plugins: {e}")
+            
+            # Offload heavy blocking reload to thread pool
+            loop = asyncio.get_running_loop()
+            await loop.run_in_executor(None, self._reload_plugins_sync, tool)
 
         if tool not in available_modules:
             return None
@@ -91,7 +87,18 @@ class ProfileManager:
         modules = list(available_modules[tool].values())
         return {"modules": modules, "total": len(modules)}
 
-    def select_modules(self, tool: str, selections: Dict[str, bool]) -> int:
+    def _reload_plugins_sync(self, tool: str):
+        """Synchronous helper for reloading plugins, to be run in executor."""
+        try:
+            from tool_manager import tool_manager
+            tool_path = tool_manager.get_tool_path(tool)
+            if tool_path:
+                from plugin_manager import load_plugins
+                load_plugins()
+        except Exception as e:
+            logger.error(f"Error reloading plugins: {e}")
+
+    async def select_modules(self, tool: str, selections: Dict[str, bool]) -> int:
         """Update module selection state. Returns count of selected modules."""
         if tool in available_modules:
             for module_name, selected in selections.items():

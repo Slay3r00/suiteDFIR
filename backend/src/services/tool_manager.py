@@ -116,9 +116,9 @@ class ToolManager:
                 logger.error(f"Failed to read metadata: {e}")
         return {}
     
-    def install_tool(self, tool_name: str, progress_callback=None) -> Dict[str, Any]:
+    def _install_tool_sync(self, tool_name: str, progress_callback=None) -> Dict[str, Any]:
         """
-        Install a tool from GitHub (main branch).
+        Sync implementation for internal use and streaming.
         
         Args:
             tool_name: 'ileapp' or 'aleapp'
@@ -251,9 +251,17 @@ class ToolManager:
             if temp_dir.exists():
                 shutil.rmtree(temp_dir, ignore_errors=True)
             return {"success": False, "error": str(e)}
+
+    async def install_tool(self, tool_name: str) -> Dict[str, Any]:
+        """
+        Async wrapper for installing a tool without blocking the event loop.
+        """
+        import asyncio
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(None, self._install_tool_sync, tool_name, None)
     
-    def uninstall_tool(self, tool_name: str) -> Dict[str, Any]:
-        """Uninstall a tool."""
+    async def uninstall_tool(self, tool_name: str) -> Dict[str, Any]:
+        """Uninstall a tool asynchronously."""
         if tool_name not in TOOLS_CONFIG:
             return {"success": False, "error": f"Unknown tool: {tool_name}"}
         
@@ -262,10 +270,69 @@ class ToolManager:
             return {"success": False, "error": f"{tool_name} is not installed"}
         
         try:
-            shutil.rmtree(tool_path)
+            loop = asyncio.get_running_loop()
+            await loop.run_in_executor(None, shutil.rmtree, tool_path)
             return {"success": True, "message": f"{TOOLS_CONFIG[tool_name]['name']} uninstalled"}
         except Exception as e:
             return {"success": False, "error": str(e)}
+
+    async def install_tool_stream(self, tool_name: str, on_success=None):
+        """
+        Stream the installation progress of a tool.
+        Yields progress update dictionaries.
+        """
+        import asyncio
+        import concurrent.futures
+        
+        loop = asyncio.get_running_loop()
+        queue = asyncio.Queue()
+        
+        def progress_callback(pct, msg):
+            asyncio.run_coroutine_threadsafe(
+                queue.put({"progress": pct, "message": msg}), 
+                loop
+            )
+            
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            future = executor.submit(
+                self._install_tool_sync, 
+                tool_name, 
+                progress_callback
+            )
+            
+            while not future.done():
+                try:
+                    # Non-blocking check for new messages
+                    # We wait a short time for a message, or continue checking done status
+                    update = await asyncio.wait_for(queue.get(), timeout=0.1)
+                    yield update
+                except asyncio.TimeoutError:
+                    continue
+            
+            # Flush remaining messages
+            while not queue.empty():
+                yield await queue.get()
+                
+            result = future.result()
+            
+            if result["success"]:
+                if on_success:
+                    try:
+                        on_success()
+                    except Exception as e:
+                        logger.warning(f"on_success callback failed: {e}")
+
+                yield {
+                    "progress": 100, 
+                    "message": result['message'], 
+                    "complete": True
+                }
+            else:
+                yield {
+                    "progress": -1, 
+                    "message": result.get('error', 'Installation failed'), 
+                    "error": True
+                }
 
 
 # Global instance

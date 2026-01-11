@@ -19,6 +19,61 @@ def get_size_format(b, factor=1024, suffix="B"):
         b /= factor
     return f"{b:.2f}Y{suffix}"
 
+def open_in_explorer(path: str) -> None:
+    """Open a file or directory in the system's native file explorer."""
+    import platform
+    import subprocess
+    import os
+
+    system = platform.system()
+    if system == "Darwin":
+        subprocess.run(["open", path])
+    elif system == "Windows":
+        os.startfile(path)
+    else:
+        subprocess.run(["xdg-open", path])
+
+
+def open_path_secured(path: str, allowed_dir: str, resource_name: str = "Resource") -> dict:
+    """
+    Open a path in the system file explorer with security validation.
+    
+    Args:
+        path: The path to open
+        allowed_dir: Base directory that path must be within (security check)
+        resource_name: Human-readable name for error messages (e.g., "Backup", "Report")
+        
+    Returns:
+        Dict with 'success' and 'message' on success, or 'error' and 'status_code' on failure
+    """
+    # Security check: ensure path is within allowed directory
+    if not os.path.abspath(path).startswith(os.path.abspath(allowed_dir)):
+        return {"error": "Access denied", "status_code": 403}
+    
+    # Existence check
+    if not os.path.exists(path):
+        return {"error": f"{resource_name} not found", "status_code": 404}
+    
+    try:
+        open_in_explorer(path)
+        return {"success": True, "message": f"{resource_name} opened successfully"}
+    except Exception as e:
+        return {"error": f"Failed to open {resource_name.lower()}: {str(e)}", "status_code": 500}
+
+def handle_open_path_request(path: str, allowed_dir: str, resource_name: str = "Resource"):
+    """
+    Wrapper for open_path_secured that raises FastAPI HTTPExceptions.
+    Useful for thin routers.
+    """
+    from fastapi import HTTPException
+    
+    result = open_path_secured(path, allowed_dir, resource_name)
+    
+    if "error" in result:
+        raise HTTPException(status_code=result["status_code"], detail=result["error"])
+    
+    return {"message": result["message"]}
+
 def get_binary_path(binary_name):
     """Resolve path to a binary, handling Dev (source) and Prod (frozen) modes."""
     

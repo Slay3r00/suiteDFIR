@@ -206,5 +206,18 @@ class SystemManager:
         return await loop.run_in_executor(None, _calc)
 
 
+    async def shutdown_backend(self) -> Dict[str, str]:
+        """Gracefully shutdown the backend server."""
+        import signal
+        
+        logger.info("Shutdown requested via SystemManager")
+        
+        # Schedule the kill signal to happen slightly after the response is sent
+        loop = asyncio.get_running_loop()
+        loop.call_later(0.1, os.kill, os.getpid(), signal.SIGINT)
+        
+        return {"message": "Shutting down..."}
+
+
 # Global instance
 system_manager = SystemManager()

@@ -273,5 +273,33 @@ class BackupManager:
             except Exception as e:
                 logger.error(f"Error deleting backup files: {e}")
 
+    async def validate_backup(self, input_path: str) -> dict:
+        """
+        Validate an iOS backup path and check if it's encrypted.
+        
+        Args:
+            input_path: Path to the backup directory
+            
+        Returns:
+            Dict with 'encrypted' key, or 'error' and 'status_code' on failure
+        """
+        # Path existence check (moved from API layer)
+        if not os.path.exists(input_path):
+            return {"error": "Input path does not exist", "status_code": 400}
+        
+        try:
+            from utils.helpers import check_backup_encryption
+            result = check_backup_encryption(input_path)
+            
+            if "error" in result:
+                logger.warning(f"Validation error: {result['error']}")
+                return {"encrypted": False}
+            
+            return result
+        except Exception as e:
+            logger.warning(f"Validation exception: {e}")
+            return {"encrypted": False}
+
+
 # Global instance
 backup_manager = BackupManager()

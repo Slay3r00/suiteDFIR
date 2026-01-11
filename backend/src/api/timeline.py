@@ -1,30 +1,12 @@
-from fastapi import APIRouter, HTTPException, Query
-from typing import List, Optional, Dict, Any
-import sqlite3
-import json
-import os
 import logging
-import re
-from datetime import datetime, timezone
-from core.database import get_db_connection, DB_PATH
+from typing import Optional
+
+from fastapi import APIRouter, HTTPException, Query
+
+from services.timeline_manager import timeline_manager
 
 logger = logging.getLogger(__name__)
 
-def regex_extract_date(text: str) -> Optional[str]:
-    """
-    Regex-based timestamp extraction from raw text/JSON.
-    Focuses on SQL Core formats: YYYY-MM-DD HH:MM:SS (with optional precision and timezone).
-    """
-    if not text:
-        return None
-    
-    # SQL Core Pattern: YYYY-MM-DD [T/space] HH:MM:SS[.SSSSSS][Z/+HH:MM]
-    # This covers standard SQL, ISO 8601, and high-precision forensic timestamps.
-    match = re.search(r'(\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}(\.\d+)?([+-]\d{2}:?\d{2}|Z)?)', text)
-    if match:
-        return match.group(1)
-    
-    return None
 router = APIRouter(
     prefix="/api/cases/{case_id}/timeline",
     tags=["timeline"]
@@ -45,204 +27,14 @@ async def get_timeline(
     Fetch timeline events from tl.db files for a specific case.
     Supports pagination, sorting, filtering by report, global search, and column filters.
     """
-    try:
-        # Parse column filters
-        column_filters = []
-        if filters:
-            try:
-                column_filters = json.loads(filters)
-            except:
-                pass
+    return await timeline_manager.get_timeline_events(
+        case_id=case_id,
+        page=page,
+        limit=limit,
+        sort_by=sort_by,
+        sort_order=sort_order,
+        search=search,
+        filters=filters,
+        report_id=report_id
+    )
 
-        # 1. Get reports for the case
-        conn = sqlite3.connect(DB_PATH)
-        conn.row_factory = sqlite3.Row
-        cursor = conn.cursor()
-        
-        if report_id:
-            cursor.execute('SELECT path, name FROM reports WHERE case_id = ? AND path = ?', (case_id, report_id))
-        else:
-            cursor.execute('SELECT path, name FROM reports WHERE case_id = ? ORDER BY created_at DESC', (case_id,))
-            
-        reports = cursor.fetchall()
-        conn.close()
-        
-        if not reports:
-            return {"data": [], "total_count": 0}
-
-        # 2. Locate tl.db files
-        timeline_dbs = []
-        for report in reports:
-            report_path = report['path']
-            report_name = report['name']
-            
-            # Check for _Timeline/tl.db
-            tl_db_path = os.path.join(report_path, '_Timeline', 'tl.db')
-            if os.path.exists(tl_db_path):
-                timeline_dbs.append({
-                    'path': tl_db_path,
-                    'name': report_name
-                })
-
-        if not timeline_dbs:
-            return {"data": [], "total_count": 0}
-
-        # Limit to 10 DBs for "All" view to avoid SQLite limits
-        if not report_id and len(timeline_dbs) > 10:
-            timeline_dbs = timeline_dbs[:10]
-
-        # 3. Construct Query
-        mem_conn = sqlite3.connect(':memory:')
-        mem_cursor = mem_conn.cursor()
-        
-        select_parts = []
-        # Register regex extraction function in memory DB
-        mem_conn.create_function("regex_extract_date", 1, regex_extract_date)
-        
-        select_parts = []
-        for i, db in enumerate(timeline_dbs):
-            alias = f"db{i}"
-            try:
-                mem_cursor.execute(f"ATTACH DATABASE ? AS {alias}", (db['path'],))
-                
-                # Guard Check: Inspect schema to see if event_date already exists as a column
-                # We prioritize existing columns over regex extraction.
-                db_conn = sqlite3.connect(db['path'])
-                db_cursor = db_conn.cursor()
-                db_cursor.execute("PRAGMA table_info(data)")
-                columns = [row[1].lower() for row in db_cursor.fetchall()]
-                db_conn.close()
-
-                # If the table has a date-like column, we use it as the primary event_date
-                # If that column is NULL or empty for a specific row, we fallback to regex extraction on datalist
-                existing_date_col = next((c for c in columns if c in ('date', 'timestamp', 'time', 'event_date')), None)
-                
-                if existing_date_col:
-                    timestamp_extract = f"COALESCE(NULLIF(NULLIF({existing_date_col}, 'None'), ''), regex_extract_date(datalist))"
-                else:
-                    timestamp_extract = "regex_extract_date(datalist)"
-                
-                # Escape single quotes for SQL
-                escaped_name = db['name'].replace("'", "''")
-
-                # Build WHERE clause for this DB
-                where_clauses = []
-                params = []
-
-                # Global Search
-                if search:
-                    search_term = f"%{search}%"
-                    where_clauses.append(f"""
-                        (
-                            activity LIKE '{search_term}' OR 
-                            datalist LIKE '{search_term}' OR 
-                            '{escaped_name}' LIKE '{search_term}' OR
-                            {timestamp_extract} LIKE '{search_term}'
-                        )
-                    """)
-
-                # Column Filters
-                for filter_item in column_filters:
-                    col_id = filter_item.get('id')
-                    val = filter_item.get('value')
-                    if not val:
-                        continue
-                    
-                    val_term = f"%{val}%"
-                    
-                    if col_id == 'artifact':
-                        where_clauses.append(f"activity LIKE '{val_term}'")
-                    elif col_id == 'description':
-                        where_clauses.append(f"datalist LIKE '{val_term}'")
-                    elif col_id == 'source':
-                        where_clauses.append(f"'{escaped_name}' LIKE '{val_term}'")
-                    elif col_id == 'date':
-                        where_clauses.append(f"{timestamp_extract} LIKE '{val_term}'")
-
-                where_sql = ""
-                if where_clauses:
-                    where_sql = "WHERE " + " AND ".join(where_clauses)
-
-                select_parts.append(f"""
-                    SELECT 
-                        '{escaped_name}' as source_report,
-                        activity as artifact,
-                        datalist as description_json,
-                        {timestamp_extract} as event_date,
-                        key as original_key
-                    FROM {alias}.data
-                    {where_sql}
-                """)
-            except sqlite3.OperationalError as e:
-                logger.error(f"Error attaching {db['path']}: {e}")
-                continue
-
-        if not select_parts:
-             return {"data": [], "total_count": 0}
-
-        union_query = " UNION ALL ".join(select_parts)
-        
-        # Count total
-        count_query = f"SELECT COUNT(*) FROM ({union_query})"
-        mem_cursor.execute(count_query)
-        total_count = mem_cursor.fetchone()[0]
-
-        # Fetch page
-        sort_map = {
-            "date": "event_date",
-            "artifact": "artifact",
-            "source": "source_report",
-            "description": "description_json",
-            "id": "event_date"
-        }
-        sql_sort = sort_map.get(sort_by, "event_date")
-        
-        data_query = f"""
-            SELECT * FROM ({union_query})
-            ORDER BY {sql_sort} {sort_order.upper()}
-        """
-        
-        if limit != -1:
-            data_query += " LIMIT ? OFFSET ?"
-            mem_cursor.execute(data_query, (limit, page * limit))
-        else:
-            mem_cursor.execute(data_query)
-            
-        rows = mem_cursor.fetchall()
-        
-        # 4. Format Data
-        formatted_data = []
-        for i, row in enumerate(rows):
-            # row: source_report, artifact, description_json, event_date, original_key
-            source = row[0]
-            artifact = row[1]
-            desc_json = row[2]
-            date = row[3]
-            
-            # The frontend table now handles JSON parsing and date formatting
-            # We just send the raw JSON string (desc_json)
-            description = desc_json
-
-            # Format ID sequentially
-            current_page = page if limit != -1 else 0
-            page_size = limit if limit != -1 else total_count
-            virtual_id = (current_page * page_size) + i + 1
-
-            formatted_data.append({
-                "id": virtual_id,
-                "date": date,
-                "artifact": artifact,
-                "description": description,
-                "source": source
-            })
-
-        mem_conn.close()
-        
-        return {
-            "data": formatted_data,
-            "total_count": total_count
-        }
-
-    except Exception as e:
-        logger.error(f"Error fetching timeline: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
