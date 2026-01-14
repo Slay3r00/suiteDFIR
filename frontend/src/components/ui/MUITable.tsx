@@ -476,6 +476,38 @@ const EnhancedTable = ({
                 opacity: 1,
             },
         },
+        muiColumnActionsButtonProps: {
+            type: 'button',
+        },
+        muiFilterTextFieldProps: {
+            variant: 'outlined',
+            size: 'small',
+            onKeyDown: (e) => {
+                if (e.key === 'Enter') {
+                    e.stopPropagation();
+                }
+            },
+            sx: {
+                '& .MuiOutlinedInput-root': {
+                    color: '#FFFFFF',
+                    '& fieldset': {
+                        borderColor: 'rgba(255, 255, 255, 0.2)',
+                    },
+                    '&:hover fieldset': {
+                        borderColor: 'rgba(255, 255, 255, 0.3)',
+                    },
+                    '&.Mui-focused fieldset': {
+                        borderColor: '#FFFFFF',
+                    },
+                },
+                '& .MuiInputLabel-root': {
+                    color: 'rgba(255, 255, 255, 0.5)',
+                    '&.Mui-focused': {
+                        color: '#FFFFFF',
+                    },
+                },
+            },
+        },
         muiSearchTextFieldProps: {
             variant: 'outlined',
             size: 'small',

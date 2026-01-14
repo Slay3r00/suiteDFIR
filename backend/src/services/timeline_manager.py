@@ -23,6 +23,21 @@ def regex_extract_date(text: str) -> Optional[str]:
     
     return None
 
+MONTH_MAP = {
+    'jan': '01', 'january': '01',
+    'feb': '02', 'february': '02',
+    'mar': '03', 'march': '03',
+    'apr': '04', 'april': '04',
+    'may': '05',
+    'jun': '06', 'june': '06',
+    'jul': '07', 'july': '07',
+    'aug': '08', 'august': '08',
+    'sep': '09', 'sept': '09', 'september': '09',
+    'oct': '10', 'october': '10',
+    'nov': '11', 'november': '11',
+    'dec': '12', 'december': '12',
+}
+
 class TimelineManager:
     """Manages timeline event generation from multiple report databases."""
 
@@ -223,6 +238,45 @@ class TimelineManager:
                 
         return select_parts
 
+    def _normalize_search_term(self, val: str) -> List[str]:
+        """
+        Produce a list of possible search variations to match raw data.
+        Handles variations like "Dec 19", "Dec 19,", "Dec 19, 2017"
+        """
+        variations = {val} # Use set for uniqueness
+        
+        # 1. Clean up the value (strip trailing commas/dots and excess whitespace)
+        clean_val = val.strip().rstrip(',.')
+        if clean_val:
+            variations.add(clean_val)
+        
+        # 2. Match "Month Day, Year" or "Month Day Year"
+        # e.g. "Dec 19, 2017"
+        match_full = re.match(r'^([a-zA-Z]+)\s+(\d{1,2})[,\s]+(\d{4})$', clean_val)
+        if match_full:
+            m_name = match_full.group(1).lower()
+            day = match_full.group(2).zfill(2)
+            year = match_full.group(3)
+            if m_name in MONTH_MAP:
+                variations.add(f"{year}-{MONTH_MAP[m_name]}-{day}")
+        
+        # 3. Match "Month Day"
+        # e.g. "Dec 19"
+        else:
+            match_md = re.match(r'^([a-zA-Z]+)\s+(\d{1,2})$', clean_val)
+            if match_md:
+                m_name = match_md.group(1).lower()
+                day = match_md.group(2).zfill(2)
+                if m_name in MONTH_MAP:
+                    variations.add(f"{MONTH_MAP[m_name]}-{day}")
+                    variations.add(f"{MONTH_MAP[m_name]}/{day}")
+            
+            # 4. Match just "Month"
+            elif clean_val.lower() in MONTH_MAP:
+                variations.add(MONTH_MAP[clean_val.lower()])
+            
+        return list(variations)
+
     def _build_where_clauses(
         self, 
         search: Optional[str], 
@@ -235,15 +289,19 @@ class TimelineManager:
         
         # Global Search
         if search:
-            search_term = f"%{search}%"
-            where_clauses.append(f"""
-                (
-                    activity LIKE '{search_term}' OR 
-                    datalist LIKE '{search_term}' OR 
-                    '{escaped_name}' LIKE '{search_term}' OR
-                    {timestamp_extract} LIKE '{search_term}'
-                )
-            """)
+            search_variations = self._normalize_search_term(search)
+            search_parts = []
+            for var in search_variations:
+                term = f"%{var}%"
+                search_parts.append(f"""
+                    (
+                        activity LIKE '{term}' OR 
+                        datalist LIKE '{term}' OR 
+                        '{escaped_name}' LIKE '{term}' OR
+                        {timestamp_extract} LIKE '{term}'
+                    )
+                """)
+            where_clauses.append("(" + " OR ".join(search_parts) + ")")
 
         # Column Filters
         for filter_item in column_filters:
@@ -252,16 +310,22 @@ class TimelineManager:
             if not val:
                 continue
             
-            val_term = f"%{val}%"
+            val_variations = self._normalize_search_term(val)
+            filter_parts = []
             
-            if col_id == 'artifact':
-                where_clauses.append(f"activity LIKE '{val_term}'")
-            elif col_id == 'description':
-                where_clauses.append(f"datalist LIKE '{val_term}'")
-            elif col_id == 'source':
-                where_clauses.append(f"'{escaped_name}' LIKE '{val_term}'")
-            elif col_id == 'date':
-                where_clauses.append(f"{timestamp_extract} LIKE '{val_term}'")
+            for var in val_variations:
+                term = f"%{var}%"
+                if col_id == 'artifact':
+                    filter_parts.append(f"activity LIKE '{term}'")
+                elif col_id == 'description':
+                    filter_parts.append(f"datalist LIKE '{term}'")
+                elif col_id == 'source':
+                    filter_parts.append(f"'{escaped_name}' LIKE '{term}'")
+                elif col_id == 'date':
+                    filter_parts.append(f"{timestamp_extract} LIKE '{term}'")
+            
+            if filter_parts:
+                where_clauses.append("(" + " OR ".join(filter_parts) + ")")
                 
         return where_clauses
 
