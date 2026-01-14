@@ -4,6 +4,7 @@ import logging
 import asyncio
 import re
 import mimetypes
+import tempfile
 from typing import List, Dict, Any, Optional
 from core.database import db_execute, db_fetch_all
 from core.config import REPORTS_DIR
@@ -37,7 +38,9 @@ class ReportManager:
                 
                 # Calculate relative path for URL
                 rel_path = os.path.relpath(path, REPORTS_DIR)
-                url = f"/api/reports/view/{rel_path}/index.html"
+                # Sanitize path to prevent directory traversal attacks
+                safe_rel_path = rel_path.replace('..', '').replace('\\', '/')
+                url = f"/api/reports/view/{safe_rel_path}/index.html"
 
                 reports.append({
                     "name": row['name'],
@@ -85,9 +88,9 @@ class ReportManager:
                     if not os.path.islink(fp):
                         try:
                             total_size += os.path.getsize(fp)
+                            file_count += 1
                         except OSError:
                             pass
-                    file_count += 1
             return {"size": get_size_format(total_size), "file_count": file_count}
 
         loop = asyncio.get_running_loop()
@@ -167,37 +170,38 @@ class ReportManager:
         """Create a zip archive of the report directory. Returns dict with zip_path, filename or error."""
         if not os.path.exists(path):
              return {"error": "Report not found", "status_code": 404}
-        
+
         # Security check
         if not os.path.abspath(path).startswith(os.path.abspath(REPORTS_DIR)):
             return {"error": "Access denied", "status_code": 403}
 
         def _zip():
-            import tempfile
-            import shutil
+            temp_dir = None
             try:
                 temp_dir = tempfile.mkdtemp()
                 zip_name = f"{os.path.basename(path)}.zip"
                 zip_path = os.path.join(temp_dir, zip_name)
-                # make_archive appends .zip automatically if not present in base_name, 
+                # make_archive appends .zip automatically if not present in base_name,
                 # but here we are specifying the full path for base_name without extension for make_archive
                 base_name = os.path.splitext(zip_path)[0]
                 shutil.make_archive(base_name, 'zip', path)
                 # make_archive returns the full path of the created file
                 final_zip_path = base_name + ".zip"
-                return {"zip_path": final_zip_path, "filename": zip_name}
+                return {"zip_path": final_zip_path, "filename": zip_name, "temp_dir": temp_dir}
             except Exception as e:
-                # Cleanup if possible
-                try:
-                    if 'temp_dir' in locals():
+                # Cleanup on failure
+                if temp_dir and os.path.exists(temp_dir):
+                    try:
                         shutil.rmtree(temp_dir)
-                except:
-                    pass
-                raise e
+                    except Exception:
+                        pass
+                raise
 
         loop = asyncio.get_running_loop()
         try:
-            return await loop.run_in_executor(None, _zip)
+            result = await loop.run_in_executor(None, _zip)
+            # Note: temp_dir cleanup is handled by the caller after serving the file
+            return result
         except Exception as e:
             logger.error(f"Error zipping report: {e}")
             return {"error": f"Failed to zip report: {str(e)}", "status_code": 500}

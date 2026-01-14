@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 from typing import List, Dict, Any, Optional
@@ -28,10 +29,18 @@ class ProfileManager:
     async def create_profile(self, name: str, tool: str, modules: List[str]) -> Dict[str, Any]:
         """Create a new profile. Returns the created profile dict or raises on duplicate."""
         modules_json = json.dumps(modules)
-        profile_id = await db_execute_return_id(
-            'INSERT INTO profiles (name, tool, modules_json) VALUES (?, ?, ?)',
-            (name, tool, modules_json)
-        )
+        
+        try:
+            profile_id = await db_execute_return_id(
+                'INSERT INTO profiles (name, tool, modules_json) VALUES (?, ?, ?)',
+                (name, tool, modules_json)
+            )
+        except Exception as e:
+            # Check for unique constraint violation (sqlite3 specific)
+            if "UNIQUE constraint" in str(e) or "integrity" in str(e).lower():
+                raise ValueError(f"Profile with name '{name}' already exists")
+            raise e
+
         return {
             "id": profile_id,
             "name": name,

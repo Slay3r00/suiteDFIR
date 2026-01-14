@@ -3,7 +3,7 @@ from typing import Optional
 
 from fastapi import APIRouter, HTTPException
 
-from core.models import Note, NoteCreate, Task, TaskCreate
+from core.models import MessageResponse, Note, NoteCreate, RecentActivityResponse, Task, TaskCreate
 from services.task_note_manager import task_note_manager
 from services.system_manager import system_manager
 
@@ -28,7 +28,7 @@ async def toggle_task(task_id: int):
     logger.info(f"Toggling task status for ID: {task_id}")
     return await task_note_manager.toggle_task_status(task_id)
 
-@router.delete("/tasks/{task_id}")
+@router.delete("/tasks/{task_id}", response_model=MessageResponse)
 async def delete_task(task_id: int):
     logger.info(f"Deleting task ID: {task_id}")
     return await task_note_manager.delete_task(task_id)
@@ -42,12 +42,13 @@ async def create_note(note: NoteCreate):
     logger.info("Creating new dashboard note")
     return await task_note_manager.create_note(note)
 
-@router.delete("/notes/{note_id}")
+@router.delete("/notes/{note_id}", response_model=MessageResponse)
 async def delete_note(note_id: int):
     logger.info(f"Deleting note ID: {note_id}")
     return await task_note_manager.delete_note(note_id)
 
-@router.get("/activity")
+@router.get("/activity", response_model=RecentActivityResponse)
 async def get_recent_activity(case_id: Optional[int] = None):
     """Get recent activity for the dashboard"""
-    return await system_manager.get_recent_activity(case_id)
+    result = await system_manager.get_recent_activity(case_id)
+    return RecentActivityResponse(activities=result)

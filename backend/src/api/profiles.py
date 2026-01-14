@@ -4,7 +4,7 @@ from fastapi import APIRouter, Body, Depends, HTTPException
 
 from api.dependencies import validate_tool
 from core.config import TOOLS_CONFIG
-from core.models import Profile, ProfileCreate
+from core.models import MessageResponse, ModuleInfo, ModulesResponse, ModuleSelectionResult, Profile, ProfileCreate, ProfileLoadResult
 from core.state import available_modules
 from services.profile_manager import profile_manager
 
@@ -24,7 +24,7 @@ async def get_profiles(tool: str = Depends(validate_tool)):
     return [Profile.model_validate(row) for row in rows]
 
 
-@router.post("")
+@router.post("", response_model=Profile)
 async def save_profile(profile: ProfileCreate):
     """Create a new profile for specified tool"""
     # Validate tool exists
@@ -37,13 +37,11 @@ async def save_profile(profile: ProfileCreate):
             modules=profile.modules
         )
         return Profile.model_validate(result)
-    except Exception as e:
-        if "UNIQUE constraint" in str(e):
-            raise HTTPException(status_code=400, detail="Profile with this name already exists")
-        raise
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.post("/{profile_id}/load")
+@router.post("/{profile_id}/load", response_model=ProfileLoadResult)
 async def load_profile(profile_id: int, tool: str = Body(..., embed=True)):
     """Load a profile's module selection for specified tool"""
     # Validate tool exists
@@ -61,7 +59,7 @@ async def load_profile(profile_id: int, tool: str = Body(..., embed=True)):
     }
 
 
-@router.delete("/{profile_id}")
+@router.delete("/{profile_id}", response_model=MessageResponse)
 async def delete_profile(profile_id: int):
     """Delete a profile"""
     deleted = await profile_manager.delete_profile(profile_id)
@@ -70,7 +68,7 @@ async def delete_profile(profile_id: int):
     return {"message": "Profile deleted successfully"}
 
 
-@router.get("/modules")
+@router.get("/modules", response_model=ModulesResponse)
 async def get_modules(tool: str = Depends(validate_tool)):
     """Get available modules for a specific tool"""
     result = await profile_manager.get_modules(tool)
@@ -79,7 +77,7 @@ async def get_modules(tool: str = Depends(validate_tool)):
     return result
 
 
-@router.post("/modules/select")
+@router.post("/modules/select", response_model=ModuleSelectionResult)
 async def select_modules(tool: str = Body(...), selections: dict[str, bool] = Body(...)):
     """Update module selection state for specified tool"""
     # Validate tool exists

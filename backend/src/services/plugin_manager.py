@@ -71,7 +71,6 @@ def load_plugins():
     Loads forensic tool plugins based on configuration.
     Uses safe_tool_execution to isolate tool environments.
     """
-    import sys
     logger.info("=== load_plugins() called ===")
     logger.info(f"sys.frozen: {getattr(sys, 'frozen', False)}")
     
@@ -163,7 +162,7 @@ def load_plugins():
                                     artifact_info = {'category': category, 'paths': search}
 
                                 if name in self._plugins:
-                                    raise KeyError(f"Duplicate plugin: '{name}' in module '{py_file.stem}'")
+                                    raise ValueError(f"Duplicate plugin: '{name}' in module '{py_file.stem}'")
 
                                 # Add artifact_info to PluginSpec
                                 self._plugins[name] = plugin_loader.PluginSpec(name, py_file.stem, category, search, func, artifact_info)

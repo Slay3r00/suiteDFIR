@@ -110,7 +110,7 @@ export function createLeappApi(tool: string) {
             },
 
             validateBackup: async (inputPath: string): Promise<{ encrypted: boolean }> => {
-                const response = await fetch(`${API_BASE}/ios/validate-backup`, {
+                const response = await fetch(`${API_BASE}/backups/validate`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ input_path: inputPath }),
@@ -124,12 +124,12 @@ export function createLeappApi(tool: string) {
         },
         backup: {
             getDevices: async () => {
-                const response = await fetch(`${API_BASE}/ios/devices`);
+                const response = await fetch(`${API_BASE}/backups/devices`);
                 if (!response.ok) throw new Error('Failed to fetch devices');
                 return response.json();
             },
             startBackup: async (udid: string, name: string, caseId?: number, password?: string) => {
-                const response = await fetch(`${API_BASE}/ios/backup`, {
+                const response = await fetch(`${API_BASE}/backups`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ udid, name, case_id: caseId, password }),

@@ -149,3 +149,206 @@ class BackupRequest(BaseModel):
 class StopRequest(BaseModel):
     """Payload for stopping a processing job."""
     task_id: Optional[str] = None
+
+
+# =============================================================================
+# GENERIC RESPONSE MODELS
+# =============================================================================
+
+class MessageResponse(BaseModel):
+    """Standard success message response."""
+    message: str
+
+
+class SuccessResponse(BaseModel):
+    """Generic success response with optional data."""
+    success: bool
+    message: str
+
+
+# =============================================================================
+# BACKUP RESPONSE MODELS
+# =============================================================================
+
+class DeviceInfo(BaseModel):
+    """Connected iOS device information."""
+    udid: str
+    name: str
+    device_type: Optional[str] = None
+    is_encrypted: Optional[bool] = None
+
+
+class BackupValidation(BaseModel):
+    """Backup path validation result."""
+    valid: bool
+    encrypted: bool
+    path: Optional[str] = None
+    error: Optional[str] = None
+
+
+class BackupInfo(BaseModel):
+    """Backup record response."""
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    udid: str
+    name: str
+    status: str
+    path: Optional[str] = None
+    created_at: str
+    case_id: int
+
+
+class BackupStarted(BaseModel):
+    """Response when backup initiated."""
+    message: str
+    backup_id: int
+
+
+# =============================================================================
+# PROCESSING RESPONSE MODELS
+# =============================================================================
+
+class ProcessingStarted(BaseModel):
+    """Response when processing job initiated."""
+    task_id: str
+    message: str
+
+
+# =============================================================================
+# TOOL RESPONSE MODELS
+# =============================================================================
+
+class ToolStatus(BaseModel):
+    """Individual tool installation status."""
+    installed: bool
+    version: Optional[str] = None
+    path: Optional[str] = None
+    name: Optional[str] = None
+    description: Optional[str] = None
+    installed_at: Optional[str] = None
+    latest_version: Optional[str] = None
+    update_available: Optional[bool] = None
+
+
+class ToolsStatusResponse(BaseModel):
+    """All tools status response."""
+    ileapp: ToolStatus
+    aleapp: ToolStatus
+
+
+class ToolInstallResult(BaseModel):
+    """Tool installation result."""
+    success: bool
+    tool: str
+    message: Optional[str] = None
+    error: Optional[str] = None
+
+
+# =============================================================================
+# PROFILE RESPONSE MODELS
+# =============================================================================
+
+class ProfileLoadResult(BaseModel):
+    """Profile load operation result."""
+    message: str
+    profile_id: int
+    selected_count: int
+    modules: List[str]
+
+
+class ModuleInfo(BaseModel):
+    """Module information for a tool."""
+    name: str
+    category: Optional[str] = None
+    display_name: Optional[str] = None
+    module_name: Optional[str] = None
+    enabled: bool = True
+    selected: bool = False
+
+
+class ModulesResponse(BaseModel):
+    """Response for available modules endpoint."""
+    modules: List[ModuleInfo]
+    total: int
+
+
+class ModuleSelectionResult(BaseModel):
+    """Module selection update result."""
+    message: str
+
+
+# =============================================================================
+# SYSTEM RESPONSE MODELS
+# =============================================================================
+
+class RootResponse(BaseModel):
+    """API root endpoint response."""
+    message: str
+    tools: List[str]
+    modules_loaded: int
+
+
+class HealthResponse(BaseModel):
+    """Health check response."""
+    status: str
+    tools_initialized: dict[str, bool]
+
+
+class SystemHealthMetrics(BaseModel):
+    """System health metrics response."""
+    cpu_percent: float
+    memory_percent: float
+    disk_percent: float
+
+
+class StorageBreakdownItem(BaseModel):
+    name: str
+    value: int
+    color: str
+
+class StorageUsage(BaseModel):
+    """Storage usage statistics."""
+    total: int
+    free: int
+    breakdown: List[StorageBreakdownItem]
+
+
+# =============================================================================
+# TIMELINE RESPONSE MODELS
+# =============================================================================
+
+class TimelineEvent(BaseModel):
+    """Single timeline event."""
+    id: int
+    date: str
+    artifact: str
+    description: str
+    source: str
+    report_id: Optional[str] = None
+
+
+class TimelineResponse(BaseModel):
+    """Paginated timeline response."""
+    events: List[TimelineEvent]
+    total: int
+    page: int
+    limit: int
+
+
+# =============================================================================
+# ACTIVITY RESPONSE MODELS
+# =============================================================================
+
+class ActivityItem(BaseModel):
+    """Recent activity item."""
+    id: int
+    name: str
+    type: str
+    status: str
+    created_at: str
+    path: Optional[str] = None
+
+
+class RecentActivityResponse(BaseModel):
+    """Recent activity response."""
+    activities: List[ActivityItem]

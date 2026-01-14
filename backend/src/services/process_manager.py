@@ -6,7 +6,7 @@ import json
 import sys
 import tempfile
 import shutil
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, Union
 from datetime import datetime
 
 from fastapi import HTTPException
@@ -27,19 +27,19 @@ class ProcessManager:
         tool = request.tool.value
         if tool not in TOOLS_CONFIG:
             raise HTTPException(status_code=404, detail=f"Tool '{tool}' not found")
-            
+
         config = TOOLS_CONFIG[tool]
-        
+
         # Verify input path
         if not os.path.exists(request.input_path):
             raise HTTPException(status_code=400, detail="Input path does not exist")
-            
+
         # Create output directory
         output_dir = os.path.join(REPORTS_DIR, f"{tool}-reports", request.case_name)
         os.makedirs(output_dir, exist_ok=True)
-        
+
         # Module Selection Logic
-        modules_to_run = request.selected_modules
+        modules_to_run = list(request.selected_modules) if request.selected_modules else []
         if not modules_to_run and tool in available_modules:
             # Fallback to state if request list is empty
             for module_name, module_data in available_modules[tool].items():
@@ -172,27 +172,33 @@ class ProcessManager:
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
                 env=env,
-                cwd=CACHE_DIR  # Set CWD to cache dir so coordinates.db is created there
+                cwd=CACHE_DIR  # Set working directory for process execution
             )
             
             if task_id in processing_tasks:
                 processing_tasks[task_id]["process"] = process
-            
+
             while True:
-                line = await process.stdout.readline()
-                if not line:
-                    break
-                
-                log_message = line.decode().strip()
-                
-                await broadcast_event("log", {
-                    "tool": tool,
-                    "case": case_name,
-                    "message": log_message
-                })
-                
-                if task_id in processing_tasks:
-                    await processing_tasks[task_id]["queue"].put(log_message)
+                try:
+                    line = await asyncio.wait_for(process.stdout.readline(), timeout=60.0)
+                    if not line:
+                        break
+
+                    log_message = line.decode().strip()
+
+                    await broadcast_event("log", {
+                        "tool": tool,
+                        "case": case_name,
+                        "message": log_message
+                    })
+
+                    if task_id in processing_tasks:
+                        await processing_tasks[task_id]["queue"].put(log_message)
+
+                except asyncio.TimeoutError:
+                    if process.returncode is not None:
+                        break
+                    continue
                 
             await process.wait()
             
@@ -254,7 +260,9 @@ class ProcessManager:
             new_dirs = current_dirs - existing_dirs
             new_dirs = [d for d in new_dirs if os.path.isdir(os.path.join(output_dir, d))]
             if new_dirs:
-                new_report_path = os.path.join(output_dir, max(new_dirs, key=lambda d: os.path.getmtime(os.path.join(output_dir, d))))
+                # Get the most recently modified directory
+                newest_dir = max(new_dirs, key=lambda d: os.path.getmtime(os.path.join(output_dir, d)))
+                new_report_path = os.path.join(output_dir, newest_dir)
 
         if status == "success":
             if new_report_path:

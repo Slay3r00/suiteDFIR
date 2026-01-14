@@ -31,7 +31,7 @@ export default function RecentActivityWidget() {
                 const res = await fetch(`http://localhost:8000/api/dashboard/activity?case_id=${selectedCaseId}`)
                 if (res.ok) {
                     const json = await res.json()
-                    setActivities(json)
+                    setActivities(json.activities || [])
                 }
             } catch (error) {
                 console.error('Failed to fetch activity:', error)

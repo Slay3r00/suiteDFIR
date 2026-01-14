@@ -5,7 +5,7 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import Response
 
 from core.config import TOOLS_CONFIG
-from core.models import FilePathResponse
+from core.models import FilePathResponse, HealthResponse, MessageResponse, RootResponse, StorageUsage, SystemHealthMetrics
 from core.state import available_modules, event_clients, plugin_loaders
 from services.spatial_manager import spatial_manager
 from services.system_manager import system_manager
@@ -22,7 +22,7 @@ router = APIRouter(
 
 # --- Root & Health ---
 
-@router.get("/")
+@router.get("/", response_model=RootResponse)
 async def root():
     total_modules = sum(len(modules) for modules in available_modules.values())
     return {
@@ -32,7 +32,7 @@ async def root():
     }
 
 
-@router.get("/health")
+@router.get("/health", response_model=HealthResponse)
 async def health_check():
     tools_status = {tool: len(plugin_loaders.get(tool, {}) or {}) > 0 for tool in TOOLS_CONFIG.keys()}
     return {
@@ -59,12 +59,12 @@ async def browse_folders():
 
 # --- System Metrics ---
 
-@router.get("/system/health")
+@router.get("/system/health", response_model=SystemHealthMetrics)
 async def get_system_health():
     return await system_manager.get_health_metrics()
 
 
-@router.get("/system/storage")
+@router.get("/system/storage", response_model=StorageUsage)
 async def get_storage_usage(case_id: Optional[int] = None):
     return await system_manager.get_storage_usage(case_id)
 
@@ -100,7 +100,7 @@ async def get_kml_data(path: str):
 
 # --- Shutdown ---
 
-@router.post("/shutdown")
+@router.post("/shutdown", response_model=MessageResponse)
 async def shutdown():
     """Gracefully shutdown the backend server"""
     return await system_manager.shutdown_backend()

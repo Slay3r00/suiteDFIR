@@ -94,7 +94,7 @@ export default function BackupPage() {
 
     const handleOpenLocation = async (path: string) => {
         try {
-            await fetch(`http://localhost:8000/api/ios/backup/open?path=${encodeURIComponent(path)}`, {
+            await fetch(`http://localhost:8000/api/backups/open?path=${encodeURIComponent(path)}`, {
                 method: 'POST'
             });
         } catch (error) {

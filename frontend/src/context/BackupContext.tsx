@@ -153,7 +153,7 @@ export function BackupProvider({ children }: { children: ReactNode }) {
 
         if (!keepExisting) setLogs([]);
 
-        const eventSource = new EventSource(`${API_BASE}/ios/backup/stream/${backupId}`);
+        const eventSource = new EventSource(`${API_BASE}/backups/${backupId}/stream`);
         logStreamRef.current = eventSource;
 
         eventSource.onmessage = (event) => {
@@ -205,7 +205,7 @@ export function BackupProvider({ children }: { children: ReactNode }) {
 
     const stopBackup = async (backupId: number) => {
         try {
-            await fetch(`${API_BASE}/ios/backup/${backupId}/stop`, { method: 'POST' });
+            await fetch(`${API_BASE}/backups/${backupId}/stop`, { method: 'POST' });
             fetchBackups();
         } catch (error) {
             console.error('Failed to stop backup:', error);

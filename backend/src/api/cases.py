@@ -2,7 +2,7 @@ import logging
 
 from fastapi import APIRouter, HTTPException
 
-from core.models import Case, CaseCreate, CaseUpdate
+from core.models import Case, CaseCreate, CaseUpdate, MessageResponse
 from services.case_manager import case_manager
 
 logger = logging.getLogger(__name__)
@@ -71,7 +71,7 @@ async def visit_case(case_id: int):
     row = await case_manager.get_case(case_id)
     return Case.model_validate(row)
 
-@router.delete("/{case_id}")
+@router.delete("/{case_id}", response_model=MessageResponse)
 async def delete_case(case_id: int):
     """Delete a case and all associated data"""
     # Check if case exists

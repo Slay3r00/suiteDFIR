@@ -42,13 +42,26 @@ class CaseManager:
         """Update an existing case."""
         if not update_data:
             return False
-            
+
+        # Validate column names to prevent SQL injection
+        valid_columns = {
+            'name', 'case_number', 'client_name', 'client_phone', 'client_email',
+            'description', 'status', 'priority', 'last_visited_at'
+        }
+        invalid_keys = set(update_data.keys()) - valid_columns
+        if invalid_keys:
+            raise ValueError(f"Invalid column names: {invalid_keys}")
+
         set_clause = ", ".join([f"{key} = ?" for key in update_data.keys()])
         values = list(update_data.values())
         values.append(case_id)
-        
-        await db_execute(f'UPDATE cases SET {set_clause} WHERE id = ?', tuple(values))
-        return True
+
+        try:
+            await db_execute(f'UPDATE cases SET {set_clause} WHERE id = ?', tuple(values))
+            return True
+        except Exception as e:
+            logger.error(f"Error updating case {case_id}: {e}")
+            raise
 
     async def visit_case(self, case_id: int) -> None:
         """Update the last_visited_at timestamp for a case."""
@@ -133,7 +146,7 @@ class CaseManager:
                 for tool_dir in os.listdir(REPORTS_DIR):
                     tool_path = os.path.join(REPORTS_DIR, tool_dir)
                     if os.path.isdir(tool_path):
-                        # Inside tool dir, check each case folder (e.g., Jacob's Report)
+                        # Inside tool dir, check each case folder (e.g., Josh's Report)
                         for case_item in os.listdir(tool_path):
                             case_path = os.path.join(tool_path, case_item)
                             if os.path.isdir(case_path):

@@ -4,6 +4,7 @@ Handles downloading and managing iLEAPP/aLEAPP forensic tools from GitHub.
 """
 
 import sys
+import asyncio
 import subprocess
 import logging
 import platform
@@ -150,22 +151,46 @@ class ToolManager:
             # Download zip file
             temp_dir = self.tools_dir / f"{tool_name}_temp"
             temp_dir.mkdir(parents=True, exist_ok=True)
-            
             zip_path = temp_dir / f"{tool_name}.zip"
             
-            response = requests.get(zip_url, stream=True, timeout=300)
-            response.raise_for_status()
-            
-            total_size = int(response.headers.get('content-length', 0))
-            downloaded = 0
-            
-            with open(zip_path, 'wb') as f:
-                for chunk in response.iter_content(chunk_size=8192):
-                    f.write(chunk)
-                    downloaded += len(chunk)
-                    if total_size > 0:
-                        pct = 10 + int(40 * downloaded / total_size)
-                        update_progress(pct, f"Downloading... ({downloaded // 1024}KB)")
+            # Retry logic
+            max_retries = 3
+            for attempt in range(max_retries):
+                try:
+                    update_progress(10 + (attempt * 2), f"Downloading from GitHub (Attempt {attempt+1}/{max_retries})...")
+                    
+                    response = requests.get(zip_url, stream=True, timeout=300)
+                    response.raise_for_status()
+                    
+                    total_size = int(response.headers.get('content-length', 0))
+                    logger.info(f"[{tool_name}] Download size: {total_size} bytes")
+                    
+                    downloaded = 0
+                    
+                    with open(zip_path, 'wb') as f:
+                        for chunk in response.iter_content(chunk_size=8192):
+                            if chunk:
+                                f.write(chunk)
+                                downloaded += len(chunk)
+                                if total_size > 0:
+                                    pct = 10 + int(40 * downloaded / total_size)
+                                    # Cap at 45 to leave room for extraction
+                                    if pct > 45: pct = 45
+                                    update_progress(pct, f"Downloading... ({downloaded // 1024}KB)")
+                    
+                    # Verify size if content-length was provided
+                    if total_size > 0 and downloaded != total_size:
+                        raise ValueError(f"Incomplete download: {downloaded}/{total_size} bytes")
+                        
+                    logger.info(f"[{tool_name}] Download completed: {downloaded} bytes")
+                    break
+                    
+                except Exception as e:
+                    logger.warning(f"[{tool_name}] Download attempt {attempt+1} failed: {e}")
+                    if attempt == max_retries - 1:
+                        raise e
+                    import time
+                    time.sleep(2)
             
             update_progress(50, "Extracting files...")
             
@@ -241,7 +266,8 @@ class ToolManager:
             return {
                 "success": True,
                 "message": f"{config['name']} installed successfully",
-                "version": "main"
+                "version": "main",
+                "tool": tool_name
             }
             
         except Exception as e:
@@ -250,7 +276,11 @@ class ToolManager:
             temp_dir = self.tools_dir / f"{tool_name}_temp"
             if temp_dir.exists():
                 shutil.rmtree(temp_dir, ignore_errors=True)
-            return {"success": False, "error": str(e)}
+            return {
+                "success": False, 
+                "error": str(e),
+                "tool": tool_name
+            }
 
     async def install_tool(self, tool_name: str) -> Dict[str, Any]:
         """
@@ -263,18 +293,34 @@ class ToolManager:
     async def uninstall_tool(self, tool_name: str) -> Dict[str, Any]:
         """Uninstall a tool asynchronously."""
         if tool_name not in TOOLS_CONFIG:
-            return {"success": False, "error": f"Unknown tool: {tool_name}"}
+            return {
+                "success": False, 
+                "error": f"Unknown tool: {tool_name}",
+                "tool": tool_name
+            }
         
         tool_path = self.get_tool_path(tool_name)
         if not tool_path:
-            return {"success": False, "error": f"{tool_name} is not installed"}
+            return {
+                "success": False, 
+                "error": f"{tool_name} is not installed",
+                "tool": tool_name
+            }
         
         try:
             loop = asyncio.get_running_loop()
             await loop.run_in_executor(None, shutil.rmtree, tool_path)
-            return {"success": True, "message": f"{TOOLS_CONFIG[tool_name]['name']} uninstalled"}
+            return {
+                "success": True, 
+                "message": f"{TOOLS_CONFIG[tool_name]['name']} uninstalled",
+                "tool": tool_name
+            }
         except Exception as e:
-            return {"success": False, "error": str(e)}
+            return {
+                "success": False, 
+                "error": str(e),
+                "tool": tool_name
+            }
 
     async def install_tool_stream(self, tool_name: str, on_success=None):
         """

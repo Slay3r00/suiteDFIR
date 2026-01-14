@@ -3,15 +3,13 @@ import asyncio
 import os
 import logging
 import shutil
-import platform
-import subprocess
-from datetime import datetime
+import time
 from typing import Optional, List, Dict, Any
 
 from core.config import BACKUPS_DIR
 from core.database import db_execute, db_fetch_one, db_fetch_all, db_execute_return_id
-from core.state import backup_tasks, active_backups
-from utils.helpers import broadcast_event, get_connected_devices, get_binary_path
+from core.state import active_backups, backup_tasks
+from utils.helpers import broadcast_event, get_connected_devices, get_binary_path, check_backup_encryption
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +28,7 @@ class BackupManager:
         if not case_id:
             return []
         return await db_fetch_all(
-            "SELECT id, name, device_udid, device_name, path, created_at, status, size, progress, type FROM backups WHERE case_id = ? ORDER BY created_at DESC",
+            "SELECT id, name, device_udid as udid, device_name, path, created_at, status, size, progress, type, case_id FROM backups WHERE case_id = ? ORDER BY created_at DESC",
             (case_id,)
         )
 
@@ -39,7 +37,7 @@ class BackupManager:
         row = await db_fetch_one("SELECT path FROM backups WHERE id = ?", (backup_id,))
         
         if not row:
-            return {"success": False, "error": "Backup not found", "status_code": 404}
+            raise ValueError("Backup record not found")
         
         path = row['path']
         
@@ -58,10 +56,10 @@ class BackupManager:
         device = next((d for d in devices if d['udid'] == request.udid), None)
         
         if not device:
-            return {"success": False, "error": "Device not found", "status_code": 404}
+            raise ValueError("Device not found or not connected")
             
         # Create backup directory
-        backup_path = os.path.join(BACKUPS_DIR, f"{request.name}_{request.udid}_{int(datetime.now().timestamp())}")
+        backup_path = os.path.join(BACKUPS_DIR, f"{request.name}_{request.udid}_{int(time.time())}")
         os.makedirs(backup_path, exist_ok=True)
         
         # Create DB entry
@@ -69,27 +67,23 @@ class BackupManager:
             "INSERT INTO backups (name, device_udid, device_name, path, status, password, case_id) VALUES (?, ?, ?, ?, ?, ?, ?)",
             (request.name, request.udid, device['name'], backup_path, 'in_progress', request.password, request.case_id)
         )
-        
-        # Initialize task queue
+
+        # Initialize task queue for SSE streaming
         backup_tasks[backup_id] = {
             "queue": asyncio.Queue(),
             "status": "in_progress",
             "process": None
         }
-        
+
         # Start background task
         background_tasks.add_task(self._run_backup_loop, backup_id, request.udid, backup_path, request.password)
-        
+
         return {"success": True, "backup_id": backup_id}
 
     async def stop_backup(self, backup_id: int) -> Dict[str, Any]:
         """Stop an active backup process."""
         # Update status IMMEDIATELY to give feedback
         await db_execute("UPDATE backups SET status = 'cancelled' WHERE id = ?", (backup_id,))
-        
-        if backup_id in backup_tasks:
-            backup_tasks[backup_id]["status"] = "cancelled"
-            await backup_tasks[backup_id]["queue"].put("Stopping backup...")
 
         if backup_id in active_backups and active_backups[backup_id] is not None:
             process = active_backups[backup_id]
@@ -98,8 +92,8 @@ class BackupManager:
                 return {"success": True, "message": "Backup stop requested"}
             except Exception as e:
                 logger.error(f"Error stopping backup process {backup_id}: {e}")
-                return {"success": False, "error": str(e), "status_code": 500}
-        
+                raise RuntimeError(f"Failed to stop backup process: {e}")
+
         return {"success": True, "message": "Backup not active or already stopped"}
 
     async def _run_backup_loop(self, backup_id: int, udid: str, backup_path: str, password: Optional[str] = None):
@@ -107,7 +101,7 @@ class BackupManager:
         try:
             # 1. Setup Encryption if needed
             if password:
-                success = await self._setup_encryption(backup_id, udid, password)
+                success = await self._setup_encryption(backup_id, udid, password, backup_path)
                 if not success:
                     return
 
@@ -122,10 +116,8 @@ class BackupManager:
                 limit=1024 * 1024  # 1MB
             )
             
-            # Store handles
+            # Store process handle
             active_backups[backup_id] = process
-            if backup_id in backup_tasks:
-                backup_tasks[backup_id]["process"] = process
             
             # Broadcast start
             await broadcast_event("backup_update", {"id": backup_id, "status": "in_progress"})
@@ -147,102 +139,143 @@ class BackupManager:
             if backup_id in active_backups:
                 del active_backups[backup_id]
 
-    async def _setup_encryption(self, backup_id: int, udid: str, password: str) -> bool:
+    async def _setup_encryption(self, backup_id: int, udid: str, password: str, backup_path: str) -> bool:
         """Enable encryption on the device before backup."""
         idevice_backup_cmd = get_binary_path("idevicebackup2")
         enc_cmd = [idevice_backup_cmd, 'encryption', 'on', password, '-u', udid]
-        
+
         enc_proc = await asyncio.create_subprocess_exec(
             *enc_cmd,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE
         )
         stdout, stderr = await enc_proc.communicate()
-        
+
         if enc_proc.returncode != 0:
             error_msg = f"Failed to enable encryption: {stderr.decode()}"
             logger.error(error_msg)
+
+            # Update database status
+            await db_execute("UPDATE backups SET status = 'failed' WHERE id = ?", (backup_id,))
+
+            # Broadcast failure event
+            await broadcast_event("backup_update", {"id": backup_id, "status": "failed"})
+            
             if backup_id in backup_tasks:
                 await backup_tasks[backup_id]["queue"].put(error_msg)
                 backup_tasks[backup_id]["status"] = "failed"
-            
-            await db_execute("UPDATE backups SET status = 'failed' WHERE id = ?", (backup_id,))
+
+            # Clean up files
+            await self.cleanup_backup_files(backup_path)
+
             return False
         return True
 
     async def _stream_output(self, backup_id: int, process: asyncio.subprocess.Process):
-        """Read business logic from subprocess stdout and pipe it to the task queue."""
+        """Read and log subprocess output."""
         while True:
             try:
                 line = await asyncio.wait_for(process.stdout.readline(), timeout=60.0)
                 if not line:
                     break
-                
+
                 line_text = line.decode().strip()
                 if line_text:
                     # Skip common noisy lines
                     if "*** Waiting for passcode to be entered on the device ***" in line_text:
                         continue
-
+                    # Stream to queue
                     if backup_id in backup_tasks:
                         await backup_tasks[backup_id]["queue"].put(line_text)
-                        
+                    
+                    # Parse progress
+                    if '%' in line_text:
+                        try:
+                            parts = line_text.split('%')[0].split()
+                            if parts:
+                                percentage = None
+                                for part in parts:
+                                    if part.endswith('%'):
+                                        try:
+                                            percentage = int(part[:-1])
+                                            break
+                                        except ValueError:
+                                            continue
+                                            
+                                if percentage is not None:
+                                    # Throttle DB updates - only update every 5% or if 100%
+                                    if percentage % 5 == 0 or percentage == 100:
+                                        await db_execute(
+                                            "UPDATE backups SET progress = ? WHERE id = ?",
+                                            (percentage, backup_id)
+                                        )
+                        except Exception as e:
+                            logger.error(f"Error parsing progress: {e}")
+                    logger.info(f"Backup {backup_id}: {line_text}")
+
             except asyncio.TimeoutError:
                 if process.returncode is not None:
                     break
                 continue
             except Exception as e:
                 logger.error(f"Error reading backup output for {backup_id}: {e}")
+                if backup_id in backup_tasks:
+                    await backup_tasks[backup_id]["queue"].put(f"Error reading log: {str(e)}")
                 break
 
     async def _finalize_backup(self, backup_id: int, return_code: int, backup_path: str):
         """Update DB and perform cleanup based on the process exit code."""
-        status = 'failed'
-        if return_code == 0:
+        # Determine final status - check if user cancelled first
+        row = await db_fetch_one("SELECT status FROM backups WHERE id = ?", (backup_id,))
+        current_status = row['status'] if row else None
+
+        if current_status == "cancelled":
+            status = 'cancelled'
+        elif return_code == 0:
             status = 'completed'
             if backup_id in backup_tasks:
                 await backup_tasks[backup_id]["queue"].put("Backup completed successfully")
             await broadcast_event("backup_update", {"id": backup_id, "status": "completed"})
         else:
-            # Check if it was manually cancelled
-            row = await db_fetch_one("SELECT status FROM backups WHERE id = ?", (backup_id,))
-            current_status = row['status'] if row else 'failed'
-            
-            if current_status == 'cancelled':
-                status = 'cancelled'
-                if backup_id in backup_tasks:
-                    await backup_tasks[backup_id]["queue"].put("Backup cancelled by user")
-            else:
-                status = 'failed'
-                if backup_id in backup_tasks:
-                    await backup_tasks[backup_id]["queue"].put(f"Backup failed with exit code {return_code}")
-        
-        if backup_id in backup_tasks:
-            backup_tasks[backup_id]["status"] = status
-        
+            status = 'failed'
+            if backup_id in backup_tasks:
+                 await backup_tasks[backup_id]["queue"].put(f"Backup failed with exit code {return_code}")
+
         if status == 'completed':
-            await db_execute("UPDATE backups SET status = ?, progress = 100 WHERE id = ?", (status, backup_id))
             try:
                 total_size = await self.calc_backup_size(backup_path)
                 size_str = f"{total_size / (1024*1024*1024):.2f} GB"
-                await db_execute("UPDATE backups SET size = ? WHERE id = ?", (size_str, backup_id))
+                await db_execute("UPDATE backups SET status = ?, progress = 100, size = ? WHERE id = ?",
+                               (status, size_str, backup_id))
             except Exception as e:
                 logger.error(f"Error calculating size for {backup_id}: {e}")
+                await db_execute("UPDATE backups SET status = ?, progress = 100 WHERE id = ?", (status, backup_id))
         else:
             logger.info(f"Backup {backup_id} {status}. Cleaning up files...")
-            await db_execute("DELETE FROM backups WHERE id = ?", (backup_id,))
+            await db_execute("UPDATE backups SET status = ? WHERE id = ?", (status, backup_id))
             await self.cleanup_backup_files(backup_path)
+            
+        if backup_id in backup_tasks:
+            backup_tasks[backup_id]["status"] = status
 
     async def _handle_loop_error(self, backup_id: int, error: Exception):
         """Centralized error handling for the backup loop."""
         try:
+            # Get backup path for cleanup
+            row = await db_fetch_one("SELECT path FROM backups WHERE id = ?", (backup_id,))
+            backup_path = row['path'] if row else None
+
             await db_execute("UPDATE backups SET status = 'failed' WHERE id = ?", (backup_id,))
+
+            # Clean up files
+            if backup_path:
+                await self.cleanup_backup_files(backup_path)
+                
+            if backup_id in backup_tasks:
+                await backup_tasks[backup_id]["queue"].put(f"Backup error: {str(error)}")
+                backup_tasks[backup_id]["status"] = "failed"
         except Exception as db_e:
             logger.error(f"Failed to update status on error for {backup_id}: {db_e}")
-            
-        if backup_id in backup_tasks:
-            await backup_tasks[backup_id]["queue"].put(f"Backup error: {str(error)}")
-            backup_tasks[backup_id]["status"] = "failed"
 
     async def calc_backup_size(self, backup_path: str) -> int:
         """Calculate total size of a backup folder asynchronously."""
@@ -265,40 +298,44 @@ class BackupManager:
 
     async def cleanup_backup_files(self, backup_path: str):
         """Delete backup files from disk asynchronously."""
-        if os.path.exists(backup_path):
-            try:
-                loop = asyncio.get_running_loop()
-                await loop.run_in_executor(None, shutil.rmtree, backup_path)
-                logger.info(f"Deleted backup directory {backup_path}")
-            except Exception as e:
-                logger.error(f"Error deleting backup files: {e}")
+        try:
+            loop = asyncio.get_running_loop()
+            await loop.run_in_executor(None, shutil.rmtree, backup_path)
+            logger.info(f"Deleted backup directory {backup_path}")
+        except FileNotFoundError:
+            # Path doesn't exist, nothing to clean up
+            pass
+        except Exception as e:
+            logger.error(f"Error deleting backup files: {e}")
 
     async def validate_backup(self, input_path: str) -> dict:
-        """
-        Validate an iOS backup path and check if it's encrypted.
-        
-        Args:
-            input_path: Path to the backup directory
-            
-        Returns:
-            Dict with 'encrypted' key, or 'error' and 'status_code' on failure
-        """
+        """Validate an iOS backup path and check if it's encrypted."""
         # Path existence check (moved from API layer)
         if not os.path.exists(input_path):
-            return {"error": "Input path does not exist", "status_code": 400}
-        
+            raise FileNotFoundError(f"Backup path not found: {input_path}")
+
         try:
-            from utils.helpers import check_backup_encryption
             result = check_backup_encryption(input_path)
-            
+
             if "error" in result:
                 logger.warning(f"Validation error: {result['error']}")
-                return {"encrypted": False}
-            
-            return result
+                return {
+                    "encrypted": False,
+                    "error": result['error'],
+                    "valid": False
+                }
+
+            return {
+                "encrypted": result.get("encrypted", False),
+                "valid": True
+            }
         except Exception as e:
             logger.warning(f"Validation exception: {e}")
-            return {"encrypted": False}
+            return {
+                "encrypted": False,
+                "error": str(e),
+                "valid": False
+            }
 
 
 # Global instance

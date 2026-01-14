@@ -7,7 +7,7 @@ from fastapi import APIRouter, BackgroundTasks, HTTPException, Response
 from fastapi.responses import FileResponse
 
 from core.config import REPORTS_DIR
-from core.models import Report
+from core.models import MessageResponse, Report
 from services.report_manager import report_manager
 
 logger = logging.getLogger(__name__)
@@ -25,7 +25,7 @@ async def get_reports(case_id: Optional[int] = None):
     return [Report.model_validate(row) for row in rows]
 
 
-@router.delete("")
+@router.delete("", response_model=MessageResponse)
 async def delete_report(path: str):
     """Delete a report from database and filesystem"""
     if not path:
@@ -42,7 +42,7 @@ async def delete_report(path: str):
     return {"message": result.get("message")}
 
 
-@router.post("/open")
+@router.post("/open", response_model=MessageResponse)
 async def open_report(path: str):
     """Open report folder in system file explorer"""
     from utils.helpers import handle_open_path_request

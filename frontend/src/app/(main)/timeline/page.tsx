@@ -162,8 +162,8 @@ export default function Timeline() {
                 const res = await fetch(url)
                 if (res.ok) {
                     const result = await res.json()
-                    setData(result.data)
-                    setTotalCount(result.total_count)
+                    setData(result.events || [])
+                    setTotalCount(result.total || 0)
                 }
             } catch (error) {
                 console.error("Error fetching timeline:", error)
@@ -207,7 +207,7 @@ export default function Timeline() {
                 // Or just pass the data to a new prop on EnhancedTable?
                 // Wait, EnhancedTable has the csvConfig.
                 // Let's just pass this function to EnhancedTable, and EnhancedTable will call it, await the data, and then generate CSV.
-                return result.data
+                return result.events || []
             }
         } catch (error) {
             console.error("Error exporting all data:", error)

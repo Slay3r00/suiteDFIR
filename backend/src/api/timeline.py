@@ -3,6 +3,7 @@ from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query
 
+from core.models import TimelineResponse
 from services.timeline_manager import timeline_manager
 
 logger = logging.getLogger(__name__)
@@ -12,7 +13,7 @@ router = APIRouter(
     tags=["timeline"]
 )
 
-@router.get("")
+@router.get("", response_model=TimelineResponse)
 async def get_timeline(
     case_id: int,
     page: int = Query(0, ge=0),
@@ -27,7 +28,7 @@ async def get_timeline(
     Fetch timeline events from tl.db files for a specific case.
     Supports pagination, sorting, filtering by report, global search, and column filters.
     """
-    return await timeline_manager.get_timeline_events(
+    result = await timeline_manager.get_timeline_events(
         case_id=case_id,
         page=page,
         limit=limit,
@@ -36,5 +37,12 @@ async def get_timeline(
         search=search,
         filters=filters,
         report_id=report_id
+    )
+    
+    return TimelineResponse(
+        events=result["data"],
+        total=result["total_count"],
+        page=page,
+        limit=limit
     )
 

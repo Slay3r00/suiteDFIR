@@ -2,7 +2,7 @@ import logging
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException
 
-from core.models import ProcessRequest, StopRequest
+from core.models import MessageResponse, ProcessingStarted, ProcessRequest, StopRequest
 from core.state import processing_tasks
 from services.process_manager import process_manager
 from utils.sse import create_task_sse_response
@@ -14,12 +14,12 @@ router = APIRouter(
     tags=["processing"]
 )
 
-@router.post("/start")
+@router.post("/start", response_model=ProcessingStarted)
 async def start_processing(request: ProcessRequest, background_tasks: BackgroundTasks):
     """Start processing with selected modules"""
     return await process_manager.start_process(request, background_tasks)
 
-@router.post("/stop")
+@router.post("/stop", response_model=MessageResponse)
 async def stop_processing(request: StopRequest = None):
     """Stop current processing job"""
     task_id = request.task_id if request else None
