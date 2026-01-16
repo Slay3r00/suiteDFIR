@@ -96,6 +96,7 @@ class FilePathResponse(BaseModel):
 class Report(BaseModel):
     """Response model for a generated report."""
     model_config = ConfigDict(from_attributes=True)
+    id: int
     name: str
     path: str
     url: str
@@ -324,7 +325,7 @@ class TimelineEvent(BaseModel):
     artifact: str
     description: str
     source: str
-    report_id: Optional[str] = None
+    report_id: Optional[int] = None
 
 
 class TimelineResponse(BaseModel):

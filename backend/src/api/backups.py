@@ -15,6 +15,7 @@ from core.models import (
 )
 from core.state import backup_tasks
 from services.backup_manager import backup_manager
+from utils.helpers import handle_open_path_request
 from utils.sse import create_task_sse_response
 
 logger = logging.getLogger(__name__)
@@ -24,9 +25,9 @@ router = APIRouter(
     tags=["backups"]
 )
 
-# =============================================================================
+
 # iOS Device Operations
-# =============================================================================
+
 
 @router.get("/devices", response_model=list[DeviceInfo])
 async def list_devices():
@@ -40,13 +41,9 @@ async def validate_backup(request: ValidateBackupRequest):
         return await backup_manager.validate_backup(request.input_path)
     except FileNotFoundError as e:
         raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
-        logger.error(f"Validation failed: {e}")
-        raise HTTPException(status_code=500, detail="Validation failed")
 
-# =============================================================================
+
 # Backup Operations
-# =============================================================================
 
 @router.post("", response_model=BackupStarted)
 async def start_backup(request: BackupRequest, background_tasks: BackgroundTasks):
@@ -73,15 +70,10 @@ async def stream_backup_logs(backup_id: int):
 @router.post("/{backup_id}/stop", response_model=MessageResponse)
 async def stop_backup(backup_id: int):
     """Stop an active backup process and update status."""
-    try:
-        result = await backup_manager.stop_backup(backup_id)
-        return {"message": result.get("message")}
-    except RuntimeError as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    result = await backup_manager.stop_backup(backup_id)
+    return {"message": result.get("message")}
 
-# =============================================================================
 # Backup Management
-# =============================================================================
 
 @router.get("", response_model=list[BackupInfo])
 async def get_backups(case_id: Optional[int] = None):
@@ -100,5 +92,4 @@ async def delete_backup(backup_id: int):
 @router.post("/open", response_model=MessageResponse)
 async def open_backup_location(path: str):
     """Open the backup directory in the system file explorer."""
-    from utils.helpers import handle_open_path_request
     return handle_open_path_request(path, BACKUPS_DIR, "Backup")

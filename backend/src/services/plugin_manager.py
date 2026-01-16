@@ -23,15 +23,15 @@ def safe_tool_execution(tool_path):
     path_inserted = False
     
     try:
-        # 1. Add tool to Python path
+        # Add tool to Python path
         if tool_path not in sys.path:
             sys.path.insert(0, tool_path)
             path_inserted = True
 
-        # 2. Change to tool directory
+        # Change to tool directory
         os.chdir(tool_path)
 
-        # 3. Clear conflicting modules BEFORE importing
+        # Clear conflicting modules BEFORE importing
         # This ensures we load a fresh copy for each tool
         modules_to_remove = [
             m for m in sys.modules
@@ -133,20 +133,20 @@ def load_plugins():
                                     search = artifact.get('paths')
 
                                     func = None
-                                    # 1. Look for a wrapped function with the name of the dictionary
+                                    # Look for a wrapped function with the name of the dictionary
                                     for item_name in dir(mod):
                                         item = getattr(mod, item_name)
                                         if callable(item) and item_name == name and hasattr(item, '__wrapped__'):
                                             func = item
                                             break
 
-                                    # 2. If no wrapped function, look for declared function
+                                    # If no wrapped function, look for declared function
                                     if func is None:
                                         func_name = artifact.get('function')
                                         if func_name:
                                             func = getattr(mod, func_name, None)
 
-                                    # 3. If neither above work, log the failure
+                                    # If neither above work, log the failure
                                     if func is None:
                                         logger.warning(f"No matching function found for artifact '{name}' in module '{py_file.stem}'")
                                         continue
@@ -157,7 +157,7 @@ def load_plugins():
                                         func.artifact_info = artifact_info  # Attach artifact_info to the function
 
                                 else:
-                                    # 4. If no v2, then use v1
+                                    # If no v2, then use v1
                                     category, search, func = artifact
                                     artifact_info = {'category': category, 'paths': search}
 

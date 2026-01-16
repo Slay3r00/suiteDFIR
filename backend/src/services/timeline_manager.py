@@ -50,7 +50,7 @@ class TimelineManager:
         sort_order: str = "desc",
         search: Optional[str] = None,
         filters: Optional[str] = None,
-        report_id: Optional[str] = None
+        report_id: Optional[int] = None
     ) -> Dict[str, Any]:
         """
         Fetch timeline events from tl.db files for a specific case.
@@ -71,11 +71,11 @@ class TimelineManager:
             logger.error(f"Error fetching timeline: {e}")
             raise e
 
-    async def _get_timeline_dbs(self, case_id: int, report_id: Optional[str] = None) -> List[Dict[str, str]]:
+    async def _get_timeline_dbs(self, case_id: int, report_id: Optional[int] = None) -> List[Dict[str, str]]:
         """Fetch reports from DB and check for existence of tl.db files."""
         if report_id:
             reports = await db_fetch_all(
-                'SELECT path, name FROM reports WHERE case_id = ? AND path = ?', 
+                'SELECT path, name FROM reports WHERE case_id = ? AND id = ?', 
                 (case_id, report_id)
             )
         else:

@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/Input"
 import { useTimeline } from "@/context/TimelineContext"
 
 interface Report {
+    id: number
     name: string
     path: string
     tool: string
@@ -25,7 +26,7 @@ export default function Timeline() {
     const { config, updateConfig, isLoaded } = useTimeline()
 
     const {
-        selectedReportPath: selectedReport,
+        selectedReportId: selectedReport,
         selectedTimezone,
         pagination,
         sorting,
@@ -225,13 +226,13 @@ export default function Timeline() {
             <div className="flex items-center gap-8 px-4 py-3 border-b border-white/10 bg-[#1A1A1A]">
                 <div className="flex items-center gap-4">
                     <h2 className="text-sm font-medium text-gray-400">Filter by Report:</h2>
-                    <Select value={selectedReport} onValueChange={(val) => updateConfig({ selectedReportPath: val })}>
+                    <Select value={String(selectedReport)} onValueChange={(val) => updateConfig({ selectedReportId: val === "all" ? "all" : parseInt(val) })}>
                         <SelectTrigger className="h-8 w-[300px] bg-[#212121] border-white/10 text-white focus:!ring-0 focus:!ring-offset-0">
                             <SelectValue placeholder="Select a report">
                                 {selectedReport === "all"
                                     ? "All Reports"
-                                    : reports.find(r => r.path === selectedReport)
-                                        ? `${reports.find(r => r.path === selectedReport)?.name} (${reports.find(r => r.path === selectedReport)?.tool})`
+                                    : reports.find(r => r.id === selectedReport)
+                                        ? `${reports.find(r => r.id === selectedReport)?.name} (${reports.find(r => r.id === selectedReport)?.tool})`
                                         : "Select a report"
                                 }
                             </SelectValue>
@@ -239,7 +240,7 @@ export default function Timeline() {
                         <SelectContent className="w-full left-0 max-h-[300px] overflow-y-auto bg-[#212121] border-white/10 text-white">
                             <SelectItem value="all">All Reports</SelectItem>
                             {reports.map((report) => (
-                                <SelectItem key={report.path} value={report.path}>
+                                <SelectItem key={report.id} value={String(report.id)}>
                                     {report.name} ({report.tool})
                                 </SelectItem>
                             ))}

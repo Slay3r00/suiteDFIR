@@ -22,7 +22,7 @@ async def get_timeline(
     sort_order: str = Query("desc", regex="^(asc|desc)$"),
     search: Optional[str] = None,
     filters: Optional[str] = None,
-    report_id: Optional[str] = None
+    report_id: Optional[int] = None
 ):
     """
     Fetch timeline events from tl.db files for a specific case.

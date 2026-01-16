@@ -25,13 +25,10 @@ async def get_reports(case_id: Optional[int] = None):
     return [Report.model_validate(row) for row in rows]
 
 
-@router.delete("", response_model=MessageResponse)
-async def delete_report(path: str):
+@router.delete("/{id}", response_model=MessageResponse)
+async def delete_report(id: int):
     """Delete a report from database and filesystem"""
-    if not path:
-        raise HTTPException(status_code=400, detail="Path is required")
-
-    result = await report_manager.delete_report(path)
+    result = await report_manager.delete_report(id)
     
     if not result.get("success"):
         raise HTTPException(
@@ -42,17 +39,21 @@ async def delete_report(path: str):
     return {"message": result.get("message")}
 
 
-@router.post("/open", response_model=MessageResponse)
-async def open_report(path: str):
+@router.post("/{id}/open", response_model=MessageResponse)
+async def open_report(id: int):
     """Open report folder in system file explorer"""
+    report = await report_manager.get_report(id)
+    if not report:
+        raise HTTPException(status_code=404, detail="Report not found")
+        
     from utils.helpers import handle_open_path_request
-    return handle_open_path_request(path, REPORTS_DIR, "Report")
+    return handle_open_path_request(report['path'], REPORTS_DIR, "Report")
 
 
-@router.get("/download")
-async def download_report(path: str, background_tasks: BackgroundTasks):
+@router.get("/{id}/download")
+async def download_report(id: int, background_tasks: BackgroundTasks):
     """Zip and download report directory"""
-    result = await report_manager.create_zip_archive(path)
+    result = await report_manager.create_zip_archive(id)
 
     if "error" in result:
         raise HTTPException(
@@ -71,10 +72,10 @@ async def download_report(path: str, background_tasks: BackgroundTasks):
         filename=result["filename"]
     )
 
-@router.get("/view/{file_path:path}")
-async def serve_report_file(file_path: str):
+@router.get("/{id}/view/{file_path:path}")
+async def serve_report_file(id: int, file_path: str):
     """Serve report files with scroll tracking script injection for HTML files"""
-    result = await report_manager.prepare_report_file(file_path)
+    result = await report_manager.prepare_report_file(id, file_path)
 
     if "error" in result:
         raise HTTPException(status_code=result.get("status_code", 500), detail=result.get("error"))

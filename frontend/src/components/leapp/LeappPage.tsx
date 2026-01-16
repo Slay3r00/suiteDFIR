@@ -24,6 +24,7 @@ interface LeappPageProps {
 }
 
 interface Report {
+    id: number;
     name: string;
     path: string;
     url: string;
@@ -102,7 +103,7 @@ function LeappContent({ tool }: { logoPath: string; tool: string }) {
 
 
 
-    const handleOpenLocation = (path: string) => {
+    const handleOpenLocation = (id: number) => {
         setConfirmConfig({
             isOpen: true,
             title: 'Open Location',
@@ -110,7 +111,7 @@ function LeappContent({ tool }: { logoPath: string; tool: string }) {
             confirmLabel: 'Open',
             onConfirm: async () => {
                 try {
-                    await fetch(`http://localhost:8000/api/reports/open?path=${encodeURIComponent(path)}`, {
+                    await fetch(`http://localhost:8000/api/reports/${id}/open`, {
                         method: 'POST'
                     });
                 } catch (error) {
@@ -121,7 +122,7 @@ function LeappContent({ tool }: { logoPath: string; tool: string }) {
         });
     };
 
-    const handleDeleteReport = (path: string) => {
+    const handleDeleteReport = (id: number) => {
         setConfirmConfig({
             isOpen: true,
             title: 'Delete Report',
@@ -130,7 +131,7 @@ function LeappContent({ tool }: { logoPath: string; tool: string }) {
             confirmLabel: 'Delete',
             onConfirm: async () => {
                 try {
-                    const response = await fetch(`http://localhost:8000/api/reports?path=${encodeURIComponent(path)}`, {
+                    const response = await fetch(`http://localhost:8000/api/reports/${id}`, {
                         method: 'DELETE'
                     });
                     if (response.ok) {
@@ -299,7 +300,7 @@ function LeappContent({ tool }: { logoPath: string; tool: string }) {
                                     {/* Existing Reports */}
                                     {reports.map((report) => (
                                         <div
-                                            key={report.path}
+                                            key={report.id}
                                             className="group flex-shrink-0 w-full rounded-lg p-2 flex items-center gap-2 border transition-colors bg-[#1A1A1A] border-white/10 hover:border-white/20"
                                         >
                                             {/* Info */}
@@ -320,7 +321,7 @@ function LeappContent({ tool }: { logoPath: string; tool: string }) {
                                                 <Button
                                                     variant="ghost"
                                                     size="icon"
-                                                    onClick={() => handleOpenLocation(report.path)}
+                                                    onClick={() => handleOpenLocation(report.id)}
                                                     title="Open Location"
                                                     className="h-7 w-7 hover:bg-white/20 text-white"
                                                 >
@@ -330,7 +331,7 @@ function LeappContent({ tool }: { logoPath: string; tool: string }) {
                                                 <Button
                                                     variant="ghost"
                                                     size="icon"
-                                                    onClick={() => handleDeleteReport(report.path)}
+                                                    onClick={() => handleDeleteReport(report.id)}
                                                     title="Delete Report"
                                                     className="h-7 w-7 hover:bg-red-900/30 text-white hover:text-red-400"
                                                 >

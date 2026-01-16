@@ -73,21 +73,26 @@ class CaseManager:
 
     async def delete_case(self, case_id: int) -> Dict[str, Any]:
         """Delete a case and perform cascading cleanup in DB and filesystem."""
-        # 1. Fetch associated files to delete
+        # Check if case exists
+        case = await self.get_case(case_id)
+        if not case:
+            return {"success": False, "errors": ["Case not found"]}
+
+        # Fetch associated files to delete
         backup_rows = await db_fetch_all('SELECT path FROM backups WHERE case_id = ?', (case_id,))
         backup_paths = [row['path'] for row in backup_rows]
 
         report_rows = await db_fetch_all('SELECT path FROM reports WHERE case_id = ?', (case_id,))
         report_paths = [row['path'] for row in report_rows]
 
-        # 2. Delete from Database
+        # Delete from Database
         await db_execute('DELETE FROM backups WHERE case_id = ?', (case_id,))
         await db_execute('DELETE FROM reports WHERE case_id = ?', (case_id,))
         await db_execute('DELETE FROM tasks WHERE case_id = ?', (case_id,))
         await db_execute('DELETE FROM notes WHERE case_id = ?', (case_id,))
         await db_execute('DELETE FROM cases WHERE id = ?', (case_id,))
 
-        # 3. Delete from Filesystem
+        # Delete from Filesystem
         errors = []
         parent_dirs = set()
 

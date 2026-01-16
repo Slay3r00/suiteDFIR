@@ -22,7 +22,7 @@ class ReportManager:
         if not case_id:
             return []
         rows = await db_fetch_all(
-            'SELECT name, path, tool, created_at FROM reports WHERE case_id = ? ORDER BY created_at DESC',
+            'SELECT id, name, path, tool, created_at FROM reports WHERE case_id = ? ORDER BY created_at DESC',
             (case_id,)
         )
 
@@ -40,9 +40,10 @@ class ReportManager:
                 rel_path = os.path.relpath(path, REPORTS_DIR)
                 # Sanitize path to prevent directory traversal attacks
                 safe_rel_path = rel_path.replace('..', '').replace('\\', '/')
-                url = f"/api/reports/view/{safe_rel_path}/index.html"
+                url = f"/api/reports/{row['id']}/view/index.html"
 
                 reports.append({
+                    "id": row['id'],
                     "name": row['name'],
                     "path": path,
                     "url": url,
@@ -57,14 +58,26 @@ class ReportManager:
 
         return reports
 
-    async def delete_report(self, path: str) -> Dict[str, Any]:
-        """Delete a report from DB and filesystem"""
+    async def get_report(self, report_id: int) -> Optional[Dict[str, Any]]:
+        """Fetch a specific report by ID."""
+        from core.database import db_fetch_one
+        row = await db_fetch_one('SELECT * FROM reports WHERE id = ?', (report_id,))
+        return dict(row) if row else None
+
+    async def delete_report(self, report_id: int) -> Dict[str, Any]:
+        """Delete a report from DB and filesystem by ID"""
+        report = await self.get_report(report_id)
+        if not report:
+            return {"success": False, "error": "Report not found", "status_code": 404}
+        
+        path = report['path']
+        
         # Security check: ensure path is within reports directory
         if not os.path.abspath(path).startswith(os.path.abspath(REPORTS_DIR)):
             return {"success": False, "error": "Access denied", "status_code": 403}
 
         # Delete from DB first
-        await db_execute("DELETE FROM reports WHERE path = ?", (path,))
+        await db_execute("DELETE FROM reports WHERE id = ?", (report_id,))
 
         # Delete from filesystem
         if os.path.exists(path):
@@ -107,15 +120,20 @@ class ReportManager:
         loop = asyncio.get_running_loop()
         await loop.run_in_executor(None, _do_delete)
 
-    async def prepare_report_file(self, file_path: str) -> Dict[str, Any]:
+    async def prepare_report_file(self, report_id: int, file_path: str) -> Dict[str, Any]:
         """
-        Prepare a report file for serving.
+        Prepare a report file for serving by report ID and relative path.
         Returns dict with 'content', 'media_type', 'is_html', and 'headers'.
         """
-        full_path = os.path.join(REPORTS_DIR, file_path)
+        report = await self.get_report(report_id)
+        if not report:
+            return {"error": "Report not found", "status_code": 404}
+        
+        report_root = report['path']
+        full_path = os.path.join(report_root, file_path)
 
-        # Security check
-        if not os.path.abspath(full_path).startswith(os.path.abspath(REPORTS_DIR)):
+        # Security check: ensure the file is actually inside THIS report's directory
+        if not os.path.abspath(full_path).startswith(os.path.abspath(report_root)):
             return {"error": "Access denied", "status_code": 403}
 
         if not os.path.exists(full_path):
@@ -166,10 +184,15 @@ class ReportManager:
             "is_html": False
         }
 
-    async def create_zip_archive(self, path: str) -> Dict[str, Any]:
-        """Create a zip archive of the report directory. Returns dict with zip_path, filename or error."""
+    async def create_zip_archive(self, report_id: int) -> Dict[str, Any]:
+        """Create a zip archive of the report directory by ID. Returns dict with zip_path, filename or error."""
+        report = await self.get_report(report_id)
+        if not report:
+            return {"error": "Report not found", "status_code": 404}
+        
+        path = report['path']
         if not os.path.exists(path):
-             return {"error": "Report not found", "status_code": 404}
+             return {"error": "Report directory not found on disk", "status_code": 404}
 
         # Security check
         if not os.path.abspath(path).startswith(os.path.abspath(REPORTS_DIR)):

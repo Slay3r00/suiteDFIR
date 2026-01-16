@@ -9,7 +9,7 @@ import type {
 } from 'material-react-table'
 
 interface TimelineConfig {
-    selectedReportPath: string;
+    selectedReportId: number | 'all';
     selectedTimezone: string;
     pagination: MRT_PaginationState;
     sorting: MRT_SortingState;
@@ -30,10 +30,10 @@ interface TimelineContextType extends TimelineState {
 
 const TimelineContext = createContext<TimelineContextType | undefined>(undefined);
 
-const STORAGE_KEY = 'vdf_timeline_state';
+const STORAGE_KEY = 'vdf_timeline_state_v2';
 
 const INITIAL_CONFIG: TimelineConfig = {
-    selectedReportPath: 'all',
+    selectedReportId: 'all',
     selectedTimezone: 'UTC',
     pagination: { pageIndex: 0, pageSize: 50 },
     sorting: [{ id: 'date', desc: true }],

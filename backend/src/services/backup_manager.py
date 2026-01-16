@@ -82,7 +82,7 @@ class BackupManager:
 
     async def stop_backup(self, backup_id: int) -> Dict[str, Any]:
         """Stop an active backup process."""
-        # Update status IMMEDIATELY to give feedback
+        # Update status immediately to give feedback
         await db_execute("UPDATE backups SET status = 'cancelled' WHERE id = ?", (backup_id,))
 
         if backup_id in active_backups and active_backups[backup_id] is not None:
@@ -99,13 +99,13 @@ class BackupManager:
     async def _run_backup_loop(self, backup_id: int, udid: str, backup_path: str, password: Optional[str] = None):
         """Internal loop to handle the backup subprocess and log streaming."""
         try:
-            # 1. Setup Encryption if needed
+            # Setup Encryption if needed
             if password:
                 success = await self._setup_encryption(backup_id, udid, password, backup_path)
                 if not success:
                     return
 
-            # 2. Start Subprocess
+            # Start Subprocess
             idevice_backup_cmd = get_binary_path("idevicebackup2")
             cmd = [idevice_backup_cmd, 'backup', backup_path, '-u', udid]
             
@@ -122,13 +122,13 @@ class BackupManager:
             # Broadcast start
             await broadcast_event("backup_update", {"id": backup_id, "status": "in_progress"})
             
-            # 3. Stream Output
+            # Stream Output
             await self._stream_output(backup_id, process)
 
-            # 4. Wait for Completion
+            # Wait for Completion
             return_code = await process.wait()
             
-            # 5. Finalize Status and DB
+            # Finalize Status and DB
             await self._finalize_backup(backup_id, return_code, backup_path)
 
         except Exception as e:
