@@ -430,7 +430,7 @@ const EnhancedTable = ({
         onColumnFiltersChange,
         onDensityChange,
         enableStickyHeader: true,
-        enableSorting: false,
+        enableSorting: true,
         enableRowSelection: true,
         enableSelectAll: true,
         muiTablePaperProps: {
