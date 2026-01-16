@@ -321,7 +321,7 @@ class StorageUsage(BaseModel):
 class TimelineEvent(BaseModel):
     """Single timeline event."""
     id: int
-    date: str
+    date: Optional[str] = None
     artifact: str
     description: str
     source: str

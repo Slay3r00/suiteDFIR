@@ -96,9 +96,7 @@ class TimelineManager:
                     'name': report_name
                 })
         
-        # Limit to 10 DBs for "All" view to avoid SQLite limits
-        if not report_id and len(timeline_dbs) > 10:
-            timeline_dbs = timeline_dbs[:10]
+
             
         return timeline_dbs
 
@@ -149,9 +147,13 @@ class TimelineManager:
                 }
                 sql_sort = sort_map.get(sort_by, "event_date")
                 
+                # Use CASE expression to push NULLs to end regardless of sort direction
+                # SQLite doesn't support NULLS LAST directly, so we use CASE
                 data_query = f"""
                     SELECT * FROM ({union_query})
-                    ORDER BY {sql_sort} {sort_order.upper()}
+                    ORDER BY 
+                        CASE WHEN {sql_sort} IS NULL THEN 1 ELSE 0 END,
+                        {sql_sort} {sort_order.upper()}
                 """
                 
                 if limit != -1:
@@ -343,7 +345,7 @@ class TimelineManager:
             source = row[0]
             artifact = row[1]
             desc_json = row[2]
-            date = row[3]
+            date = row[3] or ""  # Fallback to empty string if NULL
             
             # Format ID sequentially
             current_page = page if limit != -1 else 0
