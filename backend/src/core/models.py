@@ -1,5 +1,5 @@
 from pydantic import BaseModel, ConfigDict
-from typing import List, Optional
+from typing import List, Optional, Dict
 from enum import Enum
 
 # ENUMS
@@ -22,6 +22,7 @@ class ToolName(str, Enum):
 # PROFILE MODELS
 
 class ProfileBase(BaseModel):
+    """Base model for forensic tool configuration profiles."""
     name: str
     tool: ToolName
     modules: List[str]
@@ -38,6 +39,7 @@ class Profile(ProfileBase):
 # CASE MODELS
 
 class CaseBase(BaseModel):
+    """Base model for forensic cases containing shared case information."""
     name: str
     case_number: Optional[str] = None
     client_name: Optional[str] = None
@@ -105,9 +107,10 @@ class Report(BaseModel):
     size: str
     artifact_count: int
 
-# TASK/NOTEMODELS
+# TASK/NOTE MODELS
 
 class TaskBase(BaseModel):
+    """Base model for tasks associated with a forensic case."""
     content: str
     description: Optional[str] = None
     priority: Priority = Priority.MEDIUM
@@ -125,6 +128,7 @@ class Task(TaskBase):
     created_at: str
 
 class NoteBase(BaseModel):
+    """Base model for notes associated with a forensic case."""
     content: str
     description: Optional[str] = None
     case_id: int
@@ -151,25 +155,13 @@ class StopRequest(BaseModel):
     """Payload for stopping a processing job."""
     task_id: Optional[str] = None
 
-
-# =============================================================================
 # GENERIC RESPONSE MODELS
-# =============================================================================
 
 class MessageResponse(BaseModel):
     """Standard success message response."""
     message: str
 
-
-class SuccessResponse(BaseModel):
-    """Generic success response with optional data."""
-    success: bool
-    message: str
-
-
-# =============================================================================
 # BACKUP RESPONSE MODELS
-# =============================================================================
 
 class DeviceInfo(BaseModel):
     """Connected iOS device information."""
@@ -204,20 +196,14 @@ class BackupStarted(BaseModel):
     message: str
     backup_id: int
 
-
-# =============================================================================
 # PROCESSING RESPONSE MODELS
-# =============================================================================
 
 class ProcessingStarted(BaseModel):
     """Response when processing job initiated."""
     task_id: str
     message: str
 
-
-# =============================================================================
 # TOOL RESPONSE MODELS
-# =============================================================================
 
 class ToolStatus(BaseModel):
     """Individual tool installation status."""
@@ -244,10 +230,7 @@ class ToolInstallResult(BaseModel):
     message: Optional[str] = None
     error: Optional[str] = None
 
-
-# =============================================================================
 # PROFILE RESPONSE MODELS
-# =============================================================================
 
 class ProfileLoadResult(BaseModel):
     """Profile load operation result."""
@@ -277,10 +260,7 @@ class ModuleSelectionResult(BaseModel):
     """Module selection update result."""
     message: str
 
-
-# =============================================================================
 # SYSTEM RESPONSE MODELS
-# =============================================================================
 
 class RootResponse(BaseModel):
     """API root endpoint response."""
@@ -292,7 +272,7 @@ class RootResponse(BaseModel):
 class HealthResponse(BaseModel):
     """Health check response."""
     status: str
-    tools_initialized: dict[str, bool]
+    tools_initialized: Dict[str, bool]
 
 
 class SystemHealthMetrics(BaseModel):
@@ -313,10 +293,7 @@ class StorageUsage(BaseModel):
     free: int
     breakdown: List[StorageBreakdownItem]
 
-
-# =============================================================================
 # TIMELINE RESPONSE MODELS
-# =============================================================================
 
 class TimelineEvent(BaseModel):
     """Single timeline event."""
@@ -335,10 +312,7 @@ class TimelineResponse(BaseModel):
     page: int
     limit: int
 
-
-# =============================================================================
 # ACTIVITY RESPONSE MODELS
-# =============================================================================
 
 class ActivityItem(BaseModel):
     """Recent activity item."""

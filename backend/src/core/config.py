@@ -2,6 +2,10 @@ import os
 import sys
 import platform
 from pathlib import Path
+from typing import Dict, Any
+
+# Environment Configuration
+
 
 def get_base_dir() -> Path:
     """Get the base directory for persistent data, handling both dev and bundled environments."""
@@ -21,8 +25,9 @@ def get_base_dir() -> Path:
 
 BASE_DIR = get_base_dir()
 
+
 # Tool Configuration
-TOOLS_CONFIG = {
+TOOLS_CONFIG: Dict[str, Dict[str, Any]] = {
     "ileapp": {
         "name": "iLEAPP",
         "subdir": "iLEAPP",
@@ -43,14 +48,17 @@ TOOLS_CONFIG = {
     }
 }
 
-# Directories
+
+# Directory Configuration
 REPORTS_DIR = str(BASE_DIR / "reports")
 BACKUPS_DIR = str(BASE_DIR / "backups")
 TOOLS_DIR = str(BASE_DIR / "forensic-tools")
 
-# Database paths
+
+# Database Configuration
 DB_PATH = str(BASE_DIR / "data" / "app.db")
 
-# Cache directories for LEAPP geocoding database
+
+# Cache Configuration
 CACHE_DIR = BASE_DIR / "data" / "cache"
 COORDS_DB = str(CACHE_DIR / "coordinates.db")

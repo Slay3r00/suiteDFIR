@@ -1,42 +1,53 @@
 import logging
+import logging.handlers
 import os
 import sys
+import platform
 import tempfile
+from pathlib import Path
 
-def get_log_directory():
+def get_log_directory() -> Path:
     """Get a writable directory for log files"""
     # Check if running as bundled PyInstaller app
     if getattr(sys, 'frozen', False):
         # Running as bundled executable
         # Use user's home directory for logs
-        if sys.platform == 'darwin':
-            log_dir = os.path.expanduser('~/Library/Logs/VDF Tools')
-        elif sys.platform == 'win32':
-            log_dir = os.path.join(os.environ.get('APPDATA', tempfile.gettempdir()), 'VDF Tools', 'Logs')
+        if platform.system() == "Darwin":
+            log_dir = Path.home() / 'Library' / 'Logs' / 'VDF Tools'
+        elif platform.system() == "Windows":
+            app_data = os.environ.get('APPDATA')
+            base = Path(app_data) if app_data else Path(tempfile.gettempdir())
+            log_dir = base / 'VDF Tools' / 'Logs'
         else:
-            log_dir = os.path.expanduser('~/.vdf-tools/logs')
+            log_dir = Path.home() / '.vdf-tools' / 'logs'
     else:
         # Running in development - use current directory
-        log_dir = os.path.dirname(os.path.abspath(__file__))
+        log_dir = Path(__file__).parent.resolve()
     
     # Ensure directory exists
-    os.makedirs(log_dir, exist_ok=True)
+    log_dir.mkdir(parents=True, exist_ok=True)
     return log_dir
 
-def setup_logging(log_file=None, level=logging.INFO):
+def setup_logging(log_file: Path = None, level=logging.INFO):
     """Backend logging system"""
     # Determine log file path
     if log_file is None:
         log_dir = get_log_directory()
-        log_file = os.path.join(log_dir, 'backend.log')
+        log_file = log_dir / 'backend.log'
+    else:
+        log_file = Path(log_file)
     
     # Create logger
     logger = logging.getLogger()
     logger.setLevel(level)
 
-    # Create file handler
     try:
-        file_handler = logging.FileHandler(log_file)
+        # Use RotatingFileHandler to cap file size at 10MB and keep 5 backups
+        file_handler = logging.handlers.RotatingFileHandler(
+            log_file, 
+            maxBytes=10 * 1024 * 1024, # 10MB
+            backupCount=5
+        )
         file_handler.setLevel(level)
 
         # Create formatter and set it for the handler
