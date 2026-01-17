@@ -93,13 +93,14 @@ function LeappContent({ tool }: { logoPath: string; tool: string }) {
         }
     }, [reports, processingReportName, clearProcessingReportName, tool]);
 
-    // Fetch modules once on mount
+    // Fetch modules once on mount or when tool/case changes
     useEffect(() => {
-        const toolState = states[tool];
-        if (toolState.modules.length === 0 && !toolState.isLoadingModules) {
+        const currentToolState = states[tool];
+        // Only fetch if not currently processing AND not already loaded
+        if (currentToolState.modules.length === 0 && !currentToolState.isLoadingModules && !processing.isProcessing) {
             fetchModules(tool);
         }
-    }, [tool, fetchModules, states[tool].modules.length, states[tool].isLoadingModules]);
+    }, [tool, fetchModules, states, processing.isProcessing]);
 
 
 

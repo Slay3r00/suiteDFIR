@@ -60,7 +60,7 @@ export default function ModuleSelector({ tool, isProcessing }: ModuleSelectorPro
   const toolState = states[tool];
   const { modules, isLoadingModules } = toolState;
   const { artifactScrollPos } = toolState.config;
-  const selectedModules = new Set(toolState.config.selectedModules);
+  const selectedModules = new Set(toolState.config.selectedModules || []);
   const { profiles, loadProfile, saveProfile, deleteProfile } = useProfiles(tool);
 
   const scrollRef = useRef<HTMLDivElement>(null);

@@ -1,6 +1,7 @@
 "use client"
 
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react'
+import { useCase } from './CaseContext';
 import { createLeappApi } from '../services/leappApi'
 import { Module } from '@/app/(main)/ileapp/types';
 
@@ -16,7 +17,7 @@ interface ProcessingState {
 interface ToolConfig {
     inputFile: string;
     reportName: string;
-    selectedModules: string[];
+    selectedModules: string[] | null;
     artifactScrollPos: number;
 }
 
@@ -42,7 +43,7 @@ interface LeappContextType {
 
 const LeappContext = createContext<LeappContextType | undefined>(undefined)
 
-const STORAGE_KEY = 'vdf_leapp_configs';
+const STORAGE_KEY_PREFIX = 'vdf_leapp_configs_';
 
 const INITIAL_PROCESSING: ProcessingState = {
     logs: [],
@@ -56,7 +57,7 @@ const INITIAL_PROCESSING: ProcessingState = {
 const INITIAL_CONFIG: ToolConfig = {
     inputFile: '',
     reportName: '',
-    selectedModules: [],
+    selectedModules: null,
     artifactScrollPos: 0
 };
 
@@ -68,10 +69,19 @@ export function LeappProvider({ children }: { children: ReactNode }) {
 
     const [isLoaded, setIsLoaded] = useState(false);
 
-    // Load configs from sessionStorage
+    const { selectedCaseId } = useCase();
+
+    // Load configs from sessionStorage when selectedCaseId changes
     useEffect(() => {
+        if (!selectedCaseId) {
+            setIsLoaded(true);
+            return;
+        }
+
+        setIsLoaded(false);
+
         try {
-            const stored = sessionStorage.getItem(STORAGE_KEY);
+            const stored = sessionStorage.getItem(`${STORAGE_KEY_PREFIX}${selectedCaseId}`);
             if (stored) {
                 const parsedConfigs = JSON.parse(stored);
                 setStates(prev => {
@@ -80,28 +90,43 @@ export function LeappProvider({ children }: { children: ReactNode }) {
                         if (next[tool]) {
                             next[tool] = {
                                 ...next[tool],
-                                config: { ...next[tool].config, ...parsedConfigs[tool] }
+                                config: { ...next[tool].config, ...parsedConfigs[tool].config },
+                                processing: {
+                                    ...INITIAL_PROCESSING,
+                                    ...(parsedConfigs[tool].processing || {})
+                                }
                             };
                         }
                     });
                     return next;
                 });
+            } else {
+                // Reset to defaults if no saved state for this case
+                setStates({
+                    ileapp: { config: { ...INITIAL_CONFIG }, processing: { ...INITIAL_PROCESSING }, modules: [], isLoadingModules: false },
+                    aleapp: { config: { ...INITIAL_CONFIG }, processing: { ...INITIAL_PROCESSING }, modules: [], isLoadingModules: false }
+                });
             }
         } catch (e) {
             console.error('Failed to load LEAPP configs:', e);
+            // Fallback reset
+            setStates({
+                ileapp: { config: { ...INITIAL_CONFIG }, processing: { ...INITIAL_PROCESSING }, modules: [], isLoadingModules: false },
+                aleapp: { config: { ...INITIAL_CONFIG }, processing: { ...INITIAL_PROCESSING }, modules: [], isLoadingModules: false }
+            });
         }
         setIsLoaded(true);
-    }, []);
+    }, [selectedCaseId]);
 
-    // Save configs to sessionStorage
+    // Save configs and processing state to sessionStorage
     useEffect(() => {
-        if (!isLoaded) return;
-        const configs = {
-            ileapp: states.ileapp.config,
-            aleapp: states.aleapp.config
+        if (!isLoaded || !selectedCaseId) return;
+        const stateToSave = {
+            ileapp: { config: states.ileapp.config, processing: states.ileapp.processing },
+            aleapp: { config: states.aleapp.config, processing: states.aleapp.processing }
         };
-        sessionStorage.setItem(STORAGE_KEY, JSON.stringify(configs));
-    }, [states.ileapp.config, states.aleapp.config, isLoaded]);
+        sessionStorage.setItem(`${STORAGE_KEY_PREFIX}${selectedCaseId}`, JSON.stringify(stateToSave));
+    }, [states.ileapp.config, states.aleapp.config, states.ileapp.processing, states.aleapp.processing, isLoaded, selectedCaseId]);
 
     const updateConfig = useCallback((tool: string, updates: Partial<ToolConfig>) => {
         setStates(prev => ({
@@ -141,15 +166,26 @@ export function LeappProvider({ children }: { children: ReactNode }) {
             const data = await api.modules.getAll();
             const selectedModuleNames = data.modules.filter(m => m.selected).map(m => m.name);
 
-            setStates(prev => ({
-                ...prev,
-                [tool]: {
-                    ...prev[tool],
-                    modules: data.modules,
-                    isLoadingModules: false,
-                    config: { ...prev[tool].config, selectedModules: selectedModuleNames }
-                }
-            }));
+            setStates(prev => {
+                const currentSelection = prev[tool].config.selectedModules;
+                const serverSelected = selectedModuleNames;
+
+                // Merge policy: if we have local selections (even an empty list), prefer them.
+                // Otherwise use server defaults.
+                const finalSelected = currentSelection !== null
+                    ? currentSelection
+                    : serverSelected;
+
+                return {
+                    ...prev,
+                    [tool]: {
+                        ...prev[tool],
+                        modules: data.modules,
+                        isLoadingModules: false,
+                        config: { ...prev[tool].config, selectedModules: finalSelected }
+                    }
+                };
+            });
         } catch (error) {
             console.error(`Failed to load modules for ${tool}:`, error);
             setStates(prev => ({ ...prev, [tool]: { ...prev[tool], isLoadingModules: false } }));
@@ -211,6 +247,77 @@ export function LeappProvider({ children }: { children: ReactNode }) {
         }
     }, [updateConfig]);
 
+    const connectToStream = useCallback((tool: string, taskId: string, reportName?: string | null) => {
+        const api = createLeappApi(tool);
+        const eventSource = api.processing.createEventSource(taskId);
+
+        eventSource.onmessage = (event: MessageEvent) => {
+            const message = event.data;
+            if (message && message !== 'Stream ended') {
+                setStates(prev => {
+                    const toolState = prev[tool];
+                    const nextLogs = [...toolState.processing.logs, message];
+                    let nextProgress = toolState.processing.progress;
+                    let nextEnc = toolState.processing.encryptionDetected;
+
+                    if (message.includes("Detected encrypted iTunes backup")) {
+                        nextEnc = true;
+                    }
+
+                    const match = message.match(/\[(\d+)\/(\d+)\]/);
+                    if (match) {
+                        nextProgress = {
+                            current: parseInt(match[1], 10),
+                            total: parseInt(match[2], 10)
+                        };
+                    }
+
+                    return {
+                        ...prev,
+                        [tool]: {
+                            ...toolState,
+                            processing: {
+                                ...toolState.processing,
+                                logs: nextLogs,
+                                progress: nextProgress,
+                                encryptionDetected: nextEnc
+                            }
+                        }
+                    };
+                });
+            }
+        };
+
+        eventSource.addEventListener('close', () => {
+            eventSource.close();
+            updateProcessing(tool, { isProcessing: false });
+        });
+
+        eventSource.onerror = () => {
+            eventSource.close();
+            updateProcessing(tool, {
+                isProcessing: false,
+                processingReportName: null,
+                logs: [...states[tool].processing.logs, 'Error: Connection to server lost']
+            });
+        };
+
+        return eventSource;
+    }, [states, updateProcessing]);
+
+    // Reconnect to active processing tasks on mount or case switch
+    useEffect(() => {
+        if (!isLoaded) return;
+
+        ['ileapp', 'aleapp'].forEach(tool => {
+            const { isProcessing, taskId, processingReportName } = states[tool].processing;
+            if (isProcessing && taskId) {
+                console.log(`Reconnecting to ${tool} processing task: ${taskId}`);
+                connectToStream(tool, taskId, processingReportName);
+            }
+        });
+    }, [isLoaded, selectedCaseId]); // Only run when state is loaded or case changes
+
     const startProcessing = async (
         tool: string,
         inputFile: string,
@@ -237,61 +344,10 @@ export function LeappProvider({ children }: { children: ReactNode }) {
                 try { await api.processing.stop(currentTaskId); } catch (e) { console.warn("Failed to stop previous task", e); }
             }
 
-            const response = await api.processing.start(inputFile, outputFolder, selectedModules, reportName, password, caseId);
+            const response = await api.processing.start(inputFile, outputFolder, selectedModules || [], reportName, password, caseId);
             updateProcessing(tool, { taskId: response.task_id });
 
-            const eventSource = api.processing.createEventSource(response.task_id);
-
-            eventSource.onmessage = (event: MessageEvent) => {
-                const message = event.data;
-                if (message && message !== 'Stream ended') {
-                    setStates(prev => {
-                        const toolState = prev[tool];
-                        const nextLogs = [...toolState.processing.logs, message];
-                        let nextProgress = toolState.processing.progress;
-                        let nextEnc = toolState.processing.encryptionDetected;
-
-                        if (message.includes("Detected encrypted iTunes backup") && !password) {
-                            nextEnc = true;
-                        }
-
-                        const match = message.match(/\[(\d+)\/(\d+)\]/);
-                        if (match) {
-                            nextProgress = {
-                                current: parseInt(match[1], 10),
-                                total: parseInt(match[2], 10)
-                            };
-                        }
-
-                        return {
-                            ...prev,
-                            [tool]: {
-                                ...toolState,
-                                processing: {
-                                    ...toolState.processing,
-                                    logs: nextLogs,
-                                    progress: nextProgress,
-                                    encryptionDetected: nextEnc
-                                }
-                            }
-                        };
-                    });
-                }
-            };
-
-            eventSource.addEventListener('close', () => {
-                eventSource.close();
-                updateProcessing(tool, { isProcessing: false });
-            });
-
-            eventSource.onerror = () => {
-                eventSource.close();
-                updateProcessing(tool, {
-                    isProcessing: false,
-                    processingReportName: null,
-                    logs: [...states[tool].processing.logs, 'Error: Connection to server lost']
-                });
-            };
+            connectToStream(tool, response.task_id, reportName);
         } catch (error) {
             updateProcessing(tool, {
                 isProcessing: false,

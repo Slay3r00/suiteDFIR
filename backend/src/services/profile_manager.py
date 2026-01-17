@@ -109,10 +109,15 @@ class ProfileManager:
 
     async def select_modules(self, tool: str, selections: Dict[str, bool]) -> int:
         """Update module selection state. Returns count of selected modules."""
-        if tool in available_modules:
-            for module_name, selected in selections.items():
-                if module_name in available_modules[tool]:
-                    available_modules[tool][module_name]["selected"] = selected
+        if tool not in available_modules:
+             # This implies the tool's plugins haven't been loaded yet
+             # The router previously returned 503, so we can raise a specific error or ValueError
+             # Raising ValueError ("not initialized") to be caught by router
+             raise ValueError(f"Tool '{tool}' not initialized")
+
+        for module_name, selected in selections.items():
+            if module_name in available_modules[tool]:
+                available_modules[tool][module_name]["selected"] = selected
 
         return sum(1 for m in available_modules[tool].values() if m.get("selected"))
 

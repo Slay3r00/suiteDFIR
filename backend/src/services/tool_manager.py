@@ -18,6 +18,7 @@ from datetime import datetime
 import requests
 
 from core.config import TOOLS_CONFIG, TOOLS_DIR
+from services.plugin_manager import load_plugins
 
 logger = logging.getLogger(__name__)
 
@@ -129,7 +130,7 @@ class ToolManager:
             Dict with success status and message
         """
         if tool_name not in TOOLS_CONFIG:
-            return {"success": False, "error": f"Unknown tool: {tool_name}"}
+            raise ValueError(f"Unknown tool: {tool_name}")
         
         config = TOOLS_CONFIG[tool_name]
         
@@ -276,11 +277,7 @@ class ToolManager:
             temp_dir = self.tools_dir / f"{tool_name}_temp"
             if temp_dir.exists():
                 shutil.rmtree(temp_dir, ignore_errors=True)
-            return {
-                "success": False, 
-                "error": str(e),
-                "tool": tool_name
-            }
+            raise RuntimeError(str(e))
 
     async def install_tool(self, tool_name: str) -> Dict[str, Any]:
         """
@@ -288,39 +285,34 @@ class ToolManager:
         """
         import asyncio
         loop = asyncio.get_running_loop()
-        return await loop.run_in_executor(None, self._install_tool_sync, tool_name, None)
+        result = await loop.run_in_executor(None, self._install_tool_sync, tool_name, None)
+        
+        # Reload plugins after successful install
+        try:
+            load_plugins()
+        except Exception as e:
+            logger.warning(f"Failed to reload plugins: {e}")
+            
+        return result
     
     async def uninstall_tool(self, tool_name: str) -> Dict[str, Any]:
         """Uninstall a tool asynchronously."""
         if tool_name not in TOOLS_CONFIG:
-            return {
-                "success": False, 
-                "error": f"Unknown tool: {tool_name}",
-                "tool": tool_name
-            }
+            raise ValueError(f"Unknown tool: {tool_name}")
         
         tool_path = self.get_tool_path(tool_name)
         if not tool_path:
-            return {
-                "success": False, 
-                "error": f"{tool_name} is not installed",
-                "tool": tool_name
-            }
+            raise FileNotFoundError(f"{tool_name} is not installed")
         
         try:
             loop = asyncio.get_running_loop()
             await loop.run_in_executor(None, shutil.rmtree, tool_path)
             return {
-                "success": True, 
                 "message": f"{TOOLS_CONFIG[tool_name]['name']} uninstalled",
                 "tool": tool_name
             }
         except Exception as e:
-            return {
-                "success": False, 
-                "error": str(e),
-                "tool": tool_name
-            }
+            raise RuntimeError(str(e))
 
     async def install_tool_stream(self, tool_name: str, on_success=None):
         """
@@ -359,9 +351,10 @@ class ToolManager:
             while not queue.empty():
                 yield await queue.get()
                 
-            result = future.result()
-            
-            if result["success"]:
+            try:
+                result = future.result()
+                
+                # Reload plugins if successful
                 if on_success:
                     try:
                         on_success()
@@ -373,10 +366,10 @@ class ToolManager:
                     "message": result['message'], 
                     "complete": True
                 }
-            else:
+            except Exception as e:
                 yield {
                     "progress": -1, 
-                    "message": result.get('error', 'Installation failed'), 
+                    "message": str(e), 
                     "error": True
                 }
 

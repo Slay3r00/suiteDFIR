@@ -68,13 +68,13 @@ class ReportManager:
         """Delete a report from DB and filesystem by ID"""
         report = await self.get_report(report_id)
         if not report:
-            return {"success": False, "error": "Report not found", "status_code": 404}
+            raise FileNotFoundError("Report not found")
         
         path = report['path']
         
         # Security check: ensure path is within reports directory
         if not os.path.abspath(path).startswith(os.path.abspath(REPORTS_DIR)):
-            return {"success": False, "error": "Access denied", "status_code": 403}
+            raise PermissionError("Access denied")
 
         # Delete from DB first
         await db_execute("DELETE FROM reports WHERE id = ?", (report_id,))
@@ -83,12 +83,15 @@ class ReportManager:
         if os.path.exists(path):
             try:
                 await self._delete_path(path)
-                return {"success": True, "message": "Report deleted successfully"}
+                return {"message": "Report deleted successfully"}
             except Exception as e:
                 logger.error(f"Error deleting report files at {path}: {e}")
-                return {"success": True, "message": "Report deleted from DB (filesystem error)"}
+                # We still consider it a success if DB is cleared, but maybe log it?
+                # The original code returned success: True even on FS error.
+                # We will just return the message as strictly requested by the plan
+                return {"message": "Report deleted from DB (filesystem error)"}
         else:
-            return {"success": True, "message": "Report deleted from DB (file not found on disk)"}
+            return {"message": "Report deleted from DB (file not found on disk)"}
 
     async def _calculate_report_stats(self, path: str) -> Dict[str, Any]:
         """Calculate size and file count for a report directory."""
@@ -127,22 +130,22 @@ class ReportManager:
         """
         report = await self.get_report(report_id)
         if not report:
-            return {"error": "Report not found", "status_code": 404}
+            raise FileNotFoundError("Report not found")
         
         report_root = report['path']
         full_path = os.path.join(report_root, file_path)
 
         # Security check: ensure the file is actually inside THIS report's directory
         if not os.path.abspath(full_path).startswith(os.path.abspath(report_root)):
-            return {"error": "Access denied", "status_code": 403}
+            raise PermissionError("Access denied")
 
         if not os.path.exists(full_path):
-            return {"error": "File not found", "status_code": 404}
+            raise FileNotFoundError("File not found")
 
         if os.path.isdir(full_path):
             full_path = os.path.join(full_path, "index.html")
             if not os.path.exists(full_path):
-                return {"error": "index.html not found", "status_code": 404}
+                raise FileNotFoundError("index.html not found")
 
         content_type, _ = mimetypes.guess_type(full_path)
         if content_type is None:
@@ -176,7 +179,7 @@ class ReportManager:
                 }
             except Exception as e:
                 logger.error(f"Error reading report file {full_path}: {e}")
-                return {"error": f"Failed to read file: {str(e)}", "status_code": 500}
+                raise RuntimeError(f"Failed to read file: {str(e)}")
 
         return {
             "file_path": full_path,
@@ -188,15 +191,15 @@ class ReportManager:
         """Create a zip archive of the report directory by ID. Returns dict with zip_path, filename or error."""
         report = await self.get_report(report_id)
         if not report:
-            return {"error": "Report not found", "status_code": 404}
+            raise FileNotFoundError("Report not found")
         
         path = report['path']
         if not os.path.exists(path):
-             return {"error": "Report directory not found on disk", "status_code": 404}
+             raise FileNotFoundError("Report directory not found on disk")
 
         # Security check
         if not os.path.abspath(path).startswith(os.path.abspath(REPORTS_DIR)):
-            return {"error": "Access denied", "status_code": 403}
+            raise PermissionError("Access denied")
 
         def _zip():
             temp_dir = None
@@ -227,7 +230,7 @@ class ReportManager:
             return result
         except Exception as e:
             logger.error(f"Error zipping report: {e}")
-            return {"error": f"Failed to zip report: {str(e)}", "status_code": 500}
+            raise RuntimeError(f"Failed to zip report: {str(e)}")
 
 
 # Global instance

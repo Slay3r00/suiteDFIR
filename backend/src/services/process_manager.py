@@ -26,13 +26,13 @@ class ProcessManager:
         """Start a processing job."""
         tool = request.tool.value
         if tool not in TOOLS_CONFIG:
-            raise HTTPException(status_code=404, detail=f"Tool '{tool}' not found")
+            raise ValueError(f"Tool '{tool}' not found")
 
         config = TOOLS_CONFIG[tool]
 
         # Verify input path
         if not os.path.exists(request.input_path):
-            raise HTTPException(status_code=400, detail="Input path does not exist")
+            raise ValueError("Input path does not exist")
 
         # Create output directory
         output_dir = os.path.join(REPORTS_DIR, f"{tool}-reports", request.case_name)
@@ -60,7 +60,7 @@ class ProcessManager:
                 logger.debug(f"Created temp profile at {profile_path} with {len(modules_to_run)} modules")
             except Exception as e:
                 logger.error(f"Error creating temp profile: {e}")
-                raise HTTPException(status_code=500, detail=f"Failed to create processing profile: {e}")
+                raise RuntimeError(f"Failed to create processing profile: {e}")
 
         # Construct command
         tool_path = tool_manager.get_tool_path(tool)
@@ -135,7 +135,7 @@ class ProcessManager:
                 task_id = active_tasks[-1]
         
         if not task_id or task_id not in processing_tasks:
-            raise HTTPException(status_code=404, detail="No active task found to stop")
+            raise ValueError("No active task found to stop")
             
         task = processing_tasks[task_id]
         

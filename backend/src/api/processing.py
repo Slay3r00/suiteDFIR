@@ -1,4 +1,5 @@
 import logging
+from typing import Optional
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException
 
@@ -17,13 +18,21 @@ router = APIRouter(
 @router.post("/start", response_model=ProcessingStarted)
 async def start_processing(request: ProcessRequest, background_tasks: BackgroundTasks):
     """Start processing with selected modules"""
-    return await process_manager.start_process(request, background_tasks)
+    try:
+        return ProcessingStarted.model_validate(await process_manager.start_process(request, background_tasks))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except RuntimeError as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/stop", response_model=MessageResponse)
 async def stop_processing(request: StopRequest = None):
     """Stop current processing job"""
     task_id = request.task_id if request else None
-    return await process_manager.stop_process(task_id)
+    try:
+        return MessageResponse.model_validate(await process_manager.stop_process(task_id))
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
 @router.get("/stream/{task_id}")
 async def stream_processing_logs(task_id: str):

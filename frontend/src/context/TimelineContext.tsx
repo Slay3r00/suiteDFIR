@@ -30,7 +30,9 @@ interface TimelineContextType extends TimelineState {
 
 const TimelineContext = createContext<TimelineContextType | undefined>(undefined);
 
-const STORAGE_KEY = 'vdf_timeline_state_v2';
+import { useCase } from './CaseContext';
+
+const STORAGE_KEY_PREFIX = 'vdf_timeline_state_v2_';
 
 const INITIAL_CONFIG: TimelineConfig = {
     selectedReportId: 'all',
@@ -44,28 +46,39 @@ const INITIAL_CONFIG: TimelineConfig = {
 };
 
 export function TimelineProvider({ children }: { children: ReactNode }) {
+    const { selectedCaseId } = useCase();
     const [config, setConfig] = useState<TimelineConfig>(INITIAL_CONFIG);
     const [isLoaded, setIsLoaded] = useState(false);
 
-    // Load from sessionStorage
+    // Load from sessionStorage when selectedCaseId changes
     useEffect(() => {
-        const stored = sessionStorage.getItem(STORAGE_KEY);
+        if (!selectedCaseId) {
+            setIsLoaded(true);
+            return;
+        }
+
+        setIsLoaded(false);
+
+        const stored = sessionStorage.getItem(`${STORAGE_KEY_PREFIX}${selectedCaseId}`);
         if (stored) {
             try {
                 setConfig(prev => ({ ...prev, ...JSON.parse(stored) }));
             } catch (e) {
                 console.error('Failed to parse timeline state:', e);
+                setConfig(INITIAL_CONFIG);
             }
+        } else {
+            setConfig(INITIAL_CONFIG);
         }
         setIsLoaded(true);
-    }, []);
+    }, [selectedCaseId]);
 
     // Save to sessionStorage
     useEffect(() => {
-        if (isLoaded) {
-            sessionStorage.setItem(STORAGE_KEY, JSON.stringify(config));
+        if (isLoaded && selectedCaseId) {
+            sessionStorage.setItem(`${STORAGE_KEY_PREFIX}${selectedCaseId}`, JSON.stringify(config));
         }
-    }, [config, isLoaded]);
+    }, [config, isLoaded, selectedCaseId]);
 
     const updateConfig = useCallback((updates: Partial<TimelineConfig>) => {
         setConfig(prev => ({ ...prev, ...updates }));

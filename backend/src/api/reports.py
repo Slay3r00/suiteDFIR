@@ -9,6 +9,7 @@ from fastapi.responses import FileResponse
 from core.config import REPORTS_DIR
 from core.models import MessageResponse, Report
 from services.report_manager import report_manager
+from utils.helpers import handle_open_path_request
 
 logger = logging.getLogger(__name__)
 
@@ -28,15 +29,15 @@ async def get_reports(case_id: Optional[int] = None):
 @router.delete("/{id}", response_model=MessageResponse)
 async def delete_report(id: int):
     """Delete a report from database and filesystem"""
-    result = await report_manager.delete_report(id)
-    
-    if not result.get("success"):
-        raise HTTPException(
-            status_code=result.get("status_code", 500),
-            detail=result.get("error")
-        )
-    
-    return {"message": result.get("message")}
+    try:
+        return MessageResponse.model_validate(await report_manager.delete_report(id))
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except PermissionError as e:
+        raise HTTPException(status_code=403, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error deleting report: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/{id}/open", response_model=MessageResponse)
@@ -46,21 +47,21 @@ async def open_report(id: int):
     if not report:
         raise HTTPException(status_code=404, detail="Report not found")
         
-    from utils.helpers import handle_open_path_request
-    return handle_open_path_request(report['path'], REPORTS_DIR, "Report")
+    return MessageResponse.model_validate(handle_open_path_request(report['path'], REPORTS_DIR, "Report"))
 
 
 @router.get("/{id}/download")
 async def download_report(id: int, background_tasks: BackgroundTasks):
     """Zip and download report directory"""
-    result = await report_manager.create_zip_archive(id)
+    try:
+        result = await report_manager.create_zip_archive(id)
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except PermissionError as e:
+        raise HTTPException(status_code=403, detail=str(e))
+    except RuntimeError as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
-    if "error" in result:
-        raise HTTPException(
-            status_code=result.get("status_code", 500), 
-            detail=result.get("error")
-        )
-    
     # Schedule cleanup of the temp directory containing the zip
     zip_path = result["zip_path"]
     temp_dir = os.path.dirname(zip_path)
@@ -75,10 +76,14 @@ async def download_report(id: int, background_tasks: BackgroundTasks):
 @router.get("/{id}/view/{file_path:path}")
 async def serve_report_file(id: int, file_path: str):
     """Serve report files with scroll tracking script injection for HTML files"""
-    result = await report_manager.prepare_report_file(id, file_path)
-
-    if "error" in result:
-        raise HTTPException(status_code=result.get("status_code", 500), detail=result.get("error"))
+    try:
+        result = await report_manager.prepare_report_file(id, file_path)
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except PermissionError as e:
+        raise HTTPException(status_code=403, detail=str(e))
+    except RuntimeError as e:
+         raise HTTPException(status_code=500, detail=str(e))
 
     if result.get("is_html"):
         return Response(

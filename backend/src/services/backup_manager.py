@@ -47,7 +47,7 @@ class BackupManager:
         # Delete from filesystem
         await self.cleanup_backup_files(path)
         
-        return {"success": True}
+        return {"success": True, "message": "Backup deleted"}
 
     async def start_backup(self, request: Any, background_tasks: Any) -> Dict[str, Any]:
         """Start an iOS backup process."""
@@ -78,7 +78,7 @@ class BackupManager:
         # Start background task
         background_tasks.add_task(self._run_backup_loop, backup_id, request.udid, backup_path, request.password)
 
-        return {"success": True, "backup_id": backup_id}
+        return {"success": True, "backup_id": backup_id, "message": "Backup started"}
 
     async def stop_backup(self, backup_id: int) -> Dict[str, Any]:
         """Stop an active backup process."""

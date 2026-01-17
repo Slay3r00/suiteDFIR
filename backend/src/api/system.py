@@ -6,7 +6,7 @@ from fastapi.responses import Response
 
 from core.config import TOOLS_CONFIG
 from core.models import FilePathResponse, HealthResponse, MessageResponse, RootResponse, StorageUsage, SystemHealthMetrics
-from core.state import available_modules, event_clients, plugin_loaders
+from core.state import event_clients
 from services.spatial_manager import spatial_manager
 from services.system_manager import system_manager
 from utils.sse import create_client_sse_response, create_sse_response
@@ -20,28 +20,19 @@ router = APIRouter(
 )
 
 
-# --- Root & Health ---
+# Root & Health
 
 @router.get("/", response_model=RootResponse)
 async def root():
-    total_modules = sum(len(modules) for modules in available_modules.values())
-    return {
-        "message": "Forensic Tools Web API is running",
-        "tools": list(TOOLS_CONFIG.keys()),
-        "modules_loaded": total_modules
-    }
+    return RootResponse.model_validate(await system_manager.get_root_info())
 
 
 @router.get("/health", response_model=HealthResponse)
 async def health_check():
-    tools_status = {tool: len(plugin_loaders.get(tool, {}) or {}) > 0 for tool in TOOLS_CONFIG.keys()}
-    return {
-        "status": "healthy",
-        "tools_initialized": tools_status
-    }
+    return HealthResponse.model_validate(await system_manager.get_health_check())
 
 
-# --- File Dialogs ---
+# File Dialogs
 
 @router.post("/browse-files", response_model=FilePathResponse)
 async def browse_files():
@@ -57,19 +48,19 @@ async def browse_folders():
     return FilePathResponse(**result)
 
 
-# --- System Metrics ---
+# System Metrics
 
 @router.get("/system/health", response_model=SystemHealthMetrics)
 async def get_system_health():
-    return await system_manager.get_health_metrics()
+    return SystemHealthMetrics.model_validate(await system_manager.get_health_metrics())
 
 
 @router.get("/system/storage", response_model=StorageUsage)
 async def get_storage_usage(case_id: Optional[int] = None):
-    return await system_manager.get_storage_usage(case_id)
+    return StorageUsage.model_validate(await system_manager.get_storage_usage(case_id))
 
 
-# --- SSE Streaming ---
+# SSE Streaming
 
 @router.get("/stream")
 async def stream_events():
@@ -77,7 +68,7 @@ async def stream_events():
     return create_client_sse_response(event_clients)
 
 
-# --- Spatial / KML ---
+# Spatial / KML
 
 @router.get("/spatial/kml-files")
 async def get_kml_files(case_id: Optional[int] = None):
@@ -98,9 +89,9 @@ async def get_kml_data(path: str):
         raise HTTPException(status_code=404, detail="KML file not found")
 
 
-# --- Shutdown ---
+# Shutdown
 
 @router.post("/shutdown", response_model=MessageResponse)
 async def shutdown():
     """Gracefully shutdown the backend server"""
-    return await system_manager.shutdown_backend()
+    return MessageResponse.model_validate(await system_manager.shutdown_backend())

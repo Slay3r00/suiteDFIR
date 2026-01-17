@@ -50,7 +50,7 @@ async def start_backup(request: BackupRequest, background_tasks: BackgroundTasks
     """Start an iOS backup process for a specific device and case."""
     try:
         result = await backup_manager.start_backup(request, background_tasks)
-        return {"message": "Backup started", "backup_id": result.get("backup_id")}
+        return BackupStarted.model_validate(result)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -71,7 +71,7 @@ async def stream_backup_logs(backup_id: int):
 async def stop_backup(backup_id: int):
     """Stop an active backup process and update status."""
     result = await backup_manager.stop_backup(backup_id)
-    return {"message": result.get("message")}
+    return MessageResponse.model_validate(result)
 
 # Backup Management
 
@@ -84,8 +84,8 @@ async def get_backups(case_id: Optional[int] = None):
 async def delete_backup(backup_id: int):
     """Delete a backup record and its associated files from disk."""
     try:
-        await backup_manager.delete_backup_by_id(backup_id)
-        return {"message": "Backup deleted"}
+        result = await backup_manager.delete_backup_by_id(backup_id)
+        return MessageResponse.model_validate(result)
     except (FileNotFoundError, ValueError):
         raise HTTPException(status_code=404, detail="Backup not found")
 

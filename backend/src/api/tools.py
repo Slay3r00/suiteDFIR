@@ -2,7 +2,7 @@ import logging
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from api.dependencies import validate_tool
+from core.config import TOOLS_CONFIG
 from core.models import ToolInstallResult, ToolsStatusResponse
 from services.plugin_manager import load_plugins
 from services.tool_manager import tool_manager
@@ -15,10 +15,21 @@ router = APIRouter(
 
 logger = logging.getLogger(__name__)
 
+
+def validate_tool(tool: str) -> str:
+    """
+    Dependency that validates a tool exists in configuration.
+    Returns the normalized (lowercase) tool name.
+    """
+    tool = tool.lower()
+    if tool not in TOOLS_CONFIG:
+        raise HTTPException(status_code=404, detail=f"Tool '{tool}' not found")
+    return tool
+
 @router.get("/status", response_model=ToolsStatusResponse)
 async def get_tools_status():
     """Get installation status of all configured tools."""
-    return tool_manager.check_tools_status()
+    return ToolsStatusResponse.model_validate(tool_manager.check_tools_status())
 
 
 @router.post("/install/{tool}")
@@ -34,26 +45,22 @@ async def install_tool_sync(tool: str = Depends(validate_tool)):
     """
     Install a tool synchronously (for simpler clients).
     """
-    result = await tool_manager.install_tool(tool)
-    
-    if not result["success"]:
-        raise HTTPException(status_code=500, detail=result.get("error", "Installation failed"))
-    
-    # Reload plugins so modules are available immediately
     try:
-        load_plugins()
-    except Exception as e:
-        logger.warning(f"Failed to reload plugins: {e}")
-    
-    return result
+        return ToolInstallResult.model_validate(await tool_manager.install_tool(tool))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except RuntimeError as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.delete("/{tool}", response_model=ToolInstallResult)
 async def uninstall_tool(tool: str = Depends(validate_tool)):
     """Uninstall a tool."""
-    result = await tool_manager.uninstall_tool(tool)
-    
-    if not result["success"]:
-        raise HTTPException(status_code=500, detail=result.get("error", "Uninstall failed"))
-    
-    return result
+    try:
+        return ToolInstallResult.model_validate(await tool_manager.uninstall_tool(tool))
+    except ValueError as e:
+         raise HTTPException(status_code=400, detail=str(e))
+    except FileNotFoundError as e:
+         raise HTTPException(status_code=404, detail=str(e))
+    except RuntimeError as e:
+         raise HTTPException(status_code=500, detail=str(e))

@@ -1,8 +1,7 @@
 import logging
 from typing import List, Optional, Dict, Any
-from fastapi import HTTPException
 
-from core.models import Task, TaskCreate, Note, NoteCreate
+from core.models import TaskCreate, NoteCreate
 from core.database import db_fetch_all, db_fetch_one, db_execute, db_execute_return_id
 
 logger = logging.getLogger(__name__)
@@ -28,17 +27,17 @@ class TaskNoteManager:
         )
         return await self.get_task_by_id(task_id)
 
-    async def get_task_by_id(self, task_id: int) -> Dict[str, Any]:
+    async def get_task_by_id(self, task_id: int) -> Optional[Dict[str, Any]]:
         """Retrieve a single task by ID."""
-        task = await db_fetch_one("SELECT * FROM tasks WHERE id = ?", (task_id,))
-        if not task:
-            raise HTTPException(status_code=404, detail="Task not found")
-        return task
+        return await db_fetch_one("SELECT * FROM tasks WHERE id = ?", (task_id,))
 
-    async def toggle_task_status(self, task_id: int) -> Dict[str, Any]:
+    async def toggle_task_status(self, task_id: int) -> Optional[Dict[str, Any]]:
         """Toggle the completion status of a task."""
         # Get current status
         current_task = await self.get_task_by_id(task_id)
+        if not current_task:
+            raise ValueError(f"Task {task_id} not found")
+
         new_status = not current_task['completed']
         
         await db_execute(
@@ -50,6 +49,10 @@ class TaskNoteManager:
 
     async def delete_task(self, task_id: int) -> Dict[str, str]:
         """Delete a task by ID."""
+        task = await self.get_task_by_id(task_id)
+        if not task:
+            raise ValueError(f"Task {task_id} not found")
+            
         await db_execute("DELETE FROM tasks WHERE id = ?", (task_id,))
         return {"message": "Task deleted"}
 
@@ -71,16 +74,16 @@ class TaskNoteManager:
         )
         return await self._get_note_by_id(note_id)
 
-    async def _get_note_by_id(self, note_id: int) -> Dict[str, Any]:
+    async def _get_note_by_id(self, note_id: int) -> Optional[Dict[str, Any]]:
         """Internal helper to retrieve a single note by ID."""
-        note = await db_fetch_one("SELECT * FROM notes WHERE id = ?", (note_id,))
-        if not note:
-            # Should technically not happen immediately after creation if successful
-            raise HTTPException(status_code=404, detail="Note not found") 
-        return note
+        return await db_fetch_one("SELECT * FROM notes WHERE id = ?", (note_id,))
 
     async def delete_note(self, note_id: int) -> Dict[str, str]:
         """Delete a note by ID."""
+        note = await self._get_note_by_id(note_id)
+        if not note:
+            raise ValueError(f"Note {note_id} not found")
+            
         await db_execute("DELETE FROM notes WHERE id = ?", (note_id,))
         return {"message": "Note deleted"}
 

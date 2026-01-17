@@ -9,12 +9,30 @@ from typing import Optional, List, Dict, Any
 
 from core.config import TOOLS_CONFIG
 from core.database import DB_PATH, db_fetch_all
+from core.state import available_modules, plugin_loaders
 
 logger = logging.getLogger(__name__)
 
 
 class SystemManager:
     """Manages system health, storage metrics, and file dialog operations."""
+
+    async def get_root_info(self) -> Dict[str, Any]:
+        """Get root info including total loaded modules."""
+        total_modules = sum(len(modules) for modules in available_modules.values())
+        return {
+            "message": "Forensic Tools Web API is running",
+            "tools": list(TOOLS_CONFIG.keys()),
+            "modules_loaded": total_modules
+        }
+
+    async def get_health_check(self) -> Dict[str, Any]:
+        """Get system health status verifying tool initialization."""
+        tools_status = {tool: len(plugin_loaders.get(tool, {}) or {}) > 0 for tool in TOOLS_CONFIG.keys()}
+        return {
+            "status": "healthy",
+            "tools_initialized": tools_status
+        }
 
     async def get_health_metrics(self) -> Dict[str, Any]:
         """Get current system health metrics (CPU, RAM, disk)."""

@@ -61,11 +61,6 @@ const data = {
             url: "/aleapp",
             icon: Smartphone,
         },
-        {
-            title: "Backup (ADB)",
-            url: "/adb-backup",
-            icon: Archive,
-        },
     ],
 
     data_analysis: [

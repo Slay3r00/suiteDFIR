@@ -34,9 +34,12 @@ class CaseManager:
             case_data.get('status'), case_data.get('priority')
         ))
 
-    async def get_case(self, case_id: int) -> Optional[Dict[str, Any]]:
+    async def get_case(self, case_id: int) -> Dict[str, Any]:
         """Fetch a specific case by ID."""
-        return await db_fetch_one('SELECT * FROM cases WHERE id = ?', (case_id,))
+        row = await db_fetch_one('SELECT * FROM cases WHERE id = ?', (case_id,))
+        if not row:
+            raise ValueError(f"Case with ID {case_id} not found")
+        return row
 
     async def update_case(self, case_id: int, update_data: Dict[str, Any]) -> bool:
         """Update an existing case."""
@@ -56,6 +59,9 @@ class CaseManager:
         values = list(update_data.values())
         values.append(case_id)
 
+        # Verify case exists
+        await self.get_case(case_id)
+
         try:
             await db_execute(f'UPDATE cases SET {set_clause} WHERE id = ?', tuple(values))
             return True
@@ -65,6 +71,9 @@ class CaseManager:
 
     async def visit_case(self, case_id: int) -> None:
         """Update the last_visited_at timestamp for a case."""
+        # Ensure case exists
+        await self.get_case(case_id)
+        
         await db_execute('''
             UPDATE cases 
             SET last_visited_at = CURRENT_TIMESTAMP 
@@ -74,9 +83,8 @@ class CaseManager:
     async def delete_case(self, case_id: int) -> Dict[str, Any]:
         """Delete a case and perform cascading cleanup in DB and filesystem."""
         # Check if case exists
+        # Check if case exists
         case = await self.get_case(case_id)
-        if not case:
-            return {"success": False, "errors": ["Case not found"]}
 
         # Fetch associated files to delete
         backup_rows = await db_fetch_all('SELECT path FROM backups WHERE case_id = ?', (case_id,))
