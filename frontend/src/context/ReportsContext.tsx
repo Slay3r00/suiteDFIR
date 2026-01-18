@@ -7,12 +7,20 @@ interface ReportViewState {
     timestamp: number;
 }
 
+// DataTable state for each artifact page
+export interface DataTableState {
+    pageLength: number;  // "Show X entries" dropdown value (10, 25, 50, 100)
+    pageNum: number;     // Current pagination page (0-based index)
+    searchText: string;  // Search bar text content
+}
+
 // Enhanced iframe state for session-based tracking (not persisted to localStorage)
 export interface ReportIframeState {
     mainScrollY: number;
     sidebarScrollY: number;
     currentPage: string;  // Current artifact page within the report
-    dtPage?: number;      // Current DataTables page index (optional)
+    dtStates?: Record<string, DataTableState>;  // Per-artifact DataTable states (URL -> state)
+    activeTab?: string;   // Current active tab ID (optional)
 }
 
 interface ReportsContextType {

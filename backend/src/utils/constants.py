@@ -1,155 +1,136 @@
 # Enhanced scroll tracking script to inject into HTML reports
-# Tracks: sidebar scroll, main content scroll, current page URL, and DataTables pagination
+# Tracks: sidebar scroll, main content scroll, current page URL, DataTables state (page length, page number) per artifact page, and active tabs
 
 SCROLL_TRACKING_SCRIPT = """
 <script>
 (function() {
-    // Throttle for performance
-    let scrollTimeout;
-    let sidebarTimeout;
-    let dtTimeout;
+    let scrollTimeout, sidebarTimeout, dtTimeout;
     
-    // Get sidebar element (LEAPP uses #sidebar_id)
-    function getSidebar() {
-        return document.getElementById('sidebar_id') || 
-               document.querySelector('.sidebar-sticky') || 
-               document.querySelector('.sidebar');
-    }
+    const getSidebar = () => document.getElementById('sidebar_id') ||
+                            document.querySelector('.sidebar-sticky') ||
+                            document.querySelector('.sidebar');
 
-    // Get DataTables page info if present
-    function getDtPage() {
-        if (typeof $ === 'undefined' || !$.fn.dataTable) return undefined;
+    const getActiveTab = () => {
+        if (typeof $ === 'undefined') return undefined;
+        const activeTab = $('.nav-tabs .nav-link.active').first();
+        return activeTab.length ? activeTab.attr('id') : undefined;
+    };
 
-        // Method 1: Global API
-        const tables = $.fn.dataTable.tables({ visible: true, api: true });
-        if (tables.any()) return tables.page();
+    const getDataTableState = () => {
+        if (typeof $ === 'undefined' || !$.fn.dataTable) return null;
+        const table = $('#dtBasicExample');
+        if (!table.length || !table.DataTable()) return null;
 
-        // Method 2: Fallback selector
-        const fallbackTable = $('table.dataTable, table.display, table.table-striped').first();
-        if (fallbackTable.length && fallbackTable.DataTable) {
-             return fallbackTable.DataTable().page();
-        }
-        return undefined;
-    }
+        const api = table.DataTable();
+        return {
+            pageLength: api.page.len(),
+            pageNum: api.page(),
+            searchText: api.search()
+        };
+    };
     
-    // Send combined state to parent
     function sendState() {
         const sidebar = getSidebar();
-        let dtPageVal = undefined;
-
+        let dtStateVal, activeTabId;
         try {
-            dtPageVal = getDtPage();
-        } catch (e) {
-            // console.error(e);
-        }
+            dtStateVal = getDataTableState();
+            activeTabId = getActiveTab();
+        } catch (e) {}
 
-        const state = {
+        const currentPageUrl = window.location.pathname + window.location.search;
+
+        window.parent.postMessage({
             type: 'reportState',
             mainScrollY: window.scrollY || document.documentElement.scrollTop,
             sidebarScrollY: sidebar ? sidebar.scrollTop : 0,
-            currentPage: window.location.pathname + window.location.search,
-            dtPage: dtPageVal
-        };
-        window.parent.postMessage(state, '*');
+            currentPage: currentPageUrl,
+            dtStates: dtStateVal ? { [currentPageUrl]: dtStateVal } : undefined,
+            activeTab: activeTabId
+        }, '*');
     }
     
-    // Track main window scroll
-    window.addEventListener('scroll', function() {
+    window.addEventListener('scroll', () => {
         clearTimeout(scrollTimeout);
         scrollTimeout = setTimeout(sendState, 100);
     }, { passive: true });
     
-    // Track sidebar scroll if present
-    function attachSidebarListener() {
+    const attachListeners = () => {
         const sidebar = getSidebar();
         if (sidebar) {
-            sidebar.addEventListener('scroll', function() {
+            sidebar.addEventListener('scroll', () => {
                 clearTimeout(sidebarTimeout);
                 sidebarTimeout = setTimeout(sendState, 100);
             }, { passive: true });
         }
-    }
-
-    // Track DataTables pagination events
-    function attachDtListener() {
-        if (typeof $ !== 'undefined' && $.fn.dataTable) {
-            $(document).on('page.dt length.dt', function() {
-                clearTimeout(dtTimeout);
-                dtTimeout = setTimeout(sendState, 100);
+        if (typeof $ !== 'undefined') {
+            if ($.fn.dataTable) {
+                $(document).on('page.dt length.dt search.dt', () => {
+                    clearTimeout(dtTimeout);
+                    dtTimeout = setTimeout(sendState, 100);
+                });
+            }
+            // Track Bootstrap tab changes
+            $(document).on('shown.bs.tab', 'a[data-toggle="tab"]', () => {
+                sendState();
             });
         }
-    }
-    
-    // Handle messages from parent
-    window.addEventListener('message', function(event) {
-        if (!event.data) return;
-        
-        // Restore full state
-        if (event.data.type === 'restoreState') {
-            const hasDt = typeof $ !== 'undefined' && $.fn.dataTable;
-            console.log('[Injected] Restoring state:', event.data, 'HasDT:', hasDt);
+    };
 
-            // 1. Restore DataTables Page (if applicable)
-            if (event.data.dtPage !== undefined && hasDt) {
-                // Method 1: Global API
-                let tables = $.fn.dataTable.tables({ visible: true, api: true });
-                let targetTableApi = null;
+    window.addEventListener('message', (event) => {
+        if (event.data?.type === 'restoreState') {
+            const { dtStates, mainScrollY, sidebarScrollY, activeTab } = event.data;
+            const hasJquery = typeof $ !== 'undefined';
 
-                if (tables.any()) {
-                    targetTableApi = tables;
-                } else {
-                    // Method 2: Fallback selector
-                    const fallbackTable = $('table.dataTable, table.display, table.table-striped').first();
-                    if (fallbackTable.length && fallbackTable.DataTable) {
-                         targetTableApi = fallbackTable.DataTable();
+            if (hasJquery && $.fn.dataTable) {
+                const currentPageUrl = window.location.pathname + window.location.search;
+                const table = $('#dtBasicExample');
+
+                if (table.length && dtStates && dtStates[currentPageUrl]) {
+                    const state = dtStates[currentPageUrl];
+                    const api = table.DataTable();
+
+                    // 1. Set page length first
+                    if (state.pageLength !== undefined) {
+                        api.page.len(state.pageLength).draw('page');
+                    }
+
+                    // 2. Set search text (before page number so it affects results)
+                    if (state.searchText !== undefined && state.searchText !== '') {
+                        api.search(state.searchText).draw();
+                    }
+
+                    // 3. Then set page number (after search so it shows correct page of filtered results)
+                    if (state.pageNum !== undefined) {
+                        setTimeout(() => {
+                            api.page(state.pageNum).draw('page');
+                        }, 50);
                     }
                 }
-                
-                if (targetTableApi) {
-                    const currentPage = targetTableApi.page();
-                    const targetPage = event.data.dtPage;
-                    
-                    if (currentPage !== targetPage) {
-                        targetTableApi.page(targetPage).draw('page');
-                    }
+
+                if (activeTab) {
+                    $(`#${activeTab}`).tab('show');
                 }
             }
 
-            // 2. Restore Scroll Positions
-            if (event.data.mainScrollY !== undefined) {
-                window.scrollTo({ top: event.data.mainScrollY, behavior: 'instant' });
-            }
-            if (event.data.sidebarScrollY !== undefined) {
+            if (mainScrollY !== undefined) window.scrollTo({ top: mainScrollY, behavior: 'instant' });
+            if (sidebarScrollY !== undefined) {
                 const sidebar = getSidebar();
-                if (sidebar) {
-                    sidebar.scrollTop = event.data.sidebarScrollY;
-                }
+                if (sidebar) sidebar.scrollTop = sidebarScrollY;
             }
         }
         
-        // Legacy support for simple scroll
-        if (event.data.type === 'scrollTo') {
-            window.scrollTo({ top: event.data.scrollY, behavior: 'instant' });
-        }
-        
-        // Request current state
-        if (event.data.type === 'getState' || event.data.type === 'getScroll') {
+        if (event.data?.type === 'getState' || event.data?.type === 'getScroll') {
             sendState();
         }
     });
     
-    // Initialize on load
-    window.addEventListener('load', function() {
-        attachSidebarListener();
-        attachDtListener();
-        // Send initial state after a short delay
+    window.addEventListener('load', () => {
+        attachListeners();
         setTimeout(sendState, 200);
     });
     
-    // Also try to attach immediately in case DOM is already ready
     if (document.readyState === 'complete' || document.readyState === 'interactive') {
-        attachSidebarListener();
-        attachDtListener();
+        attachListeners();
     }
 })();
 </script>

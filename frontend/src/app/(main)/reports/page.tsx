@@ -171,21 +171,30 @@ function ReportsContent() {
                 // Otherwise use current selectedReportId (for continuous scroll tracking)
                 const targetId = pendingStateSaveIdRef.current || selectedReportId;
                 if (targetId) {
+                    const existingState = getReportIframeState(targetId);
+
                     let newState = {
                         mainScrollY: event.data.mainScrollY,
                         sidebarScrollY: event.data.sidebarScrollY,
                         currentPage: event.data.currentPage,
-                        dtPage: event.data.dtPage
+                        dtStates: {
+                            ...(existingState?.dtStates || {}),
+                            ...(event.data.dtStates || {})
+                        },
+                        activeTab: event.data.activeTab
                     };
 
                     // Race condition fix: If we are in the middle of restoring state,
                     // and the incoming update says "Page 0" (default initialization),
                     // but we have a saved state saying "Page X", IGNORE the "Page 0" update.
-                    if (restorationInProgressRef.current) {
-                        const existingState = getReportIframeState(targetId);
-                        if (existingState && (existingState.dtPage || 0) > 0 && (event.data.dtPage === 0 || event.data.dtPage === undefined)) {
-                            // console.log('[ReportsPage] Ignoring "Page 0" update during restoration to preserve Page', existingState.dtPage);
-                            newState.dtPage = existingState.dtPage;
+                    if (restorationInProgressRef.current && existingState?.dtStates) {
+                        const currentPageUrl = event.data.currentPage;
+                        const existingDtState = existingState.dtStates[currentPageUrl];
+                        const incomingDtState = event.data.dtStates?.[currentPageUrl];
+
+                        if (existingDtState && incomingDtState &&
+                            existingDtState.pageNum > 0 && incomingDtState.pageNum === 0) {
+                            newState.dtStates[currentPageUrl].pageNum = existingDtState.pageNum;
                         }
                     }
 
@@ -255,7 +264,13 @@ function ReportsContent() {
 
             setTimeout(() => {
                 iframeRef.current?.contentWindow?.postMessage(
-                    { type: 'restoreState', mainScrollY: state.mainScrollY, sidebarScrollY: state.sidebarScrollY, dtPage: state.dtPage },
+                    {
+                        type: 'restoreState',
+                        mainScrollY: state.mainScrollY,
+                        sidebarScrollY: state.sidebarScrollY,
+                        dtStates: state.dtStates,
+                        activeTab: state.activeTab
+                    },
                     'http://localhost:8000'
                 );
                 // Mark restoration as complete after a short buffer
