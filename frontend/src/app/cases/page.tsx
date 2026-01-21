@@ -19,6 +19,7 @@ import {
 import { Button } from "@/components/ui/Button"
 import { Input } from "@/components/ui/Input"
 import { Card, CardContent } from "@/components/ui/Card"
+import { LoadingPage } from "@/components/ui/LoadingPage"
 import { cn } from "@/lib/utils"
 
 
@@ -229,9 +230,7 @@ export default function CaseManagementPage() {
             {/* Content Area */}
             <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
                 {isLoading ? (
-                    <div className="flex-1 min-h-[400px] flex flex-col items-center justify-center text-gray-500">
-                        <p>Loading cases...</p>
-                    </div>
+                    <LoadingPage />
                 ) : filteredCases.length === 0 ? (
                     <div className="flex-1 min-h-[400px] flex flex-col items-center justify-center text-gray-500">
                         <p className="text-xl font-medium text-gray-400">No cases found</p>
@@ -264,11 +263,11 @@ export default function CaseManagementPage() {
                                     <div className="space-y-2 flex-1 pt-2">
                                         <div className="text-sm text-gray-400">
                                             <span className="text-[10px] text-gray-500 uppercase tracking-wider block mb-0.5">Contact</span>
-                                            <span className="truncate block font-medium text-gray-300">{caseItem.client_name || 'N/A'}</span>
+                                            <span className="truncate block font-medium text-gray-300">{caseItem.client_name || ''}</span>
                                         </div>
                                         <div className="text-xs text-gray-500 space-y-0.5">
-                                            <div className="truncate">{caseItem.client_email}</div>
-                                            <div className="truncate">{caseItem.client_phone}</div>
+                                            <div className="truncate">{caseItem.client_email || ''}</div>
+                                            <div className="truncate">{caseItem.client_phone || ''}</div>
                                         </div>
                                     </div>
 
@@ -328,8 +327,10 @@ export default function CaseManagementPage() {
                                             <td className="px-6 py-4 font-medium text-gray-200">{caseItem.name}</td>
                                             <td className="px-6 py-4 text-gray-400">
                                                 <div className="flex flex-col">
-                                                    <span className="text-gray-300 font-medium">{caseItem.client_name}</span>
-                                                    <span className="text-[10px] text-gray-500">{caseItem.client_email} / {caseItem.client_phone}</span>
+                                                    <span className="text-gray-300 font-medium">{caseItem.client_name || ''}</span>
+                                                    <span className="text-[10px] text-gray-500">
+                                                        {[caseItem.client_email, caseItem.client_phone].filter(Boolean).join(' / ')}
+                                                    </span>
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4">

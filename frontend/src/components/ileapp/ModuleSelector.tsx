@@ -60,7 +60,7 @@ export default function ModuleSelector({ tool, isProcessing }: ModuleSelectorPro
   const toolState = states[tool];
   const { modules, isLoadingModules } = toolState;
   const { artifactScrollPos } = toolState.config;
-  const selectedModules = new Set(toolState.config.selectedModules);
+  const selectedModules = new Set(toolState.config.selectedModules || []);
   const { profiles, loadProfile, saveProfile, deleteProfile } = useProfiles(tool);
 
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -79,9 +79,9 @@ export default function ModuleSelector({ tool, isProcessing }: ModuleSelectorPro
 
   const handleLoadProfile = async (profileId: number) => {
     try {
-      await loadProfile(profileId);
-      // Refresh modules to get updated selection state
-      await fetchModules(tool);
+      const data = await loadProfile(profileId);
+      // Update local artifact selection from loaded profile
+      updateConfig(tool, { selectedModules: data.modules });
       // Profile loaded successfully
       closeLoadProfile();
     } catch (error) {

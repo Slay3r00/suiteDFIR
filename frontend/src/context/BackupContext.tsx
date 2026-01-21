@@ -1,6 +1,7 @@
 "use client"
 
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode, useRef } from 'react'
+import { useCase } from './CaseContext';
 import { createLeappApi, API_BASE } from '../services/leappApi'
 
 import { Device, Backup } from '../types/backup'
@@ -33,7 +34,7 @@ interface BackupContextType extends BackupState {
 
 const BackupContext = createContext<BackupContextType | undefined>(undefined);
 
-const STORAGE_KEY = 'vdf_backup_config';
+const STORAGE_KEY_PREFIX = 'vdf_backup_config_';
 
 const INITIAL_CONFIG: BackupConfig = {
     backupName: '',
@@ -61,25 +62,51 @@ export function BackupProvider({ children }: { children: ReactNode }) {
         selectedDeviceRef.current = config.selectedDevice;
     }, [config.selectedDevice]);
 
-    // Load from sessionStorage
+    const { selectedCaseId } = useCase();
+
+    // Load from sessionStorage when selectedCaseId changes
     useEffect(() => {
-        const stored = sessionStorage.getItem(STORAGE_KEY);
-        if (stored) {
-            try {
-                setConfig(JSON.parse(stored));
-            } catch (e) {
-                console.error('Failed to parse backup config:', e);
+        if (!selectedCaseId) {
+            setIsLoaded(true);
+            return;
+        }
+
+        setIsLoaded(false);
+
+        try {
+            const stored = sessionStorage.getItem(`${STORAGE_KEY_PREFIX}${selectedCaseId}`);
+            if (stored) {
+                const parsed = JSON.parse(stored);
+                setConfig(parsed.config || INITIAL_CONFIG);
+                setLogs(parsed.logs || []);
+                setIsBackingUp(parsed.isBackingUp || false);
+                setActiveBackupId(parsed.activeBackupId || null);
+            } else {
+                // Reset to defaults
+                setConfig(INITIAL_CONFIG);
+                setLogs([]);
+                setIsBackingUp(false);
+                setActiveBackupId(null);
             }
+        } catch (e) {
+            console.error('Failed to load backup config:', e);
+            setConfig(INITIAL_CONFIG);
         }
         setIsLoaded(true);
-    }, []);
+    }, [selectedCaseId]);
 
     // Save to sessionStorage
     useEffect(() => {
-        if (isLoaded) {
-            sessionStorage.setItem(STORAGE_KEY, JSON.stringify(config));
+        if (isLoaded && selectedCaseId) {
+            const stateToSave = {
+                config,
+                logs,
+                isBackingUp,
+                activeBackupId
+            };
+            sessionStorage.setItem(`${STORAGE_KEY_PREFIX}${selectedCaseId}`, JSON.stringify(stateToSave));
         }
-    }, [config, isLoaded]);
+    }, [config, logs, isBackingUp, activeBackupId, isLoaded, selectedCaseId]);
 
     const updateConfig = useCallback((updates: Partial<BackupConfig>) => {
         setConfig(prev => ({ ...prev, ...updates }));
@@ -153,7 +180,7 @@ export function BackupProvider({ children }: { children: ReactNode }) {
 
         if (!keepExisting) setLogs([]);
 
-        const eventSource = new EventSource(`${API_BASE}/ios/backup/stream/${backupId}`);
+        const eventSource = new EventSource(`${API_BASE}/backups/${backupId}/stream`);
         logStreamRef.current = eventSource;
 
         eventSource.onmessage = (event) => {
@@ -205,7 +232,7 @@ export function BackupProvider({ children }: { children: ReactNode }) {
 
     const stopBackup = async (backupId: number) => {
         try {
-            await fetch(`${API_BASE}/ios/backup/${backupId}/stop`, { method: 'POST' });
+            await fetch(`${API_BASE}/backups/${backupId}/stop`, { method: 'POST' });
             fetchBackups();
         } catch (error) {
             console.error('Failed to stop backup:', error);

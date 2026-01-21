@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { getToolsStatus, installTool, uninstallTool, ToolsStatusResponse } from "@/lib/api/tools";
+import { LoadingPage } from "@/components/ui/LoadingPage";
 
 
 type Tab = "general" | "tools";
@@ -16,7 +17,7 @@ export default function PreferencesPage() {
     const [activeTab, setActiveTab] = useState<Tab>("general");
     const [toolsStatus, setToolsStatus] = useState<ToolsStatusResponse | null>(null);
     const [loading, setLoading] = useState(true);
-    const [installProgress, setInstallProgress] = useState<InstallProgress | null>(null);
+    const [installProgress, setInstallProgress] = useState<Record<string, InstallProgress>>({});
 
 
     const fetchToolsStatus = useCallback(async () => {
@@ -35,10 +36,16 @@ export default function PreferencesPage() {
     }, [fetchToolsStatus]);
 
     const handleInstall = async (toolName: string) => {
-        setInstallProgress({ tool: toolName, progress: 0, message: "Starting..." });
+        setInstallProgress(prev => ({
+            ...prev,
+            [toolName]: { tool: toolName, progress: 0, message: "Starting..." }
+        }));
 
         const result = await installTool(toolName, (progress, message) => {
-            setInstallProgress({ tool: toolName, progress, message });
+            setInstallProgress(prev => ({
+                ...prev,
+                [toolName]: { tool: toolName, progress, message }
+            }));
         });
 
         if (result.success) {
@@ -47,7 +54,11 @@ export default function PreferencesPage() {
             console.error("Install failed:", result.error);
         }
 
-        setInstallProgress(null);
+        setInstallProgress(prev => {
+            const newState = { ...prev };
+            delete newState[toolName];
+            return newState;
+        });
     };
 
     const handleUninstall = async (toolName: string) => {
@@ -68,7 +79,8 @@ export default function PreferencesPage() {
         if (!toolsStatus) return null;
 
         const tool = toolsStatus[toolKey];
-        const isInstalling = installProgress?.tool === toolKey;
+        const currentProgress = installProgress[toolKey];
+        const isInstalling = !!currentProgress;
 
         return (
             <div className="flex items-center justify-between py-4 border-b border-white/5 last:border-0 group">
@@ -85,10 +97,10 @@ export default function PreferencesPage() {
                             <div className="h-1 w-full bg-white/10 rounded-full overflow-hidden">
                                 <div
                                     className="h-full bg-white/80 transition-all duration-300"
-                                    style={{ width: `${Math.max(0, installProgress.progress)}%` }}
+                                    style={{ width: `${Math.max(0, currentProgress.progress)}%` }}
                                 />
                             </div>
-                            <span className="text-[10px] text-white/50 uppercase tracking-wider font-medium">{installProgress.message}</span>
+                            <span className="text-[10px] text-white/50 uppercase tracking-wider font-medium">{currentProgress.message}</span>
                         </div>
                     ) : tool.installed ? (
                         <div className="flex items-center gap-4">
@@ -159,7 +171,7 @@ export default function PreferencesPage() {
                         <div className="space-y-4">
 
                             {loading ? (
-                                <div className="text-sm text-[#888] py-4">Loading...</div>
+                                <LoadingPage />
                             ) : toolsStatus ? (
                                 <div className="space-y-0">
                                     {renderToolItem('ileapp')}

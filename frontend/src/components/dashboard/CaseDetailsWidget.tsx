@@ -77,7 +77,7 @@ export default function CaseDetailsWidget({ className }: { className?: string })
             <CardContent className="flex-1 p-0 pt-0 flex flex-col min-h-0 gap-4">
                 {isLoading || !caseData ? (
                     <div className="flex items-center justify-center h-full text-gray-500">
-                        <p className="text-sm">{isLoading ? "Loading case details..." : "Case not found"}</p>
+                        <p className="text-sm">{isLoading ? "Loading..." : "Case not found"}</p>
                     </div>
                 ) : (
                     <>
@@ -99,7 +99,7 @@ export default function CaseDetailsWidget({ className }: { className?: string })
                                         <User size={12} />
                                         <span className="text-[9px] font-medium uppercase tracking-wider">Client Name</span>
                                     </div>
-                                    <p className="text-sm text-gray-200 font-medium truncate">{caseData.client_name || 'N/A'}</p>
+                                    <p className="text-sm text-gray-200 font-medium truncate">{caseData.client_name || ''}</p>
                                 </div>
 
                                 {/* Client Email */}
@@ -108,7 +108,7 @@ export default function CaseDetailsWidget({ className }: { className?: string })
                                         <Mail size={12} />
                                         <span className="text-[9px] font-medium uppercase tracking-wider">Client Email</span>
                                     </div>
-                                    <p className="text-sm text-gray-200 font-medium truncate">{caseData.client_email || 'N/A'}</p>
+                                    <p className="text-sm text-gray-200 font-medium truncate">{caseData.client_email || ''}</p>
                                 </div>
 
                                 {/* Client Phone */}
@@ -117,7 +117,7 @@ export default function CaseDetailsWidget({ className }: { className?: string })
                                         <Phone size={12} />
                                         <span className="text-[9px] font-medium uppercase tracking-wider">Client Phone</span>
                                     </div>
-                                    <p className="text-sm text-gray-200 font-medium truncate">{caseData.client_phone || 'N/A'}</p>
+                                    <p className="text-sm text-gray-200 font-medium truncate">{caseData.client_phone || ''}</p>
                                 </div>
 
                                 {/* Status */}

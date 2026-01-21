@@ -7,9 +7,11 @@ import {
     type MRT_PaginationState,
     type MRT_SortingState,
     type MRT_ColumnFiltersState,
+    type MRT_DensityState,
+    MRT_TablePagination,
 } from 'material-react-table';
 import type { Updater } from '@tanstack/react-table';
-import { Box, Button, ThemeProvider, createTheme } from '@mui/material';
+import { Box, Button, ThemeProvider, createTheme, TextField, Typography } from '@mui/material';
 import FileDownloadIcon from '@mui/icons-material/FileDownload';
 import { mkConfig, generateCsv, download } from 'export-to-csv';
 import { formatInTimeZone } from 'date-fns-tz';
@@ -77,10 +79,12 @@ const createColumns = (selectedTimezone?: string) => [
     columnHelper.accessor('artifact', {
         header: 'Artifact',
         size: 150,
+        enableSorting: false,
     }),
     columnHelper.accessor('description', {
         header: 'Description',
         size: 300,
+        enableSorting: false,
         Cell: ({ cell }) => {
             const val = cell.getValue<string>();
             if (!val) return '';
@@ -408,6 +412,50 @@ const EnhancedTable = ({
 
     const columns = useMemo(() => createColumns(selectedTimezone), [selectedTimezone]);
 
+    // Custom Go To Page Component
+    const GoToPageInput = ({ table }: { table: any }) => {
+        const [pageInput, setPageInput] = useState((table.getState().pagination.pageIndex + 1).toString());
+
+        // Sync with external page changes
+        useEffect(() => {
+            setPageInput((table.getState().pagination.pageIndex + 1).toString());
+        }, [table.getState().pagination.pageIndex]);
+
+        const handleGoToPage = (e: React.KeyboardEvent<HTMLDivElement>) => {
+            if (e.key === 'Enter') {
+                const page = Number(pageInput) - 1;
+                if (!isNaN(page) && page >= 0 && page < table.getPageCount()) {
+                    table.setPageIndex(page);
+                } else {
+                    // Reset to current on invalid input
+                    setPageInput((table.getState().pagination.pageIndex + 1).toString());
+                }
+            }
+        };
+
+        return (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px', mr: 2 }}>
+                <Box component="span" sx={{ fontSize: '0.875rem', color: 'text.secondary' }}>
+                    Go to page:
+                </Box>
+                <TextField
+                    variant="standard"
+                    value={pageInput}
+                    onChange={(e) => setPageInput(e.target.value)}
+                    onKeyDown={handleGoToPage}
+                    sx={{
+                        width: '40px',
+                        '& .MuiInputBase-input': {
+                            textAlign: 'center',
+                            fontSize: '0.875rem',
+                            color: 'text.primary',
+                        },
+                    }}
+                />
+            </Box>
+        );
+    };
+
     const table = useMaterialReactTable({
         columns,
         data: rows,
@@ -429,7 +477,7 @@ const EnhancedTable = ({
         onColumnFiltersChange,
         onDensityChange,
         enableStickyHeader: true,
-        enableSorting: false,
+        enableSorting: true,
         enableRowSelection: true,
         enableSelectAll: true,
         muiTablePaperProps: {
@@ -468,11 +516,60 @@ const EnhancedTable = ({
                 backgroundColor: '#212121',
             },
         },
+        renderBottomToolbar: ({ table }) => (
+            <Box
+                sx={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    padding: '8px',
+                    backgroundColor: '#212121',
+                }}
+            >
+                <Box /> {/* Spacer to push content to right */}
+                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                    <MRT_TablePagination table={table} />
+                    <GoToPageInput table={table} />
+                </Box>
+            </Box>
+        ),
         muiTableHeadCellProps: {
             sx: {
                 backgroundColor: '#212121 !important',
                 color: '#FFFFFF',
                 opacity: 1,
+            },
+        },
+        muiColumnActionsButtonProps: {
+            type: 'button',
+        },
+        muiFilterTextFieldProps: {
+            variant: 'outlined',
+            size: 'small',
+            onKeyDown: (e) => {
+                if (e.key === 'Enter') {
+                    e.stopPropagation();
+                }
+            },
+            sx: {
+                '& .MuiOutlinedInput-root': {
+                    color: '#FFFFFF',
+                    '& fieldset': {
+                        borderColor: 'rgba(255, 255, 255, 0.2)',
+                    },
+                    '&:hover fieldset': {
+                        borderColor: 'rgba(255, 255, 255, 0.3)',
+                    },
+                    '&.Mui-focused fieldset': {
+                        borderColor: '#FFFFFF',
+                    },
+                },
+                '& .MuiInputLabel-root': {
+                    color: 'rgba(255, 255, 255, 0.5)',
+                    '&.Mui-focused': {
+                        color: '#FFFFFF',
+                    },
+                },
             },
         },
         muiSearchTextFieldProps: {
@@ -574,7 +671,7 @@ const EnhancedTable = ({
 
         // Restore scroll ONLY ONCE when data is first loaded/available
         if (!isLoading && rows.length > 0 && !hasRestoredScroll.current) {
-            if (scrollPosition > 0) {
+            if (scrollPosition !== undefined && scrollPosition > 0) {
                 // Wait for layout to settle
                 setTimeout(() => {
                     container.scrollTo({ top: scrollPosition });

@@ -81,7 +81,7 @@ export default function ProcessControls({ tool, inputFile, outputFolder, reportN
     }
   };
 
-  const canStart = !isProcessing && selectedModules.length > 0 && !!reportName;
+  const canStart = !isProcessing && selectedModules && selectedModules.length > 0 && !!reportName;
 
   return (
     <>

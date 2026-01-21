@@ -11,12 +11,14 @@ block_cipher = None
 
 # Backend directory - SPECPATH is provided by PyInstaller for spec files
 backend_dir = SPECPATH
+src_dir = os.path.join(backend_dir, 'src')
 
 # Data files to include (minimal - user data will be created/downloaded at runtime)
 datas = [
     ('bin', 'bin'),
+    ('src', 'src'),  # Include the src directory
     # Only include the database schema if it exists
-    # (os.path.join(backend_dir, 'vdf_tools.db'), '.'),
+    # (os.path.join(backend_dir, 'app.db'), '.'),
 ]
 datas += collect_data_files('google.protobuf')
 datas += collect_data_files('grpc')
@@ -99,8 +101,8 @@ zipfiles = []
 
 # Analysis configuration
 a = Analysis(
-    [os.path.join(backend_dir, 'main.py')],
-    pathex=[backend_dir],
+    [os.path.join(src_dir, 'main.py')],
+    pathex=[backend_dir, src_dir],  # Add src_dir to pathex
     binaries=binaries,
     datas=datas,
     hiddenimports=hiddenimports,
@@ -108,7 +110,7 @@ a = Analysis(
     hooksconfig={},
     runtime_hooks=[],
     excludes=[
-        'tkinter', 
+        'tkinter',
         'matplotlib',
     ],  # Exclude heavy unused libs
     win_no_prefer_redirects=False,

@@ -63,11 +63,14 @@ htmlcov/
 .python-version
 
 # LEAPP
-
-forensic-tools/leapp-tools/*
-reports/aleapp-reports/*
-reports/ileapp-reports/*
-backups/*
+forensic-tools/
+reports/
+backups/
+data/
+*.db
+*.db-wal
+*.db-shm
 vdf_tools.db
 vdf_tools.db-wal
 vdf_tools.db-shm
+coordinates.db

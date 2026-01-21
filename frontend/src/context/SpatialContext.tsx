@@ -26,7 +26,9 @@ interface SpatialContextType {
 
 const SpatialContext = createContext<SpatialContextType | undefined>(undefined)
 
-const STORAGE_KEY = 'vdf_spatial_state';
+import { useCase } from './CaseContext';
+
+const STORAGE_KEY_PREFIX = 'vdf_spatial_state_';
 
 interface StoredState {
     center: [number, number];
@@ -37,6 +39,7 @@ interface StoredState {
 }
 
 export function SpatialProvider({ children }: { children: React.ReactNode }) {
+    const { selectedCaseId } = useCase();
     const [center, setCenter] = useState<[number, number]>([40.7128, -74.0060]);
     const [zoom, setZoom] = useState(13);
     const [layer, setLayer] = useState<'normal' | 'satellite' | 'hybrid'>('normal');
@@ -51,10 +54,17 @@ export function SpatialProvider({ children }: { children: React.ReactNode }) {
         setFittedPaths(prev => new Set(prev).add(path));
     };
 
-    // Load state from sessionStorage on mount
+    // Load state from sessionStorage when selectedCaseId changes
     useEffect(() => {
+        if (!selectedCaseId) {
+            setIsStateLoaded(true); // Allow component to render even if no case is selected
+            return;
+        }
+
+        setIsStateLoaded(false); // Reset loading state while switching
+
         try {
-            const stored = sessionStorage.getItem(STORAGE_KEY);
+            const stored = sessionStorage.getItem(`${STORAGE_KEY_PREFIX}${selectedCaseId}`);
             if (stored) {
                 const parsed: StoredState = JSON.parse(stored);
                 if (parsed.center) setCenter(parsed.center);
@@ -62,20 +72,40 @@ export function SpatialProvider({ children }: { children: React.ReactNode }) {
                 if (parsed.layer) setLayer(parsed.layer);
                 if (parsed.selectedKmlsPaths) {
                     setSelectedKmlsPaths(parsed.selectedKmlsPaths);
-                    // Mark existing paths as "already fitted" so we don't jump on load
                     setFittedPaths(new Set(parsed.selectedKmlsPaths));
+                } else {
+                    setSelectedKmlsPaths([]);
+                    setFittedPaths(new Set());
                 }
                 if (parsed.searchQuery) setSearchQuery(parsed.searchQuery);
+                else setSearchQuery("");
+            } else {
+                // Reset to defaults if no saved state for this case
+                setCenter([40.7128, -74.0060]);
+                setZoom(13);
+                setLayer('normal');
+                setSelectedKmlsPaths([]);
+                setFittedPaths(new Set());
+                setSearchQuery("");
+                setGeoJsonData(null);
             }
         } catch (error) {
             console.error('Failed to load spatial state:', error);
+            // Fallback reset on error
+            setCenter([40.7128, -74.0060]);
+            setZoom(13);
+            setLayer('normal');
+            setSelectedKmlsPaths([]);
+            setFittedPaths(new Set());
+            setSearchQuery("");
+            setGeoJsonData(null);
         }
         setIsStateLoaded(true);
-    }, []);
+    }, [selectedCaseId]);
 
     // Save state to sessionStorage on change
     useEffect(() => {
-        if (!isStateLoaded) return;
+        if (!isStateLoaded || !selectedCaseId) return;
 
         try {
             const state: StoredState = {
@@ -85,11 +115,11 @@ export function SpatialProvider({ children }: { children: React.ReactNode }) {
                 selectedKmlsPaths,
                 searchQuery
             };
-            sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+            sessionStorage.setItem(`${STORAGE_KEY_PREFIX}${selectedCaseId}`, JSON.stringify(state));
         } catch (error) {
             console.error('Failed to save spatial state:', error);
         }
-    }, [center, zoom, layer, selectedKmlsPaths, searchQuery, isStateLoaded]);
+    }, [center, zoom, layer, selectedKmlsPaths, searchQuery, isStateLoaded, selectedCaseId]);
 
     return (
         <SpatialContext.Provider value={{

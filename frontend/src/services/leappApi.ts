@@ -36,8 +36,8 @@ export function createLeappApi(tool: string) {
                 return handleApiResponse(response);
             },
 
-            load: async (profileId: number): Promise<{ message: string }> => {
-                const response = await fetch(`${API_BASE}/profiles/${profileId}/load`, {
+            load: async (profile_id: number): Promise<{ message: string, modules: string[] }> => {
+                const response = await fetch(`${API_BASE}/profiles/${profile_id}/load`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ tool }),
@@ -109,8 +109,8 @@ export function createLeappApi(tool: string) {
                 return handleApiResponse(response);
             },
 
-            validateBackup: async (inputPath: string): Promise<{ encrypted: boolean, type: string, supported: boolean, message?: string }> => {
-                const response = await fetch(`${API_BASE}/ios/validate-backup`, {
+            validateBackup: async (inputPath: string): Promise<{ encrypted: boolean }> => {
+                const response = await fetch(`${API_BASE}/backups/validate`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ input_path: inputPath }),
@@ -124,12 +124,12 @@ export function createLeappApi(tool: string) {
         },
         backup: {
             getDevices: async () => {
-                const response = await fetch(`${API_BASE}/ios/devices`);
+                const response = await fetch(`${API_BASE}/backups/devices`);
                 if (!response.ok) throw new Error('Failed to fetch devices');
                 return response.json();
             },
             startBackup: async (udid: string, name: string, caseId?: number, password?: string) => {
-                const response = await fetch(`${API_BASE}/ios/backup`, {
+                const response = await fetch(`${API_BASE}/backups`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ udid, name, case_id: caseId, password }),

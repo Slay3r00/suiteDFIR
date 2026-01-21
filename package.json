@@ -14,8 +14,7 @@
         "build:mac": "./build-mac.sh"
     },
     "workspaces": [
-        "frontend",
-        "electron"
+        "frontend"
     ],
     "devDependencies": {
         "@tailwindcss/postcss": "^4.0.0-alpha.25",

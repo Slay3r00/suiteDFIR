@@ -1,0 +1,157 @@
+import os
+import sys
+import asyncio
+import logging
+from fastapi import FastAPI
+from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
+from contextlib import asynccontextmanager
+from dotenv import load_dotenv
+
+# Ensure src directory is in Python path for imports
+_current_dir = os.path.dirname(os.path.abspath(__file__))
+if _current_dir not in sys.path:
+    sys.path.insert(0, _current_dir)
+
+load_dotenv()
+from core.logger import setup_logging
+from core.database import init_database
+from core.config import BASE_DIR
+
+from services.plugin_manager import load_plugins
+from api import cases, reports, profiles, dashboard, processing, backups, system, timeline, tools
+from utils.device_watcher import start_device_watcher, stop_device_watcher
+from services.case_manager import case_manager
+
+# Setup logging
+setup_logging()
+logger = logging.getLogger(__name__)
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Initialize all configured forensic tool plugins on startup"""
+    # Init database
+    init_database()
+    logger.info("Database initialized")
+
+    # Init each tool
+    load_plugins()
+    
+    # Start device watcher for real-time iOS device detection
+    await start_device_watcher()
+    logger.info("Device watcher started")
+    
+    # Run orphaned file cleanup sweep
+    asyncio.create_task(case_manager.cleanup_orphaned_files())
+    
+    yield
+    
+    # Cleanup on shutdown
+    await stop_device_watcher()
+    logger.info("Device watcher stopped")
+
+app = FastAPI(lifespan=lifespan)
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request, exc):
+    from fastapi import HTTPException
+    from starlette.exceptions import HTTPException as StarletteHTTPException
+    
+    # Allow explicit HTTPExceptions to pass through with their status code
+    if isinstance(exc, (HTTPException, StarletteHTTPException)):
+        return JSONResponse(
+            status_code=exc.status_code,
+            content={"detail": exc.detail},
+        )
+
+    # For everything else, log it and return 500
+    logger.error(f"Unhandled error: {exc}", exc_info=True)
+    return JSONResponse(
+        status_code=500,
+        content={"detail": f"Internal Server Error: {str(exc)}"},
+    )
+
+# Include Routers
+app.include_router(system.router)
+app.include_router(cases.router)
+app.include_router(reports.router)
+app.include_router(profiles.router)
+app.include_router(dashboard.router)
+app.include_router(processing.router)
+app.include_router(backups.router)
+app.include_router(timeline.router)
+app.include_router(tools.router)
+
+
+# Configure CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+from core.config import TOOLS_CONFIG, REPORTS_DIR, BACKUPS_DIR, TOOLS_DIR
+
+# Ensure required directories exist
+for d in [REPORTS_DIR, BACKUPS_DIR, TOOLS_DIR]:
+    if not os.path.exists(d):
+        os.makedirs(d, exist_ok=True)
+
+# Mount the root reports directory to serve report files
+app.mount("/reports", StaticFiles(directory=REPORTS_DIR), name="reports")
+
+if __name__ == "__main__":
+    import sys
+    import uvicorn
+    
+    # Wrapper mode for running external scripts like iLEAPP in bundled environment
+    if "--wrapper" in sys.argv:
+        import importlib.util
+        wrapper_idx = sys.argv.index("--wrapper")
+        script_path = sys.argv[wrapper_idx + 1]
+        
+        # Setup environment for the script
+        sys.path.insert(0, os.path.dirname(script_path))
+        
+        # Force unbuffered stdout/stderr
+        # This is critical for real-time log streaming in the bundled app
+        try:
+            sys.stdout.reconfigure(line_buffering=True)
+            sys.stderr.reconfigure(line_buffering=True)
+        except AttributeError:
+             pass # In case not available, though Python 3.12 supports it
+        
+        # Force Pure-Python Protobuf implementation
+        # This avoids C++ descriptor pool issues in frozen environments
+        os.environ['PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION'] = 'python'
+        
+        # Adjust sys.argv to look like standard script execution for the tool
+        # Example: [vdf-backend, --wrapper, tool.py, -i, input] -> [tool.py, -i, input]
+        sys.argv = sys.argv[wrapper_idx + 1:]
+        
+        try:
+            spec = importlib.util.spec_from_file_location("__main__", script_path)
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+            sys.exit(0)
+        except SystemExit as e:
+            sys.exit(e.code)
+        except Exception as e:
+            import traceback
+            logger.error(f"Wrapper execution failed: {e}")
+            traceback.print_exc()
+            sys.exit(1)
+
+    # In bundled PyInstaller app, use app object directly
+    # In development, use module string for reload support
+    is_bundled = getattr(sys, 'frozen', False)
+    
+    if is_bundled:
+        # Production: pass app object directly, no reload
+        uvicorn.run(app, host="0.0.0.0", port=8000)
+    else:
+        # Development: use module string for hot reload
+        uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

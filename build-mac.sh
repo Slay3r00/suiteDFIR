@@ -34,6 +34,7 @@ echo ""
 echo "Packaging Electron app..."
 cd electron
 rm -rf out
+npm install
 npx electron-forge package
 
 # Copy resources manually (extraResource doesn't work reliably)
@@ -42,6 +43,15 @@ RESOURCES_PATH="$APP_PATH/Contents/Resources"
 
 echo "  Copying Python backend..."
 cp -R ../backend/dist/VDF\ Tools\ Backend "$RESOURCES_PATH/"
+
+echo "  Copying helper binaries..."
+cp -R ../backend/bin "$RESOURCES_PATH/"
+
+echo "  Relinking and signing binaries for portability..."
+# Run from electron directory, script is in root scripts folder
+../scripts/relink_binaries.sh "$RESOURCES_PATH/bin"
+codesign --force --deep --sign - "$RESOURCES_PATH/bin/"*
+
 
 echo "  Copying frontend..."
 cp -R ../frontend/out "$RESOURCES_PATH/"

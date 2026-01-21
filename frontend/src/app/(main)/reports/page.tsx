@@ -2,13 +2,14 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Search, FileText, FolderOpen, Download, Trash2, X, Maximize2 } from 'lucide-react';
-import { Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui';
+import { Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, LoadingPage } from '@/components/ui';
 import { useCase } from "@/context/CaseContext";
 import { ReportsProvider, useReports, ReportIframeState } from '@/context/ReportsContext';
 import { useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
 
 interface Report {
+    id: number;
     name: string;
     path: string;
     url: string;
@@ -20,14 +21,7 @@ interface Report {
 
 export default function Reports() {
     return (
-        <Suspense fallback={
-            <div className="h-screen w-screen flex items-center justify-center bg-[#151515] text-white">
-                <div className="flex flex-col items-center gap-3">
-                    <div className="w-8 h-8 border-2 border-white/20 border-t-white/80 rounded-full animate-spin" />
-                    <p className="text-xs font-medium text-gray-400 uppercase tracking-tighter">Loading Reports...</p>
-                </div>
-            </div>
-        }>
+        <Suspense fallback={<LoadingPage />}>
             <ReportsContent />
         </Suspense>
     );
@@ -45,8 +39,8 @@ function ReportsContent() {
 
     // Use context for persistent state
     const {
-        selectedReportPath,
-        setSelectedReportPath,
+        selectedReportId,
+        setSelectedReportId,
         filter,
         setFilter,
         sort,
@@ -60,13 +54,13 @@ function ReportsContent() {
         isStateLoaded
     } = useReports();
 
-    // Derive selectedReport from reports and selectedReportPath
-    const selectedReport = reports.find(r => r.path === selectedReportPath) || null;
+    // Derive selectedReport from reports and selectedReportId
+    const selectedReport = reports.find(r => r.id === selectedReportId) || null;
 
     // State-driven iframe URL (to restore artifact page)
     const [iframeUrl, setIframeUrl] = useState<string | null>(() => {
-        if (selectedReportPath) {
-            const saved = getReportIframeState(selectedReportPath);
+        if (selectedReportId) {
+            const saved = getReportIframeState(selectedReportId);
             if (saved?.currentPage) return `http://localhost:8000${saved.currentPage}`;
         }
         return null;
@@ -83,14 +77,14 @@ function ReportsContent() {
     const [thumbWidth, setThumbWidth] = useState(20);
     const [isScrollbarDragging, setIsScrollbarDragging] = useState(false);
 
-    // Track the previous report path for saving scroll position on switch
-    const previousReportPathRef = useRef<string | null>(null);
+    // Track the previous report ID for saving scroll position on switch
+    const previousReportIdRef = useRef<number | null>(null);
     const restorationInProgressRef = useRef<boolean>(false);
     const pendingScrollRestoreRef = useRef<number | null>(null);
     // Enhanced state restoration (includes sidebar scroll and current page)
     const pendingIframeRestoreRef = useRef<ReportIframeState | null>(null);
-    // Track which report path a pending state save should go to (fixes race condition)
-    const pendingStateSavePathRef = useRef<string | null>(null);
+    // Track which report ID a pending state save should go to (fixes race condition)
+    const pendingStateSaveIdRef = useRef<number | null>(null);
 
     const fetchReports = useCallback(async () => {
         try {
@@ -117,24 +111,32 @@ function ReportsContent() {
     useEffect(() => {
         // Wait for reports to load AND persistent state to be restored
         if (isLoading || reports.length === 0 || !isStateLoaded) {
-            console.log('[ReportsPage] Selection waiting. Loading:', isLoading, 'Reports:', reports.length, 'StateLoaded:', isStateLoaded);
             return;
         }
 
-        console.log('[ReportsPage] Selecting report. Current path:', selectedReportPath);
-        const urlPath = searchParams.get('path');
+        const urlPath = searchParams.get('path'); // We can still support path in URL if needed, but it's better to use ID
+        const urlId = searchParams.get('id');
 
-        // 1. Priority: URL path
+        // 1. Priority: URL ID
+        if (urlId) {
+            const targetId = parseInt(urlId);
+            const targetReport = reports.find(r => r.id === targetId);
+            if (targetReport) {
+                setSelectedReportId(targetReport.id);
+                return;
+            }
+        }
+
+        // 2. Legacy: URL path (lookup by path)
         if (urlPath) {
             const normalizedUrlPath = urlPath.replace(/\/$/, '').toLowerCase();
             const targetReport = reports.find(r => r.path.replace(/\/$/, '').toLowerCase() === normalizedUrlPath);
 
             if (targetReport) {
-                console.log('[ReportsPage] Priority 1: URL path found:', targetReport.path);
-                setSelectedReportPath(targetReport.path);
+                setSelectedReportId(targetReport.id);
                 // Scroll to the selected report card
                 setTimeout(() => {
-                    const el = document.querySelector(`[data-report-path="${CSS.escape(targetReport.path)}"]`);
+                    const el = document.querySelector(`[data-report-id="${targetReport.id}"]`);
                     if (el) {
                         el.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
                     }
@@ -143,19 +145,19 @@ function ReportsContent() {
             }
         }
 
-        // 2. Fallback: Keep current selection if it still exists (from context)
-        if (selectedReportPath) {
-            const stillExists = reports.find(r => r.path === selectedReportPath);
+        // 3. Fallback: Keep current selection if it still exists (from context)
+        if (selectedReportId) {
+            const stillExists = reports.find(r => r.id === selectedReportId);
             if (stillExists) {
                 return;
             }
         }
 
-        // 3. Last Fallback: First report
+        // 4. Last Fallback: First report
         if (reports.length > 0) {
-            setSelectedReportPath(reports[0].path);
+            setSelectedReportId(reports[0].id);
         }
-    }, [reports, searchParams, isLoading, selectedReportPath, setSelectedReportPath, isStateLoaded]);
+    }, [reports, searchParams, isLoading, selectedReportId, setSelectedReportId, isStateLoaded]);
 
     // Listen for scroll messages from iframe (enhanced state)
     useEffect(() => {
@@ -165,68 +167,77 @@ function ReportsContent() {
 
             // Handle enhanced reportState messages
             if (event.data?.type === 'reportState') {
-                // Use pending save path if set (for state captured before switch)
-                // Otherwise use current selectedReportPath (for continuous scroll tracking)
-                const targetPath = pendingStateSavePathRef.current || selectedReportPath;
-                if (targetPath) {
+                // Use pending save ID if set (for state captured before switch)
+                // Otherwise use current selectedReportId (for continuous scroll tracking)
+                const targetId = pendingStateSaveIdRef.current || selectedReportId;
+                if (targetId) {
+                    const existingState = getReportIframeState(targetId);
+
                     let newState = {
                         mainScrollY: event.data.mainScrollY,
                         sidebarScrollY: event.data.sidebarScrollY,
                         currentPage: event.data.currentPage,
-                        dtPage: event.data.dtPage
+                        dtStates: {
+                            ...(existingState?.dtStates || {}),
+                            ...(event.data.dtStates || {})
+                        },
+                        activeTab: event.data.activeTab
                     };
 
                     // Race condition fix: If we are in the middle of restoring state,
                     // and the incoming update says "Page 0" (default initialization),
                     // but we have a saved state saying "Page X", IGNORE the "Page 0" update.
-                    if (restorationInProgressRef.current) {
-                        const existingState = getReportIframeState(targetPath);
-                        if (existingState && (existingState.dtPage || 0) > 0 && (event.data.dtPage === 0 || event.data.dtPage === undefined)) {
-                            // console.log('[ReportsPage] Ignoring "Page 0" update during restoration to preserve Page', existingState.dtPage);
-                            newState.dtPage = existingState.dtPage;
+                    if (restorationInProgressRef.current && existingState?.dtStates) {
+                        const currentPageUrl = event.data.currentPage;
+                        const existingDtState = existingState.dtStates[currentPageUrl];
+                        const incomingDtState = event.data.dtStates?.[currentPageUrl];
+
+                        if (existingDtState && incomingDtState &&
+                            existingDtState.pageNum > 0 && incomingDtState.pageNum === 0) {
+                            newState.dtStates[currentPageUrl].pageNum = existingDtState.pageNum;
                         }
                     }
 
-                    saveReportIframeState(targetPath, newState);
+                    saveReportIframeState(targetId, newState);
                     // Also save to legacy scroll position for backwards compatibility
-                    saveReportScrollPosition(targetPath, event.data.mainScrollY);
+                    saveReportScrollPosition(targetId, event.data.mainScrollY);
                 }
-                // Clear pending save path after use
-                pendingStateSavePathRef.current = null;
+                // Clear pending save ID after use
+                pendingStateSaveIdRef.current = null;
             }
 
             // Legacy scroll message support
-            if (event.data?.type === 'scroll' && selectedReportPath) {
-                saveReportScrollPosition(selectedReportPath, event.data.scrollY);
+            if (event.data?.type === 'scroll' && selectedReportId) {
+                saveReportScrollPosition(selectedReportId, event.data.scrollY);
             }
         };
 
         window.addEventListener('message', handleMessage);
         return () => window.removeEventListener('message', handleMessage);
-    }, [selectedReportPath, saveReportScrollPosition, saveReportIframeState]);
+    }, [selectedReportId, saveReportScrollPosition, saveReportIframeState]);
 
     // Consolidated effect: When switching reports, update URL and restore state
     useEffect(() => {
         if (!selectedReport) return;
 
-        const reportPath = selectedReport.path;
+        const reportId = selectedReport.id;
 
         // Update URL if report changed or not set yet
-        if (reportPath !== previousReportPathRef.current || !iframeUrl) {
+        if (reportId !== previousReportIdRef.current || !iframeUrl) {
             // Default to report base URL
             let targetUrl = `http://localhost:8000${selectedReport.url}`;
             let restoreIframeState = null;
             let restoreScroll = null;
 
             // Try enhanced state first (session-based with sidebar scroll)
-            const savedIframeState = getReportIframeState(reportPath);
+            const savedIframeState = getReportIframeState(reportId);
             if (savedIframeState && savedIframeState.currentPage) {
                 restoreIframeState = savedIframeState;
                 // Use saved artifact page
                 targetUrl = `http://localhost:8000${savedIframeState.currentPage}`;
             } else {
                 // Fallback to legacy scroll position
-                const savedScroll = getReportScrollPosition(reportPath);
+                const savedScroll = getReportScrollPosition(reportId);
                 if (savedScroll > 0) {
                     restoreScroll = savedScroll;
                 }
@@ -234,7 +245,7 @@ function ReportsContent() {
 
             pendingIframeRestoreRef.current = restoreIframeState;
             pendingScrollRestoreRef.current = restoreScroll;
-            previousReportPathRef.current = reportPath;
+            previousReportIdRef.current = reportId;
             restorationInProgressRef.current = true; // Flag that we expect a restore
 
             setIframeUrl(targetUrl);
@@ -253,7 +264,13 @@ function ReportsContent() {
 
             setTimeout(() => {
                 iframeRef.current?.contentWindow?.postMessage(
-                    { type: 'restoreState', mainScrollY: state.mainScrollY, sidebarScrollY: state.sidebarScrollY, dtPage: state.dtPage },
+                    {
+                        type: 'restoreState',
+                        mainScrollY: state.mainScrollY,
+                        sidebarScrollY: state.sidebarScrollY,
+                        dtStates: state.dtStates,
+                        activeTab: state.activeTab
+                    },
                     'http://localhost:8000'
                 );
                 // Mark restoration as complete after a short buffer
@@ -379,7 +396,7 @@ function ReportsContent() {
     const executeOpen = async () => {
         if (!reportToOpen) return;
         try {
-            await fetch(`http://localhost:8000/api/reports/open?path=${encodeURIComponent(reportToOpen.path)}`, {
+            await fetch(`http://localhost:8000/api/reports/${reportToOpen.id}/open`, {
                 method: 'POST'
             });
             setReportToOpen(null);
@@ -394,7 +411,7 @@ function ReportsContent() {
 
     const executeDownload = async () => {
         if (!reportToDownload) return;
-        window.location.href = `http://localhost:8000/api/reports/download?path=${encodeURIComponent(reportToDownload.path)}`;
+        window.location.href = `http://localhost:8000/api/reports/${reportToDownload.id}/download`;
         setReportToDownload(null);
     };
 
@@ -406,13 +423,13 @@ function ReportsContent() {
         if (!reportToDelete) return;
 
         try {
-            const response = await fetch(`http://localhost:8000/api/reports?path=${encodeURIComponent(reportToDelete.path)}`, {
+            const response = await fetch(`http://localhost:8000/api/reports/${reportToDelete.id}`, {
                 method: 'DELETE'
             });
             if (response.ok) {
                 // If deleted report was selected, clear selection
-                if (selectedReport?.path === reportToDelete.path) {
-                    setSelectedReportPath(null);
+                if (selectedReportId === reportToDelete.id) {
+                    setSelectedReportId(null);
                 }
                 fetchReports(); // Refresh list
                 setReportToDelete(null); // Close dialog
@@ -424,16 +441,16 @@ function ReportsContent() {
 
     const handleViewReport = (report: Report) => {
         // Save current report's state before switching
-        if (selectedReportPath && iframeRef.current) {
-            // Set pending path so async response saves to correct report
-            pendingStateSavePathRef.current = selectedReportPath;
+        if (selectedReportId && iframeRef.current) {
+            // Set pending ID so async response saves to correct report
+            pendingStateSaveIdRef.current = selectedReportId;
             // Request current state (including sidebar scroll, currentPage) from iframe
             iframeRef.current.contentWindow?.postMessage(
                 { type: 'getState' },
                 'http://localhost:8000'
             );
         }
-        setSelectedReportPath(report.path);
+        setSelectedReportId(report.id);
     };
 
     // Drag-to-scroll handlers
@@ -583,16 +600,16 @@ function ReportsContent() {
                             onMouseMove={handleMouseMove}
                         >
                             {isLoading ? (
-                                <div className="h-full flex items-center justify-center text-gray-500 text-sm">Loading reports...</div>
+                                <LoadingPage />
                             ) : filteredReports.length === 0 ? (
                                 <div className="h-full flex items-center justify-center text-gray-500 text-sm">No reports found</div>
                             ) : (
                                 <div className="flex gap-3 h-full items-center">
                                     {filteredReports.map((report) => (
                                         <div
-                                            key={report.path}
-                                            data-report-path={report.path}
-                                            className={`report-card group flex-shrink-0 w-72 min-h-[60px] rounded-lg px-2.5 flex items-center gap-2 border transition-colors cursor-pointer ${selectedReport?.path === report.path ? 'bg-[#1A1A1A] border-white/40' : 'bg-[#1A1A1A] border-white/10 hover:border-white/20'
+                                            key={report.id}
+                                            data-report-id={report.id}
+                                            className={`report-card group flex-shrink-0 w-72 min-h-[60px] rounded-lg px-2.5 flex items-center gap-2 border transition-colors cursor-pointer ${selectedReportId === report.id ? 'bg-[#1A1A1A] border-white/40' : 'bg-[#1A1A1A] border-white/10 hover:border-white/20'
                                                 }`}
                                             onClick={() => handleViewReport(report)}
                                         >

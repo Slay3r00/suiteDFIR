@@ -7,57 +7,68 @@ interface ReportViewState {
     timestamp: number;
 }
 
+// DataTable state for each artifact page
+export interface DataTableState {
+    pageLength: number;  // "Show X entries" dropdown value (10, 25, 50, 100)
+    pageNum: number;     // Current pagination page (0-based index)
+    searchText: string;  // Search bar text content
+}
+
 // Enhanced iframe state for session-based tracking (not persisted to localStorage)
 export interface ReportIframeState {
     mainScrollY: number;
     sidebarScrollY: number;
     currentPage: string;  // Current artifact page within the report
-    dtPage?: number;      // Current DataTables page index (optional)
+    dtStates?: Record<string, DataTableState>;  // Per-artifact DataTable states (URL -> state)
+    activeTab?: string;   // Current active tab ID (optional)
 }
 
 interface ReportsContextType {
     // Current UI state (persisted to localStorage)
-    selectedReportPath: string | null;
+    selectedReportId: number | null;
     filter: 'all' | 'ileapp' | 'aleapp';
     sort: 'newest' | 'oldest' | 'name';
     searchQuery: string;
 
     // Actions for UI state
-    setSelectedReportPath: (path: string | null) => void;
+    setSelectedReportId: (id: number | null) => void;
     setFilter: (filter: 'all' | 'ileapp' | 'aleapp') => void;
     setSort: (sort: 'newest' | 'oldest' | 'name') => void;
     setSearchQuery: (query: string) => void;
 
     // Legacy scroll position management (localStorage)
-    saveReportScrollPosition: (reportPath: string, scrollY: number) => void;
-    getReportScrollPosition: (reportPath: string) => number;
+    saveReportScrollPosition: (reportId: number, scrollY: number) => void;
+    getReportScrollPosition: (reportId: number) => number;
 
     // Enhanced iframe state management (session-only)
-    saveReportIframeState: (reportPath: string, state: ReportIframeState) => void;
-    getReportIframeState: (reportPath: string) => ReportIframeState | null;
+    saveReportIframeState: (reportId: number, state: ReportIframeState) => void;
+    getReportIframeState: (reportId: number) => ReportIframeState | null;
 
     // Initialization state
     isStateLoaded: boolean;
 }
 
+import { useCase } from './CaseContext';
+
 const ReportsContext = createContext<ReportsContextType | undefined>(undefined)
 
-const STORAGE_KEY = 'vdf_reports_state';
+const STORAGE_KEY_PREFIX = 'vdf_reports_state_v2_';
 const MAX_STORED_REPORTS = 50; // Limit stored scroll positions to prevent localStorage bloat
 
 interface StoredState {
-    selectedReportPath: string | null;
+    selectedReportId: number | null;
     filter: 'all' | 'ileapp' | 'aleapp';
     sort: 'newest' | 'oldest' | 'name';
     searchQuery: string;
-    reportViewStates: Record<string, ReportViewState>;
+    reportViewStates: Record<number, ReportViewState>;
+    iframeStates: Record<number, ReportIframeState>;
 }
 
 // Helper to load initial state from sessionStorage
-function getInitialState(): StoredState | null {
-    if (typeof window === 'undefined') return null;
+function getInitialState(caseId: string | null): StoredState | null {
+    if (typeof window === 'undefined' || !caseId) return null;
     try {
-        const stored = sessionStorage.getItem(STORAGE_KEY);
+        const stored = sessionStorage.getItem(`${STORAGE_KEY_PREFIX}${caseId}`);
         if (stored) {
             return JSON.parse(stored);
         }
@@ -68,8 +79,9 @@ function getInitialState(): StoredState | null {
 }
 
 export function ReportsProvider({ children }: { children: React.ReactNode }) {
+    const { selectedCaseId } = useCase();
     // Initialize with default/null to match SSR
-    const [selectedReportPath, setSelectedReportPath] = useState<string | null>(null);
+    const [selectedReportId, setSelectedReportId] = useState<number | null>(null);
 
     const [filter, setFilter] = useState<'all' | 'ileapp' | 'aleapp'>('all');
 
@@ -77,49 +89,81 @@ export function ReportsProvider({ children }: { children: React.ReactNode }) {
 
     const [searchQuery, setSearchQuery] = useState('');
 
-    const [reportViewStates, setReportViewStates] = useState<Map<string, ReportViewState>>(new Map());
+    const [reportViewStates, setReportViewStates] = useState<Map<number, ReportViewState>>(new Map());
 
     const [isStateLoaded, setIsStateLoaded] = useState(false);
 
     // Load state from localStorage on mount
     // Load state from localStorage on mount
     useEffect(() => {
-        const stored = getInitialState();
+        if (!selectedCaseId) {
+            setIsStateLoaded(true);
+            return;
+        }
+
+        setIsStateLoaded(false);
+
+        const stored = getInitialState(selectedCaseId);
         if (stored) {
-            if (stored.selectedReportPath) {
-                setSelectedReportPath(stored.selectedReportPath);
+            if (stored.selectedReportId) {
+                setSelectedReportId(stored.selectedReportId);
+            } else {
+                setSelectedReportId(null);
             }
             if (stored.filter) setFilter(stored.filter);
+            else setFilter('all');
             if (stored.sort) setSort(stored.sort);
+            else setSort('newest');
             if (stored.searchQuery) setSearchQuery(stored.searchQuery);
-            // Intentionally NOT restoring reportViewStates to ensure session-only scroll tracking
+            else setSearchQuery('');
+
+            if (stored.reportViewStates) {
+                setReportViewStates(new Map(Object.entries(stored.reportViewStates).map(([k, v]) => [parseInt(k), v])));
+            } else {
+                setReportViewStates(new Map());
+            }
+
+            if (stored.iframeStates) {
+                iframeStatesRef.current = new Map(Object.entries(stored.iframeStates).map(([k, v]) => [parseInt(k), v]));
+            } else {
+                iframeStatesRef.current = new Map();
+            }
+        } else {
+            // Reset to defaults
+            setSelectedReportId(null);
+            setFilter('all');
+            setSort('newest');
+            setSearchQuery('');
+            setReportViewStates(new Map());
+            iframeStatesRef.current = new Map();
         }
         setIsStateLoaded(true);
-    }, []);
+    }, [selectedCaseId]);
 
     // Save state to sessionStorage whenever it changes
     useEffect(() => {
-        if (!isStateLoaded) return;
+        if (!isStateLoaded || !selectedCaseId) return;
 
         try {
             const state: StoredState = {
-                selectedReportPath,
+                selectedReportId,
                 filter,
                 sort,
                 searchQuery,
-                reportViewStates: {} // Don't persist scroll positions (session only)
+                reportViewStates: Object.fromEntries(reportViewStates),
+                iframeStates: Object.fromEntries(iframeStatesRef.current)
             };
 
-            sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+            sessionStorage.setItem(`${STORAGE_KEY_PREFIX}${selectedCaseId}`, JSON.stringify(state));
         } catch (error) {
             console.error('Failed to save reports state to sessionStorage:', error);
         }
-    }, [selectedReportPath, filter, sort, searchQuery, reportViewStates, isStateLoaded]);
+    }, [selectedReportId, filter, sort, searchQuery, reportViewStates, isStateLoaded, selectedCaseId]);
 
-    const saveReportScrollPosition = useCallback((reportPath: string, scrollY: number) => {
+    const saveReportScrollPosition = useCallback((reportId: number, scrollY: number) => {
         setReportViewStates(prev => {
             const next = new Map(prev);
-            next.set(reportPath, {
+            next.set(reportId, {
                 scrollPosition: scrollY,
                 timestamp: Date.now()
             });
@@ -127,31 +171,47 @@ export function ReportsProvider({ children }: { children: React.ReactNode }) {
         });
     }, []);
 
-    const getReportScrollPosition = useCallback((reportPath: string): number => {
-        return reportViewStates.get(reportPath)?.scrollPosition ?? 0;
+    const getReportScrollPosition = useCallback((reportId: number): number => {
+        return reportViewStates.get(reportId)?.scrollPosition ?? 0;
     }, [reportViewStates]);
 
     // Session-only enhanced iframe state (not persisted to localStorage)
-    const iframeStatesRef = useRef<Map<string, ReportIframeState>>(new Map());
+    const iframeStatesRef = useRef<Map<number, ReportIframeState>>(new Map());
 
-    const saveReportIframeState = useCallback((reportPath: string, state: ReportIframeState) => {
-        iframeStatesRef.current.set(reportPath, state);
-    }, []);
+    const saveReportIframeState = useCallback((reportId: number, state: ReportIframeState) => {
+        iframeStatesRef.current.set(reportId, state);
 
-    const getReportIframeState = useCallback((reportPath: string) => {
-        const state = iframeStatesRef.current.get(reportPath) ?? null;
-        console.log('[ReportsContext] Retrieving iframe state for:', reportPath, state ? JSON.stringify(state) : 'null');
+        // Formulate and save complete state immediately since Ref changes don't trigger useEffect
+        if (isStateLoaded && selectedCaseId) {
+            try {
+                const fullState: StoredState = {
+                    selectedReportId,
+                    filter,
+                    sort,
+                    searchQuery,
+                    reportViewStates: Object.fromEntries(reportViewStates),
+                    iframeStates: Object.fromEntries(iframeStatesRef.current)
+                };
+                sessionStorage.setItem(`${STORAGE_KEY_PREFIX}${selectedCaseId}`, JSON.stringify(fullState));
+            } catch (error) {
+                console.error('Failed to save iframe state to sessionStorage:', error);
+            }
+        }
+    }, [isStateLoaded, selectedCaseId, selectedReportId, filter, sort, searchQuery, reportViewStates]);
+
+    const getReportIframeState = useCallback((reportId: number) => {
+        const state = iframeStatesRef.current.get(reportId) ?? null;
         return state;
     }, []);
 
     return (
         <ReportsContext.Provider value={{
-            selectedReportPath,
+            selectedReportId,
             filter,
             sort,
             searchQuery,
             isStateLoaded,
-            setSelectedReportPath,
+            setSelectedReportId,
             setFilter,
             setSort,
             setSearchQuery,
