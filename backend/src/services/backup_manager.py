@@ -68,9 +68,9 @@ class BackupManager:
             (request.name, request.udid, device['name'], backup_path, 'in_progress', request.password, request.case_id)
         )
 
-        # Initialize task queue for SSE streaming
+        # Initialize task queue for SSE streaming (maxsize prevents unbounded memory growth)
         backup_tasks[backup_id] = {
-            "queue": asyncio.Queue(),
+            "queue": asyncio.Queue(maxsize=1000),
             "status": "in_progress",
             "process": None
         }

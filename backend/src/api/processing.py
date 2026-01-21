@@ -39,10 +39,10 @@ async def stream_processing_logs(task_id: str):
     """SSE endpoint for real-time processing logs"""
     if task_id not in processing_tasks:
         raise HTTPException(status_code=404, detail="Task not found")
-        
+
     return create_task_sse_response(
         task_id=task_id,
         task_dict=processing_tasks,
         terminal_statuses=["success", "error", "cancelled"],
-        cleanup=False  # Processing tasks cleaned up elsewhere
+        cleanup=True
     )

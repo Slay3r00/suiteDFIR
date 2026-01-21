@@ -110,9 +110,9 @@ class ProcessManager:
         # Generate Task ID
         task_id = str(uuid.uuid4())
         
-        # Initialize task state
+        # Initialize task state (maxsize prevents unbounded memory growth)
         processing_tasks[task_id] = {
-            "queue": asyncio.Queue(),
+            "queue": asyncio.Queue(maxsize=1000),
             "status": "in_progress",
             "tool": tool,
             "case": request.case_name

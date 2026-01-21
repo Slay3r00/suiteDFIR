@@ -1,14 +1,16 @@
 import asyncio
 import json
+import os
 from typing import Any, AsyncGenerator, Optional
 from fastapi.responses import StreamingResponse
 
 
-# Standard SSE response headers
+# Environment-aware SSE headers
+DEBUG = os.getenv("DEBUG", "false").lower() == "true"
 SSE_HEADERS = {
     "Cache-Control": "no-cache",
     "Connection": "keep-alive",
-    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Origin": "*" if DEBUG else "http://localhost:3000",
 }
 
 
@@ -20,7 +22,7 @@ async def create_task_sse_generator(
 ) -> AsyncGenerator[str, None]:
     """
     Create an SSE generator for task-based streams (backup, processing).
-    
+
     Args:
         task_id: The task identifier
         task_dict: Dictionary containing task state (must have 'queue' and 'status' keys)
@@ -28,6 +30,7 @@ async def create_task_sse_generator(
         cleanup: Whether to delete task from dict on completion
     """
     if task_id not in task_dict:
+        yield f"event: error\ndata: Task not found or expired\n\n"
         return
         
     queue = task_dict[task_id]["queue"]
@@ -45,7 +48,8 @@ async def create_task_sse_generator(
             
         try:
             # Wait for message with timeout to check status periodically
-            message = await asyncio.wait_for(queue.get(), timeout=1.0)
+            # 5s timeout optimal for localhost (reduces CPU wakeups vs 1s)
+            message = await asyncio.wait_for(queue.get(), timeout=5.0)
             yield f"data: {message}\n\n"
         except asyncio.TimeoutError:
             continue
@@ -53,11 +57,9 @@ async def create_task_sse_generator(
             yield f"data: Error reading log: {str(e)}\n\n"
             break
     
-    # Cleanup if requested
+    # Cleanup if requested (no delay needed for localhost)
     if cleanup and task_id in task_dict:
-        await asyncio.sleep(0.5)  # Give client time to process close event
-        if task_id in task_dict:
-            del task_dict[task_id]
+        del task_dict[task_id]
 
 
 async def create_client_sse_generator(
@@ -65,17 +67,22 @@ async def create_client_sse_generator(
 ) -> AsyncGenerator[str, None]:
     """
     Create an SSE generator for continuous client event streams.
-    
+
     Args:
         client_set: Set to register/unregister client queues
     """
     queue = asyncio.Queue()
     client_set.add(queue)
-    
+
     try:
         while True:
-            data = await queue.get()
-            yield f"data: {data}\n\n"
+            try:
+                # 30s timeout for heartbeat (detects dead clients)
+                data = await asyncio.wait_for(queue.get(), timeout=30.0)
+                yield f"data: {data}\n\n"
+            except asyncio.TimeoutError:
+                # SSE comment (ignored by client) keeps connection alive
+                yield ": heartbeat\n\n"
     except asyncio.CancelledError:
         client_set.remove(queue)
 
