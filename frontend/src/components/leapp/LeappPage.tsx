@@ -20,7 +20,6 @@ import { API } from '@/lib/api';
 
 interface LeappPageProps {
     tool: 'ileapp' | 'aleapp';
-    logoPath: string;
     toolName: string;
 }
 
@@ -34,7 +33,7 @@ interface Report {
     size: string;
 }
 
-function LeappContent({ tool }: { logoPath: string; tool: string }) {
+function LeappContent({ tool }: { tool: string }) {
     const outputFolder = '';
     const router = useRouter();
     const { states, updateConfig, clearLogs, clearProcessingReportName, fetchModules } = useLeapp();
@@ -156,12 +155,7 @@ function LeappContent({ tool }: { logoPath: string; tool: string }) {
             <div className="flex-1 flex gap-[9vh] min-h-0">
                 {/* Left Panel - Input & Controls */}
                 <div className="flex-1 basis-0 min-w-0 h-full flex flex-col gap-6 min-h-0">
-                    {/* Logo */}
-                    {/* 
-                    <div className="flex items-center h-16">
-                        <img src={logoPath} alt="Tool Logo" className={logoHeight} />
-                    </div>
-                    */}
+
                     {/* Input & Report Name Row */}
                     <div className="flex gap-6">
                         {/* Report Name Section */}
@@ -388,7 +382,7 @@ function LeappContent({ tool }: { logoPath: string; tool: string }) {
     );
 }
 
-function LeappPageWithCheck({ tool, logoPath }: LeappPageProps) {
+function LeappPageWithCheck({ tool }: LeappPageProps) {
     const [toolInstalled, setToolInstalled] = useState<boolean | null>(null);
 
     useEffect(() => {
@@ -415,11 +409,11 @@ function LeappPageWithCheck({ tool, logoPath }: LeappPageProps) {
 
     // Tool installed - show normal content
     return (
-        <LeappContent logoPath={logoPath} tool={tool} />
+        <LeappContent tool={tool} />
     );
 }
 
-export default function LeappPage({ tool, logoPath, toolName }: LeappPageProps) {
-    return <LeappPageWithCheck tool={tool} logoPath={logoPath} toolName={toolName} />;
+export default function LeappPage({ tool, toolName }: LeappPageProps) {
+    return <LeappPageWithCheck tool={tool} toolName={toolName} />;
 }
 
