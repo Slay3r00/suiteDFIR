@@ -8,7 +8,6 @@
 const { app } = require('electron');
 const fs = require('fs');
 const path = require('path');
-const os = require('os');
 
 // Fallback log path before app is ready (uses local directory for debugging)
 const FALLBACK_LOG_DIR = path.join(__dirname, 'logs');
@@ -16,7 +15,6 @@ const FALLBACK_LOG_PATH = path.join(FALLBACK_LOG_DIR, 'startup.log');
 
 // Log file configuration
 let logPath = FALLBACK_LOG_PATH;
-let logStream = null;
 let initialized = false;
 
 /**
@@ -157,13 +155,10 @@ function warn(message, ...args) {
 }
 
 /**
- * Close the log stream
+ * Cleanup function (no-op, kept for API compatibility)
  */
 function close() {
-    if (logStream) {
-        logStream.end();
-        logStream = null;
-    }
+    // No-op: logging uses sync writes
 }
 
 // Log that the module was loaded (before app ready)

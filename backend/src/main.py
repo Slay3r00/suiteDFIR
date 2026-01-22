@@ -105,6 +105,7 @@ app.mount("/reports", StaticFiles(directory=REPORTS_DIR), name="reports")
 
 if __name__ == "__main__":
     import sys
+    import argparse
     import uvicorn
     
     # Wrapper mode for running external scripts like iLEAPP in bundled environment
@@ -145,13 +146,18 @@ if __name__ == "__main__":
             traceback.print_exc()
             sys.exit(1)
 
+    # Parse CLI arguments for port
+    parser = argparse.ArgumentParser(description="VDF Tools Backend")
+    parser.add_argument('--port', type=int, default=8000, help='Port to run the server on')
+    args = parser.parse_args()
+
     # In bundled PyInstaller app, use app object directly
     # In development, use module string for reload support
     is_bundled = getattr(sys, 'frozen', False)
     
     if is_bundled:
         # Production: pass app object directly, no reload
-        uvicorn.run(app, host="0.0.0.0", port=8000)
+        uvicorn.run(app, host="0.0.0.0", port=args.port)
     else:
         # Development: use module string for hot reload
-        uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+        uvicorn.run("main:app", host="0.0.0.0", port=args.port, reload=True)
