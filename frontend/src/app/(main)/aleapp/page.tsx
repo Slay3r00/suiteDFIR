@@ -4,7 +4,6 @@ export default function ALEAPP() {
     return (
         <LeappPage
             tool="aleapp"
-            logoPath="/aLEAPP-logo.png"
             toolName="aLEAPP"
         />
     );
