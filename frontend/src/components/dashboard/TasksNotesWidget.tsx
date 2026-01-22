@@ -9,6 +9,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@
 import { useToast } from "@/hooks/use-toast"
 import { useCase } from "@/context/CaseContext"
 import { useDashboard } from "@/context/DashboardContext"
+import { API } from "@/lib/api"
 
 interface Task {
     id: number
@@ -55,8 +56,8 @@ export default function TasksNotesWidget() {
 
         try {
             const [tasksRes, notesRes] = await Promise.all([
-                fetch(`http://localhost:8000/api/dashboard/tasks?case_id=${selectedCaseId}`),
-                fetch(`http://localhost:8000/api/dashboard/notes?case_id=${selectedCaseId}`)
+                fetch(API.path(`/dashboard/tasks?case_id=${selectedCaseId}`)),
+                fetch(API.path(`/dashboard/notes?case_id=${selectedCaseId}`))
             ])
 
             if (tasksRes.ok) setTasks(await tasksRes.json())
@@ -88,7 +89,7 @@ export default function TasksNotesWidget() {
                 ? { content: taskInput, description: taskDescription, priority: taskPriority, case_id: parseInt(selectedCaseId) }
                 : { content: noteInput, description: noteDescription, case_id: parseInt(selectedCaseId) }
 
-            const res = await fetch(`http://localhost:8000/api/dashboard/${endpoint}`, {
+            const res = await fetch(API.path(`/dashboard/${endpoint}`), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(body)
@@ -124,7 +125,7 @@ export default function TasksNotesWidget() {
             // Optimistic update
             setTasks(tasks.map(t => t.id === id ? { ...t, completed: !t.completed } : t))
 
-            const res = await fetch(`http://localhost:8000/api/dashboard/tasks/${id}`, {
+            const res = await fetch(API.path(`/dashboard/tasks/${id}`), {
                 method: 'PUT'
             })
 
@@ -153,7 +154,7 @@ export default function TasksNotesWidget() {
                 setNotes(notes.filter(n => n.id !== id))
             }
 
-            const res = await fetch(`http://localhost:8000/api/dashboard/${type}/${id}`, {
+            const res = await fetch(API.path(`/dashboard/${type}/${id}`), {
                 method: 'DELETE'
             })
 

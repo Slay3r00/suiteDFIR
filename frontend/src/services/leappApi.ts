@@ -1,6 +1,5 @@
 import { Module, Profile } from '../app/(main)/ileapp/types';
-
-export const API_BASE = 'http://localhost:8000/api';
+import { API } from '@/lib/api';
 
 async function handleApiResponse<T>(response: Response): Promise<T> {
     if (!response.ok) {
@@ -17,12 +16,12 @@ export function createLeappApi(tool: string) {
     return {
         modules: {
             getAll: async (): Promise<{ modules: Module[] }> => {
-                const response = await fetch(`${API_BASE}/profiles/modules?tool=${tool}`);
+                const response = await fetch(API.path(`/profiles/modules?tool=${tool}`));
                 return handleApiResponse(response);
             },
 
             select: async (selections: Record<string, boolean>): Promise<void> => {
-                await fetch(`${API_BASE}/profiles/modules/select`, {
+                await fetch(API.path('/profiles/modules/select'), {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ tool, selections }),
@@ -32,12 +31,12 @@ export function createLeappApi(tool: string) {
 
         profiles: {
             getAll: async (): Promise<Profile[]> => {
-                const response = await fetch(`${API_BASE}/profiles?tool=${tool}`);
+                const response = await fetch(API.path(`/profiles?tool=${tool}`));
                 return handleApiResponse(response);
             },
 
             load: async (profile_id: number): Promise<{ message: string, modules: string[] }> => {
-                const response = await fetch(`${API_BASE}/profiles/${profile_id}/load`, {
+                const response = await fetch(API.path(`/profiles/${profile_id}/load`), {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ tool }),
@@ -46,7 +45,7 @@ export function createLeappApi(tool: string) {
             },
 
             save: async (name: string, modules: string[]): Promise<{ name: string }> => {
-                const response = await fetch(`${API_BASE}/profiles`, {
+                const response = await fetch(API.path('/profiles'), {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ tool, name, modules }),
@@ -55,7 +54,7 @@ export function createLeappApi(tool: string) {
             },
 
             delete: async (profileId: number): Promise<{ message: string }> => {
-                const response = await fetch(`${API_BASE}/profiles/${profileId}`, {
+                const response = await fetch(API.path(`/profiles/${profileId}`), {
                     method: 'DELETE',
                 });
                 return handleApiResponse(response);
@@ -64,12 +63,12 @@ export function createLeappApi(tool: string) {
 
         browser: {
             browseFiles: async (): Promise<{ success: boolean; file_path: string }> => {
-                const response = await fetch(`${API_BASE}/browse-files`, { method: 'POST' });
+                const response = await fetch(API.path('/browse-files'), { method: 'POST' });
                 return handleApiResponse(response);
             },
 
             browseFolders: async (): Promise<{ success: boolean; file_path: string }> => {
-                const response = await fetch(`${API_BASE}/browse-folders`, { method: 'POST' });
+                const response = await fetch(API.path('/browse-folders'), { method: 'POST' });
                 return handleApiResponse(response);
             },
         },
@@ -83,7 +82,7 @@ export function createLeappApi(tool: string) {
                 password?: string,
                 caseId?: number
             ): Promise<{ task_id: string }> => {
-                const response = await fetch(`${API_BASE}/process/start`, {
+                const response = await fetch(API.path('/process/start'), {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -101,7 +100,7 @@ export function createLeappApi(tool: string) {
             },
 
             stop: async (taskId: string): Promise<void> => {
-                const response = await fetch(`${API_BASE}/process/stop`, {
+                const response = await fetch(API.path('/process/stop'), {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ task_id: taskId }),
@@ -110,7 +109,7 @@ export function createLeappApi(tool: string) {
             },
 
             validateBackup: async (inputPath: string): Promise<{ encrypted: boolean }> => {
-                const response = await fetch(`${API_BASE}/backups/validate`, {
+                const response = await fetch(API.path('/backups/validate'), {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ input_path: inputPath }),
@@ -119,17 +118,17 @@ export function createLeappApi(tool: string) {
             },
 
             createEventSource: (taskId: string): EventSource => {
-                return new EventSource(`${API_BASE}/process/stream/${taskId}`);
+                return new EventSource(API.path(`/process/stream/${taskId}`));
             },
         },
         backup: {
             getDevices: async () => {
-                const response = await fetch(`${API_BASE}/backups/devices`);
+                const response = await fetch(API.path('/backups/devices'));
                 if (!response.ok) throw new Error('Failed to fetch devices');
                 return response.json();
             },
             startBackup: async (udid: string, name: string, caseId?: number, password?: string) => {
-                const response = await fetch(`${API_BASE}/backups`, {
+                const response = await fetch(API.path('/backups'), {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ udid, name, case_id: caseId, password }),
@@ -138,13 +137,13 @@ export function createLeappApi(tool: string) {
                 return response.json();
             },
             getBackups: async (caseId?: number) => {
-                const url = caseId ? `${API_BASE}/backups?case_id=${caseId}` : `${API_BASE}/backups`;
+                const url = caseId ? API.path(`/backups?case_id=${caseId}`) : API.path('/backups');
                 const response = await fetch(url);
                 if (!response.ok) throw new Error('Failed to fetch backups');
                 return response.json();
             },
             deleteBackup: async (id: number) => {
-                const response = await fetch(`${API_BASE}/backups/${id}`, {
+                const response = await fetch(API.path(`/backups/${id}`), {
                     method: 'DELETE',
                 });
                 if (!response.ok) throw new Error('Failed to delete backup');
@@ -154,5 +153,5 @@ export function createLeappApi(tool: string) {
     };
 }
 
-// Keep backward compatibility - default to i LEAPP
+// Keep backward compatibility - default to iLEAPP
 export const ileappApi = createLeappApi('ileapp');

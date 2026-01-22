@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useCase } from "@/context/CaseContext"
+import { API } from "@/lib/api"
 import {
     Search,
     LayoutGrid,
@@ -60,7 +61,7 @@ export default function CaseManagementPage() {
 
     const fetchCases = async () => {
         try {
-            const res = await fetch('http://localhost:8000/api/cases')
+            const res = await fetch(API.path('/cases'))
             if (res.ok) {
                 const data = await res.json()
                 setCases(data)
@@ -88,7 +89,7 @@ export default function CaseManagementPage() {
     const handleSelectCase = async (caseId: number) => {
         // Track the visit on the backend
         try {
-            await fetch(`http://localhost:8000/api/cases/${caseId}/visit`, { method: 'POST' })
+            await fetch(API.path(`/cases/${caseId}/visit`), { method: 'POST' })
         } catch (err) {
             console.error('Failed to track case visit:', err)
         }
@@ -116,7 +117,7 @@ export default function CaseManagementPage() {
     const executeDelete = async () => {
         if (!caseToDelete) return
         try {
-            const res = await fetch(`http://localhost:8000/api/cases/${caseToDelete.id}`, {
+            const res = await fetch(API.path(`/cases/${caseToDelete.id}`), {
                 method: 'DELETE'
             })
             if (res.ok) {

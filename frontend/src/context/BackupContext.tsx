@@ -2,7 +2,8 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode, useRef } from 'react'
 import { useCase } from './CaseContext';
-import { createLeappApi, API_BASE } from '../services/leappApi'
+import { createLeappApi } from '../services/leappApi'
+import { API } from '@/lib/api'
 
 import { Device, Backup } from '../types/backup'
 
@@ -146,7 +147,7 @@ export function BackupProvider({ children }: { children: ReactNode }) {
         fetchDevices();
         fetchBackups();
 
-        const eventSource = new EventSource(`${API_BASE}/stream`);
+        const eventSource = new EventSource(API.path('/stream'));
 
         eventSource.onmessage = (event) => {
             try {
@@ -180,7 +181,7 @@ export function BackupProvider({ children }: { children: ReactNode }) {
 
         if (!keepExisting) setLogs([]);
 
-        const eventSource = new EventSource(`${API_BASE}/backups/${backupId}/stream`);
+        const eventSource = new EventSource(API.path(`/backups/${backupId}/stream`));
         logStreamRef.current = eventSource;
 
         eventSource.onmessage = (event) => {
@@ -232,7 +233,7 @@ export function BackupProvider({ children }: { children: ReactNode }) {
 
     const stopBackup = async (backupId: number) => {
         try {
-            await fetch(`${API_BASE}/backups/${backupId}/stop`, { method: 'POST' });
+            await fetch(API.path(`/backups/${backupId}/stop`), { method: 'POST' });
             fetchBackups();
         } catch (error) {
             console.error('Failed to stop backup:', error);

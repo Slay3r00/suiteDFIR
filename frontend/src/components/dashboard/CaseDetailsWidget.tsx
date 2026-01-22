@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react"
 import { Card, CardContent } from "@/components/ui/Card"
 import { cn } from "@/lib/utils"
 import { useCase } from "@/context/CaseContext"
+import { API } from "@/lib/api"
 import { User, Phone, Mail, FileText, Info, ShieldAlert, Activity } from 'lucide-react'
 
 import { Edit2 } from 'lucide-react'
@@ -18,7 +19,7 @@ export default function CaseDetailsWidget({ className }: { className?: string })
     const fetchCaseDetails = useCallback(async () => {
         setIsLoading(true)
         try {
-            const res = await fetch(`http://localhost:8000/api/cases/${selectedCaseId}`)
+            const res = await fetch(API.path(`/cases/${selectedCaseId}`))
             if (res.ok) {
                 const data = await res.json()
                 setCaseData(data)

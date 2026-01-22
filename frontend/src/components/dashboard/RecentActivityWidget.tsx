@@ -6,6 +6,7 @@ import { Clock, FileText, Smartphone, CheckCircle, XCircle, AlertCircle } from '
 import { useCase } from "@/context/CaseContext"
 import { useRouter } from 'next/navigation'
 import { cn } from "@/lib/utils"
+import { API } from "@/lib/api"
 
 interface Activity {
     id: number
@@ -28,7 +29,7 @@ export default function RecentActivityWidget() {
                 return
             }
             try {
-                const res = await fetch(`http://localhost:8000/api/dashboard/activity?case_id=${selectedCaseId}`)
+                const res = await fetch(API.path(`/dashboard/activity?case_id=${selectedCaseId}`))
                 if (res.ok) {
                     const json = await res.json()
                     setActivities(json.activities || [])
@@ -41,7 +42,7 @@ export default function RecentActivityWidget() {
         fetchData()
 
         // Subscribe to SSE stream
-        const eventSource = new EventSource('http://localhost:8000/api/stream')
+        const eventSource = new EventSource(API.path('/stream'))
 
         eventSource.onmessage = (event) => {
             try {

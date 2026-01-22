@@ -5,6 +5,7 @@ import { Search, Layers, Upload, Loader2, Map as MapIcon, Satellite, Globe, Fold
 import { Input } from "@/components/ui/Input"
 import { Button } from "@/components/ui/Button"
 import { cn } from "@/lib/utils"
+import { API } from "@/lib/api"
 import * as toGeoJSON from "@mapbox/togeojson"
 import JSZip from "jszip"
 
@@ -54,8 +55,8 @@ export default function MapControls({ onSearch, onLayerChange, onDataUpload, onK
     const fetchKmlFiles = React.useCallback(async () => {
         try {
             const baseUrl = selectedCaseId
-                ? `http://localhost:8000/api/spatial/kml-files?case_id=${selectedCaseId}`
-                : 'http://localhost:8000/api/spatial/kml-files';
+                ? API.path(`/spatial/kml-files?case_id=${selectedCaseId}`)
+                : API.path('/spatial/kml-files');
             const url = `${baseUrl}${baseUrl.includes('?') ? '&' : '?'}t=${new Date().getTime()}`;
             const res = await fetch(url)
             if (res.ok) {

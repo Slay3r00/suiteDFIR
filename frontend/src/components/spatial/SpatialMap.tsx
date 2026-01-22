@@ -6,6 +6,7 @@ import "leaflet/dist/leaflet.css"
 import L from "leaflet"
 import MapControls from "./MapControls"
 import type { Feature, GeoJsonObject } from 'geojson'
+import { API } from "@/lib/api"
 
 // Fix for default marker icons in Next.js
 const iconUrl = 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png'
@@ -110,7 +111,7 @@ export default function SpatialMap() {
             if (browsedKmls[path]) return; // Already loaded
 
             try {
-                const res = await fetch(`http://localhost:8000/api/spatial/kml-data?path=${encodeURIComponent(path)}`)
+                const res = await fetch(API.path(`/spatial/kml-data?path=${encodeURIComponent(path)}`))
                 if (res.ok) {
                     const text = await res.text()
                     const parser = new DOMParser()

@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/Button"
 import { Input } from "@/components/ui/Input"
 import { cn } from "@/lib/utils"
+import { API } from "@/lib/api"
 import {
     Dialog,
     DialogContent,
@@ -107,7 +108,7 @@ export function CaseFormDialog({ open, onOpenChange, caseData, onSuccess }: Case
         try {
             if (caseData) {
                 // Update
-                const res = await fetch(`http://localhost:8000/api/cases/${caseData.id}`, {
+                const res = await fetch(API.path(`/cases/${caseData.id}`), {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(formData)
@@ -119,7 +120,7 @@ export function CaseFormDialog({ open, onOpenChange, caseData, onSuccess }: Case
                 }
             } else {
                 // Create
-                const res = await fetch('http://localhost:8000/api/cases', {
+                const res = await fetch(API.path('/cases'), {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(formData)

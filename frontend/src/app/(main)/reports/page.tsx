@@ -7,6 +7,7 @@ import { useCase } from "@/context/CaseContext";
 import { ReportsProvider, useReports, ReportIframeState } from '@/context/ReportsContext';
 import { useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
+import { API } from '@/lib/api';
 
 interface Report {
     id: number;
@@ -61,7 +62,7 @@ function ReportsContent() {
     const [iframeUrl, setIframeUrl] = useState<string | null>(() => {
         if (selectedReportId) {
             const saved = getReportIframeState(selectedReportId);
-            if (saved?.currentPage) return `http://localhost:8000${saved.currentPage}`;
+            if (saved?.currentPage) return API.url(saved.currentPage);
         }
         return null;
     });
@@ -89,8 +90,8 @@ function ReportsContent() {
     const fetchReports = useCallback(async () => {
         try {
             const url = selectedCaseId
-                ? `http://localhost:8000/api/reports?case_id=${selectedCaseId}`
-                : 'http://localhost:8000/api/reports';
+                ? API.path(`/reports?case_id=${selectedCaseId}`)
+                : API.path('/reports');
             const response = await fetch(url);
             if (response.ok) {
                 const data = await response.json();
@@ -163,7 +164,7 @@ function ReportsContent() {
     useEffect(() => {
         const handleMessage = (event: MessageEvent) => {
             // Security check - only accept messages from our backend
-            if (event.origin !== 'http://localhost:8000') return;
+            if (event.origin !== API.base()) return;
 
             // Handle enhanced reportState messages
             if (event.data?.type === 'reportState') {
@@ -225,7 +226,7 @@ function ReportsContent() {
         // Update URL if report changed or not set yet
         if (reportId !== previousReportIdRef.current || !iframeUrl) {
             // Default to report base URL
-            let targetUrl = `http://localhost:8000${selectedReport.url}`;
+            let targetUrl = API.url(selectedReport.url);
             let restoreIframeState = null;
             let restoreScroll = null;
 
@@ -234,7 +235,7 @@ function ReportsContent() {
             if (savedIframeState && savedIframeState.currentPage) {
                 restoreIframeState = savedIframeState;
                 // Use saved artifact page
-                targetUrl = `http://localhost:8000${savedIframeState.currentPage}`;
+                targetUrl = API.url(savedIframeState.currentPage);
             } else {
                 // Fallback to legacy scroll position
                 const savedScroll = getReportScrollPosition(reportId);
@@ -271,7 +272,7 @@ function ReportsContent() {
                         dtStates: state.dtStates,
                         activeTab: state.activeTab
                     },
-                    'http://localhost:8000'
+                    API.base()
                 );
                 // Mark restoration as complete after a short buffer
                 setTimeout(() => {
@@ -289,7 +290,7 @@ function ReportsContent() {
             setTimeout(() => {
                 iframeRef.current?.contentWindow?.postMessage(
                     { type: 'scrollTo', scrollY },
-                    'http://localhost:8000'
+                    API.base()
                 );
             }, 100);
         }
@@ -396,7 +397,7 @@ function ReportsContent() {
     const executeOpen = async () => {
         if (!reportToOpen) return;
         try {
-            await fetch(`http://localhost:8000/api/reports/${reportToOpen.id}/open`, {
+            await fetch(API.path(`/reports/${reportToOpen.id}/open`), {
                 method: 'POST'
             });
             setReportToOpen(null);
@@ -411,7 +412,7 @@ function ReportsContent() {
 
     const executeDownload = async () => {
         if (!reportToDownload) return;
-        window.location.href = `http://localhost:8000/api/reports/${reportToDownload.id}/download`;
+        window.location.href = API.path(`/reports/${reportToDownload.id}/download`);
         setReportToDownload(null);
     };
 
@@ -423,7 +424,7 @@ function ReportsContent() {
         if (!reportToDelete) return;
 
         try {
-            const response = await fetch(`http://localhost:8000/api/reports/${reportToDelete.id}`, {
+            const response = await fetch(API.path(`/reports/${reportToDelete.id}`), {
                 method: 'DELETE'
             });
             if (response.ok) {
@@ -447,7 +448,7 @@ function ReportsContent() {
             // Request current state (including sidebar scroll, currentPage) from iframe
             iframeRef.current.contentWindow?.postMessage(
                 { type: 'getState' },
-                'http://localhost:8000'
+                API.base()
             );
         }
         setSelectedReportId(report.id);
@@ -515,7 +516,7 @@ function ReportsContent() {
                     >
                         <iframe
                             ref={iframeRef}
-                            src={iframeUrl || `http://localhost:8000${selectedReport.url}`}
+                            src={iframeUrl || API.url(selectedReport.url)}
                             className={`w-full h-full border-none ${isFullscreen ? 'rounded-none' : 'rounded-xl'}`}
                             title={selectedReport.name}
                             onLoad={handleIframeLoad}

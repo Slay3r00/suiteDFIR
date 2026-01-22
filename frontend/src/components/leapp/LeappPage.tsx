@@ -16,6 +16,7 @@ import { LoadingPage } from '../ui/LoadingPage';
 
 import { getToolsStatus } from '@/lib/api/tools';
 import { cn } from '../../lib/utils';
+import { API } from '@/lib/api';
 
 interface LeappPageProps {
     tool: 'ileapp' | 'aleapp';
@@ -59,8 +60,8 @@ function LeappContent({ tool }: { logoPath: string; tool: string }) {
     const fetchReports = useCallback(async () => {
         try {
             const url = selectedCaseId
-                ? `http://localhost:8000/api/reports?case_id=${selectedCaseId}`
-                : 'http://localhost:8000/api/reports';
+                ? API.path(`/reports?case_id=${selectedCaseId}`)
+                : API.path('/reports');
             const response = await fetch(url);
             if (response.ok) {
                 const data = await response.json();
@@ -112,7 +113,7 @@ function LeappContent({ tool }: { logoPath: string; tool: string }) {
             confirmLabel: 'Open',
             onConfirm: async () => {
                 try {
-                    await fetch(`http://localhost:8000/api/reports/${id}/open`, {
+                    await fetch(API.path(`/reports/${id}/open`), {
                         method: 'POST'
                     });
                 } catch (error) {
@@ -132,7 +133,7 @@ function LeappContent({ tool }: { logoPath: string; tool: string }) {
             confirmLabel: 'Delete',
             onConfirm: async () => {
                 try {
-                    const response = await fetch(`http://localhost:8000/api/reports/${id}`, {
+                    const response = await fetch(API.path(`/reports/${id}`), {
                         method: 'DELETE'
                     });
                     if (response.ok) {

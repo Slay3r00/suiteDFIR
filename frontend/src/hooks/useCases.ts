@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { API } from '@/lib/api';
 
 export interface Case {
     id: number;
@@ -17,7 +18,7 @@ export function useCases() {
     useEffect(() => {
         const fetchCases = async () => {
             try {
-                const response = await fetch('http://localhost:8000/api/cases');
+                const response = await fetch(API.path('/cases'));
                 if (!response.ok) {
                     throw new Error('Failed to fetch cases');
                 }

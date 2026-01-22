@@ -4,6 +4,7 @@ import { Input, Button } from '../ui';
 import { useDropdown } from '../../hooks/useDropdown';
 import { createLeappApi } from '../../services/leappApi';
 import { Smartphone, HardDrive, Folder } from 'lucide-react';
+import { API } from '@/lib/api';
 
 // Browser endpoints are tool-agnostic, so we can use any tool
 const api = createLeappApi('ileapp');
@@ -47,8 +48,8 @@ export default function FileSelector({
   const fetchBackups = useCallback(async () => {
     try {
       const url = caseId
-        ? `http://localhost:8000/api/backups?case_id=${caseId}`
-        : 'http://localhost:8000/api/backups';
+        ? API.path(`/backups?case_id=${caseId}`)
+        : API.path('/backups');
       const res = await fetch(url);
       if (res.ok) {
         const json = await res.json();

@@ -2,7 +2,7 @@
  * API functions for managing forensic tools
  */
 
-const API_BASE = 'http://localhost:8000';
+import { API } from '@/lib/api';
 
 export interface ToolStatus {
     name: string;
@@ -24,7 +24,7 @@ export interface ToolsStatusResponse {
  * Get installation status of all tools
  */
 export async function getToolsStatus(): Promise<ToolsStatusResponse> {
-    const response = await fetch(`${API_BASE}/api/tools/status`);
+    const response = await fetch(API.path('/tools/status'));
 
     if (!response.ok) {
         throw new Error(`API Error: ${response.status}`);
@@ -43,7 +43,7 @@ export async function installTool(
 
     // Try streaming endpoint first
     try {
-        const response = await fetch(`${API_BASE}/api/tools/install/${toolName}`, {
+        const response = await fetch(API.path(`/tools/install/${toolName}`), {
             method: 'POST',
         });
 
@@ -90,7 +90,7 @@ export async function installTool(
     } catch (error) {
         // Fallback to sync endpoint
         try {
-            const response = await fetch(`${API_BASE}/api/tools/install/${toolName}/sync`, {
+            const response = await fetch(API.path(`/tools/install/${toolName}/sync`), {
                 method: 'POST',
             });
 
@@ -111,7 +111,7 @@ export async function installTool(
  */
 export async function uninstallTool(toolName: string): Promise<{ success: boolean; error?: string }> {
     try {
-        const response = await fetch(`${API_BASE}/api/tools/${toolName}`, {
+        const response = await fetch(API.path(`/tools/${toolName}`), {
             method: 'DELETE',
         });
 

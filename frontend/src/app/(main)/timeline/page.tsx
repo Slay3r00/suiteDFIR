@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/Select"
 import { Input } from "@/components/ui/Input"
 import { useTimeline } from "@/context/TimelineContext"
+import { API } from "@/lib/api"
 
 interface Report {
     id: number
@@ -123,7 +124,7 @@ export default function Timeline() {
 
         const fetchReports = async () => {
             try {
-                const res = await fetch(`http://localhost:8000/api/reports?case_id=${selectedCaseId}`)
+                const res = await fetch(API.path(`/reports?case_id=${selectedCaseId}`))
                 if (res.ok) {
                     const data = await res.json()
                     setReports(data)
@@ -145,7 +146,7 @@ export default function Timeline() {
                 const sortField = sorting.length > 0 ? sorting[0].id : 'date'
                 const sortOrder = sorting.length > 0 && sorting[0].desc ? 'desc' : 'asc'
 
-                let url = `http://localhost:8000/api/cases/${selectedCaseId}/timeline?page=${pagination.pageIndex}&limit=${pagination.pageSize}&sort_by=${sortField}&sort_order=${sortOrder}`
+                let url = API.path(`/cases/${selectedCaseId}/timeline?page=${pagination.pageIndex}&limit=${pagination.pageSize}&sort_by=${sortField}&sort_order=${sortOrder}`)
 
                 if (globalFilter) {
                     url += `&search=${encodeURIComponent(globalFilter)}`
@@ -182,7 +183,7 @@ export default function Timeline() {
             const sortField = sorting.length > 0 ? sorting[0].id : 'date'
             const sortOrder = sorting.length > 0 && sorting[0].desc ? 'desc' : 'asc'
 
-            let url = `http://localhost:8000/api/cases/${selectedCaseId}/timeline?page=0&limit=-1&sort_by=${sortField}&sort_order=${sortOrder}`
+            let url = API.path(`/cases/${selectedCaseId}/timeline?page=0&limit=-1&sort_by=${sortField}&sort_order=${sortOrder}`)
 
             if (globalFilter) {
                 url += `&search=${encodeURIComponent(globalFilter)}`

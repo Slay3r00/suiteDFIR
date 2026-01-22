@@ -17,6 +17,7 @@ import { useCase } from "@/context/CaseContext"
 import { useBackup } from "@/context/BackupContext"
 import { Device, Backup } from "@/types/backup"
 import { cn } from "@/lib/utils"
+import { API } from "@/lib/api"
 
 
 export default function BackupPage() {
@@ -94,7 +95,7 @@ export default function BackupPage() {
 
     const handleOpenLocation = async (path: string) => {
         try {
-            await fetch(`http://localhost:8000/api/backups/open?path=${encodeURIComponent(path)}`, {
+            await fetch(API.path(`/backups/open?path=${encodeURIComponent(path)}`), {
                 method: 'POST'
             });
         } catch (error) {
@@ -109,7 +110,7 @@ export default function BackupPage() {
 
     const handleExport = async (path: string) => {
         // Use the dedicated backup download endpoint
-        window.location.href = `http://localhost:8000/api/ios/backup/download?path=${encodeURIComponent(path)}`;
+        window.location.href = API.path(`/ios/backup/download?path=${encodeURIComponent(path)}`);
     };
 
     const handleDeleteBackup = async (id: number) => {

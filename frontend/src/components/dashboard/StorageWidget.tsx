@@ -5,6 +5,7 @@ import { Card, CardContent } from "@/components/ui/Card"
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts'
 import { Database } from 'lucide-react'
 import { useCase } from "@/context/CaseContext"
+import { API } from "@/lib/api"
 
 interface StorageData {
     total: number
@@ -31,7 +32,7 @@ export default function StorageWidget({ className }: StorageWidgetProps) {
                 return
             }
             try {
-                const res = await fetch(`http://localhost:8000/api/system/storage?case_id=${selectedCaseId}`)
+                const res = await fetch(API.path(`/system/storage?case_id=${selectedCaseId}`))
                 if (res.ok) {
                     const json = await res.json()
                     setData(json)
