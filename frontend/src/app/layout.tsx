@@ -18,8 +18,7 @@ export const metadata: Metadata = {
 };
 
 import { CaseProvider } from "@/context/CaseContext";
-
-// ... imports ...
+import { APIProvider } from "@/context/APIContext";
 
 export default function RootLayout({
   children,
@@ -31,9 +30,11 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased h-full overflow-hidden`}
       >
-        <CaseProvider>
-          {children}
-        </CaseProvider>
+        <APIProvider>
+          <CaseProvider>
+            {children}
+          </CaseProvider>
+        </APIProvider>
       </body>
     </html>
   );
