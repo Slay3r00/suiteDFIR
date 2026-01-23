@@ -196,6 +196,7 @@ function LeappContent({ tool }: { tool: string }) {
                         outputFolder={outputFolder}
                         reportName={reportName}
                         caseId={selectedCaseId ? parseInt(selectedCaseId) : undefined}
+                        existingNames={[...reports.map(r => r.name), ...(processingReportName ? [processingReportName] : [])]}
                     />
                 </div>
 

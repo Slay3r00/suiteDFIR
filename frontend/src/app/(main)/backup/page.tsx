@@ -18,6 +18,7 @@ import { useBackup } from "@/context/BackupContext"
 import { Device, Backup } from "@/types/backup"
 import { cn } from "@/lib/utils"
 import { API } from "@/lib/api"
+import { getUniqueName } from "@/lib/naming"
 
 
 export default function BackupPage() {
@@ -59,11 +60,13 @@ export default function BackupPage() {
     const handleStartBackup = async () => {
         if (!selectedDevice || !backupName) return
 
+        const uniqueName = getUniqueName(backupName, backups.map(b => b.name));
+
         try {
-            await startBackup(selectedDevice, backupName, selectedCaseId ? parseInt(selectedCaseId) : undefined)
+            await startBackup(selectedDevice, uniqueName, selectedCaseId ? parseInt(selectedCaseId) : undefined)
             toast({
                 title: "Backup Started",
-                description: `Backup '${backupName}' has started in the background.`,
+                description: `Backup '${uniqueName}' has started in the background.`,
             })
             updateConfig({ backupName: '' })
         } catch (error) {

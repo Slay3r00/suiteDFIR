@@ -4,6 +4,7 @@ import { useLeapp } from '../../context/LeappContext';
 import { Lock } from 'lucide-react';
 import { createLeappApi } from '../../services/leappApi';
 import { useToast } from '../../hooks/use-toast';
+import { getUniqueName } from '@/lib/naming';
 
 interface ProcessControlsProps {
   tool: string;
@@ -11,9 +12,10 @@ interface ProcessControlsProps {
   outputFolder: string;
   reportName?: string;
   caseId?: number;
+  existingNames: string[];
 }
 
-export default function ProcessControls({ tool, inputFile, outputFolder, reportName, caseId }: ProcessControlsProps) {
+export default function ProcessControls({ tool, inputFile, outputFolder, reportName, caseId, existingNames }: ProcessControlsProps) {
   const { states, startProcessing, stopProcessing } = useLeapp();
   const toolState = states[tool];
   const { isProcessing, progress, encryptionDetected } = toolState.processing;
@@ -41,6 +43,11 @@ export default function ProcessControls({ tool, inputFile, outputFolder, reportN
       return;
     }
 
+    if (!reportName) return;
+
+    // Generate unique name
+    const uniqueName = getUniqueName(reportName, existingNames);
+
     // Only validate for iOS/iLEAPP
     // We can infer it's iLEAPP if the path looks like a backup or if we are on the iLEAPP page
     // But for now, let's just try to validate if it's a directory
@@ -59,13 +66,13 @@ export default function ProcessControls({ tool, inputFile, outputFolder, reportN
         setShowPasswordDialog(true);
       } else {
         // Not encrypted, proceed normally
-        await startProcessing(tool, inputFile, outputFolder, reportName, undefined, caseId);
+        await startProcessing(tool, inputFile, outputFolder, uniqueName, undefined, caseId);
       }
     } catch (error) {
       console.error("Validation failed:", error);
       // If validation fails (e.g. not a backup folder), just try to process anyway
       // It might be a zip or tar that the validator doesn't handle yet
-      await startProcessing(tool, inputFile, outputFolder, reportName, undefined, caseId);
+      await startProcessing(tool, inputFile, outputFolder, uniqueName, undefined, caseId);
     } finally {
       setIsValidating(false);
     }
@@ -73,8 +80,12 @@ export default function ProcessControls({ tool, inputFile, outputFolder, reportN
 
   const handlePasswordSubmit = async () => {
     setShowPasswordDialog(false);
+    if (!reportName) return;
+
+    const uniqueName = getUniqueName(reportName, existingNames);
+
     try {
-      await startProcessing(tool, inputFile, outputFolder, reportName, password, caseId);
+      await startProcessing(tool, inputFile, outputFolder, uniqueName, password, caseId);
       setPassword(''); // Clear password after sending
     } catch (error) {
       console.error("Processing failed:", error);

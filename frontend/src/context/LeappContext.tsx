@@ -1,6 +1,6 @@
 "use client"
 
-import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react'
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from 'react'
 import { useCase } from './CaseContext';
 import { createLeappApi } from '../services/leappApi'
 import { Module } from '@/app/(main)/ileapp/types';
@@ -44,6 +44,7 @@ interface LeappContextType {
 const LeappContext = createContext<LeappContextType | undefined>(undefined)
 
 const STORAGE_KEY_PREFIX = 'vdf_leapp_configs_';
+const MAX_LOGS = 2000;
 
 const INITIAL_PROCESSING: ProcessingState = {
     logs: [],
@@ -68,8 +69,20 @@ export function LeappProvider({ children }: { children: ReactNode }) {
     });
 
     const [isLoaded, setIsLoaded] = useState(false);
+    const eventSourceRefs = useRef<Record<string, EventSource>>({});
+    const statesRef = useRef(states);
 
     const { selectedCaseId } = useCase();
+
+    // Keep statesRef in sync
+    useEffect(() => { statesRef.current = states; }, [states]);
+
+    // Cleanup EventSources on unmount
+    useEffect(() => {
+        return () => {
+            Object.values(eventSourceRefs.current).forEach(es => es.close());
+        };
+    }, []);
 
     // Load configs from sessionStorage when selectedCaseId changes
     useEffect(() => {
@@ -216,7 +229,7 @@ export function LeappProvider({ children }: { children: ReactNode }) {
     }, []);
 
     const selectAll = useCallback(async (tool: string) => {
-        const toolState = states[tool];
+        const toolState = statesRef.current[tool];
         const allModuleNames = toolState.modules.map(m => m.name);
 
         updateConfig(tool, { selectedModules: allModuleNames });
@@ -230,10 +243,10 @@ export function LeappProvider({ children }: { children: ReactNode }) {
         } catch (error) {
             console.error(`Failed to select all modules for ${tool}:`, error);
         }
-    }, [states, updateConfig]);
+    }, [updateConfig]);
 
     const selectNone = useCallback(async (tool: string) => {
-        const toolState = states[tool];
+        const toolState = statesRef.current[tool];
         updateConfig(tool, { selectedModules: [] });
 
         const api = createLeappApi(tool);
@@ -248,15 +261,24 @@ export function LeappProvider({ children }: { children: ReactNode }) {
     }, [updateConfig]);
 
     const connectToStream = useCallback((tool: string, taskId: string, reportName?: string | null) => {
+        // Close any existing connection for this tool
+        if (eventSourceRefs.current[tool]) {
+            eventSourceRefs.current[tool].close();
+        }
+
         const api = createLeappApi(tool);
         const eventSource = api.processing.createEventSource(taskId);
+        eventSourceRefs.current[tool] = eventSource;
 
         eventSource.onmessage = (event: MessageEvent) => {
             const message = event.data;
             if (message && message !== 'Stream ended') {
                 setStates(prev => {
                     const toolState = prev[tool];
-                    const nextLogs = [...toolState.processing.logs, message];
+                    const currentLogs = toolState.processing.logs;
+                    const nextLogs = currentLogs.length >= MAX_LOGS
+                        ? [...currentLogs.slice(-(MAX_LOGS - 1)), message]
+                        : [...currentLogs, message];
                     let nextProgress = toolState.processing.progress;
                     let nextEnc = toolState.processing.encryptionDetected;
 
@@ -290,33 +312,43 @@ export function LeappProvider({ children }: { children: ReactNode }) {
 
         eventSource.addEventListener('close', () => {
             eventSource.close();
+            delete eventSourceRefs.current[tool];
             updateProcessing(tool, { isProcessing: false });
         });
 
         eventSource.onerror = () => {
             eventSource.close();
-            updateProcessing(tool, {
-                isProcessing: false,
-                processingReportName: null,
-                logs: [...states[tool].processing.logs, 'Error: Connection to server lost']
-            });
+            delete eventSourceRefs.current[tool];
+            setStates(prev => ({
+                ...prev,
+                [tool]: {
+                    ...prev[tool],
+                    processing: {
+                        ...prev[tool].processing,
+                        isProcessing: false,
+                        processingReportName: null,
+                        logs: [...prev[tool].processing.logs, 'Error: Connection to server lost']
+                    }
+                }
+            }));
         };
 
         return eventSource;
-    }, [states, updateProcessing]);
+    }, [updateProcessing]);
 
     // Reconnect to active processing tasks on mount or case switch
     useEffect(() => {
         if (!isLoaded) return;
 
+        const currentStates = statesRef.current;
         ['ileapp', 'aleapp'].forEach(tool => {
-            const { isProcessing, taskId, processingReportName } = states[tool].processing;
+            const { isProcessing, taskId, processingReportName } = currentStates[tool].processing;
             if (isProcessing && taskId) {
                 console.log(`Reconnecting to ${tool} processing task: ${taskId}`);
                 connectToStream(tool, taskId, processingReportName);
             }
         });
-    }, [isLoaded, selectedCaseId]); // Only run when state is loaded or case changes
+    }, [isLoaded, selectedCaseId, connectToStream]);
 
     const startProcessing = async (
         tool: string,
