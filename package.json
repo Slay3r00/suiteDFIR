@@ -11,7 +11,8 @@
         "build:backend": "cd backend && ./build.sh",
         "build:all": "npm run build:backend && npm run build:frontend",
         "package": "cd electron && electron-forge package",
-        "build:mac": "./build-mac.sh"
+        "build:mac": "./build-mac.sh",
+        "build:linux": "./build-linux.sh"
     },
     "workspaces": [
         "frontend"

@@ -1,0 +1,50 @@
+#!/bin/bash
+set -e
+echo "Building VDF Tools for Linux..."
+
+# Step 1: Build Python backend
+cd backend
+source venv/bin/activate
+echo "Building Python backend with PyInstaller..."
+rm -rf build dist
+pyinstaller build.spec
+cd ..
+
+# Step 2: Build Frontend
+cd frontend
+echo "Building Next.js static export..."
+npm run build:static
+cd ..
+
+# Step 3: Package Electron App
+cd electron
+echo "Packaging Electron application..."
+rm -rf out
+npm install
+npx electron-forge package
+
+# Copy resources manually
+APP_PATH="out/VDF Tools-linux-x64"
+RESOURCES_PATH="$APP_PATH/resources"
+
+echo "Copying resources to Electron app..."
+
+# Copy Python backend
+mkdir -p "$RESOURCES_PATH"
+cp -R ../backend/dist/VDF\ Tools\ Backend "$RESOURCES_PATH/"
+
+# Copy iOS device binaries (Linux-specific)
+mkdir -p "$RESOURCES_PATH/bin"
+cp -R ../backend/bin/linux/* "$RESOURCES_PATH/bin/"
+
+# Copy frontend static files
+cp -R ../frontend/out "$RESOURCES_PATH/"
+
+# Create reports directory
+mkdir -p "$RESOURCES_PATH/reports"
+
+echo "Creating AppImage..."
+# Step 4: Create AppImage
+npx electron-forge make --skip-package
+
+echo "✅ Build complete! AppImage should be in electron/out/make/"
