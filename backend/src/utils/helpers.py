@@ -110,6 +110,10 @@ def get_binary_path(binary_name):
         subfolder = "linux"
     elif system == "darwin":
         subfolder = "macos"
+    elif system == "windows":
+         subfolder = "windows"
+         if not binary_name.lower().endswith(".exe"):
+             binary_name += ".exe"
     else:
         # Windows not supported yet per requirements
         logger.warning(f"Platform {system} not fully supported for bundled binaries")

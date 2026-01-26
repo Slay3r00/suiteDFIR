@@ -166,6 +166,32 @@ class SystemManager:
                     cmd = ['zenity', '--file-selection', '--directory', '--title=Select iLEAPP output folder']
                 else:
                     cmd = ['zenity', '--file-selection', '--title=Select iLEAPP input file']
+
+            elif system == "Windows":
+                # PowerShell commands to open native dialogs
+                if is_folder:
+                    ps_script = """
+                    Add-Type -AssemblyName System.Windows.Forms
+                    $f = New-Object System.Windows.Forms.FolderBrowserDialog
+                    $f.Description = "Select iLEAPP output folder"
+                    $f.ShowNewFolderButton = $true
+                    if ($f.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
+                        Write-Output $f.SelectedPath
+                    }
+                    """
+                else:
+                    ps_script = """
+                    Add-Type -AssemblyName System.Windows.Forms
+                    $f = New-Object System.Windows.Forms.OpenFileDialog
+                    $f.Title = "Select iLEAPP input file"
+                    $f.Filter = "All Files (*.*)|*.*|Backup Files (*.zip;*.tar;*.tgz)|*.zip;*.tar;*.tgz"
+                    if ($f.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
+                        Write-Output $f.FileName
+                    }
+                    """
+                
+                cmd = ['powershell', '-Command', ps_script]
+
             else:
                 return {
                     "file_path": "",
@@ -174,14 +200,35 @@ class SystemManager:
                 }
 
             try:
-                result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+                # On Windows, suppress the console window
+                startupinfo = None
+                if system == "Windows":
+                    startupinfo = subprocess.STARTUPINFO()
+                    startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+                    startupinfo.wShowWindow = subprocess.SW_HIDE
+
+                result = subprocess.run(
+                    cmd, 
+                    capture_output=True, 
+                    text=True, 
+                    timeout=60,
+                    startupinfo=startupinfo
+                )
                 
                 if result.returncode == 0:
-                    return {
-                        "file_path": result.stdout.strip(),
-                        "success": True,
-                        "message": f"{dialog_type.capitalize()} selected successfully"
-                    }
+                    path = result.stdout.strip()
+                    if path:
+                        return {
+                            "file_path": path,
+                            "success": True,
+                            "message": f"{dialog_type.capitalize()} selected successfully"
+                        }
+                    else:
+                        return {
+                            "file_path": "",
+                            "success": False,
+                            "message": f"User cancelled {dialog_type} selection"
+                        }
                 elif result.returncode == 1:
                     return {
                         "file_path": "",
