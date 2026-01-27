@@ -69,7 +69,7 @@ call npm install
 call npx electron-forge package
 
 REM Find the output directory (handling version/arch variations)
-for /d %%D in ("out\VDF Tools-win32-*") do set "APP_ROOT=%ELECTRON_DIR%\%%D"
+for /d %%D in ("out\vdf-tools-win32-*") do set "APP_ROOT=%ELECTRON_DIR%\%%D"
 
 if not defined APP_ROOT (
     echo [ERROR] Electron package failed. Output directory not found.
