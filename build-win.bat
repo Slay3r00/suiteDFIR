@@ -84,9 +84,11 @@ echo [4/5] Copying Resources...
 set "RESOURCES_PATH=%APP_ROOT%\resources"
 
 echo   Copying Backend...
+if not exist "%RESOURCES_PATH%\VDF Tools Backend" mkdir "%RESOURCES_PATH%\VDF Tools Backend"
 xcopy /E /I /Y /Q "%BACKEND_DIR%\dist\VDF Tools Backend" "%RESOURCES_PATH%\VDF Tools Backend"
 
 echo   Copying Frontend...
+if not exist "%RESOURCES_PATH%\out" mkdir "%RESOURCES_PATH%\out"
 xcopy /E /I /Y /Q "%FRONTEND_DIR%\out" "%RESOURCES_PATH%\out"
 
 echo   Copying Binaries...
@@ -104,7 +106,8 @@ REM --- Step 5: Create Installer (Squirrel) ---
 echo.
 echo [5/5] Creating Installer...
 cd "%ELECTRON_DIR%"
-call npx electron-forge make --skip-package
+REM Explicitly set platform/arch to avoid "paths[0] undefined" resolution errors
+call npx electron-forge make --skip-package --platform win32 --arch x64
 
 echo.
 echo ==========================================
