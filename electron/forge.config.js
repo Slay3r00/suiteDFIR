@@ -1,6 +1,6 @@
 module.exports = {
   packagerConfig: {
-    name: process.platform === 'win32' ? 'vdf-tools' : 'VDF Tools',
+    name: 'vdf-tools',
     executableName: 'vdf-tools',
     asar: true,
   },
@@ -34,9 +34,12 @@ module.exports = {
         name: 'vdf-tools',
         authors: 'VDF Tools',
         description: 'VDF Forensic Tools',
-        exe: 'vdf-tools.exe',
         noMsi: true,
       },
+      platforms: ['win32'],
+    },
+    {
+      name: '@electron-forge/maker-zip',
       platforms: ['win32'],
     },
   ],

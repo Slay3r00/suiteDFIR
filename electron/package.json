@@ -1,6 +1,9 @@
 {
   "name": "vdf-tools",
   "version": "0.1.0",
+  "config": {
+    "forge": "./forge.config.js"
+  },
   "description": "VDF Forensic Tools",
   "author": "VDF Tools",
   "main": "main.js",

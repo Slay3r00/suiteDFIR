@@ -38,7 +38,7 @@ npm install
 npx electron-forge package
 
 # Copy resources manually (extraResource doesn't work reliably)
-APP_PATH="out/VDF Tools-darwin-arm64/VDF Tools.app"
+APP_PATH="out/vdf-tools-darwin-arm64/VDF Tools.app"
 RESOURCES_PATH="$APP_PATH/Contents/Resources"
 
 echo "  Copying Python backend..."
