@@ -69,6 +69,7 @@ export function LeappProvider({ children }: { children: ReactNode }) {
     });
 
     const [isLoaded, setIsLoaded] = useState(false);
+    const [readyToReconnect, setReadyToReconnect] = useState<string | null>(null);
     const eventSourceRefs = useRef<Record<string, EventSource>>({});
     const statesRef = useRef(states);
 
@@ -88,10 +89,12 @@ export function LeappProvider({ children }: { children: ReactNode }) {
     useEffect(() => {
         if (!selectedCaseId) {
             setIsLoaded(true);
+            setReadyToReconnect(null);
             return;
         }
 
         setIsLoaded(false);
+        setReadyToReconnect(null);
 
         try {
             const stored = sessionStorage.getItem(`${STORAGE_KEY_PREFIX}${selectedCaseId}`);
@@ -130,6 +133,14 @@ export function LeappProvider({ children }: { children: ReactNode }) {
         }
         setIsLoaded(true);
     }, [selectedCaseId]);
+
+    // Signal ready for reconnection after state has been updated
+    // This runs AFTER the state update from the previous effect has propagated
+    useEffect(() => {
+        if (isLoaded && selectedCaseId) {
+            setReadyToReconnect(selectedCaseId);
+        }
+    }, [isLoaded, selectedCaseId, states.ileapp.processing.taskId, states.aleapp.processing.taskId]);
 
     // Save configs and processing state to sessionStorage
     useEffect(() => {
@@ -337,18 +348,20 @@ export function LeappProvider({ children }: { children: ReactNode }) {
     }, [updateProcessing]);
 
     // Reconnect to active processing tasks on mount or case switch
+    // Uses readyToReconnect to ensure state is fully propagated before checking
     useEffect(() => {
-        if (!isLoaded) return;
+        if (!readyToReconnect || readyToReconnect !== selectedCaseId) return;
 
-        const currentStates = statesRef.current;
-        ['ileapp', 'aleapp'].forEach(tool => {
-            const { isProcessing, taskId, processingReportName } = currentStates[tool].processing;
-            if (isProcessing && taskId) {
+        // Use states directly (not statesRef) to ensure we have the latest values
+        (['ileapp', 'aleapp'] as const).forEach(tool => {
+            const { isProcessing, taskId, processingReportName } = states[tool].processing;
+            // Only reconnect if processing and no existing connection
+            if (isProcessing && taskId && !eventSourceRefs.current[tool]) {
                 console.log(`Reconnecting to ${tool} processing task: ${taskId}`);
                 connectToStream(tool, taskId, processingReportName);
             }
         });
-    }, [isLoaded, selectedCaseId, connectToStream]);
+    }, [readyToReconnect, selectedCaseId, states, connectToStream]);
 
     const startProcessing = async (
         tool: string,
