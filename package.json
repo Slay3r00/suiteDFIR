@@ -1,6 +1,8 @@
 {
     "name": "vdf-tools",
     "version": "0.1.0",
+    "description": "VDF Forensic Tools",
+    "author": "VDF Tools",
     "private": true,
     "scripts": {
         "dev": "cd frontend && npm run dev",

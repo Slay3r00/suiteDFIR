@@ -30,7 +30,10 @@ module.exports = {
     // Windows - Squirrel (for future Windows support)
     {
       name: '@electron-forge/maker-squirrel',
-      config: {},
+      config: {
+        authors: 'VDF Tools',
+        description: 'VDF Forensic Tools',
+      },
       platforms: ['win32'],
     },
   ],
