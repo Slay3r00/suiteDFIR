@@ -1,6 +1,6 @@
 module.exports = {
   packagerConfig: {
-    name: 'VDF Tools',
+    name: 'vdf-tools',
     executableName: 'vdf-tools',
     asar: true,
   },
@@ -30,7 +30,16 @@ module.exports = {
     // Windows - Squirrel (for future Windows support)
     {
       name: '@electron-forge/maker-squirrel',
-      config: {},
+      config: {
+        name: 'vdf-tools',
+        authors: 'VDF Tools',
+        description: 'VDF Forensic Tools',
+        noMsi: true,
+      },
+      platforms: ['win32'],
+    },
+    {
+      name: '@electron-forge/maker-zip',
       platforms: ['win32'],
     },
   ],

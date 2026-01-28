@@ -25,6 +25,8 @@ interface APIProviderProps {
  * Provider that initializes the backend URL on app startup
  * Wraps the app to ensure API is ready before child components render fetches
  */
+import { LoadingPage } from "@/components/ui/LoadingPage";
+
 export function APIProvider({ children }: APIProviderProps) {
     const [isReady, setIsReady] = useState(false);
     const [backendUrl, setBackendUrl] = useState('http://localhost:8000');
@@ -35,6 +37,10 @@ export function APIProvider({ children }: APIProviderProps) {
             setIsReady(true);
         });
     }, []);
+
+    if (!isReady) {
+        return <LoadingPage />;
+    }
 
     return (
         <APIContext.Provider value={{ backendUrl, isReady }}>
