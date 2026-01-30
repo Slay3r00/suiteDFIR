@@ -323,7 +323,10 @@ export function LeappProvider({ children }: { children: ReactNode }) {
         eventSource.addEventListener('close', () => {
             eventSource.close();
             delete eventSourceRefs.current[tool];
-            updateProcessing(tool, { isProcessing: false });
+            updateProcessing(tool, {
+                isProcessing: false,
+                processingReportName: null
+            });
         });
 
         eventSource.onerror = () => {
