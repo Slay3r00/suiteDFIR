@@ -7,7 +7,7 @@ import { useToast } from '../../hooks/use-toast';
 import { getUniqueName } from '@/lib/naming';
 
 interface ProcessControlsProps {
-  tool: string;
+  tool: 'ileapp' | 'aleapp';
   inputFile: string;
   outputFolder: string;
   reportName?: string;
@@ -127,7 +127,7 @@ export default function ProcessControls({ tool, inputFile, outputFolder, reportN
         )}
       </div>
 
-      <Dialog open={showPasswordDialog} onOpenChange={setShowPasswordDialog}>
+      <Dialog open={showPasswordDialog} onOpenChange={(open: boolean) => setShowPasswordDialog(open)}>
         <DialogContent className="max-w-[340px] p-5 bg-[#1A1A1A] border-[#333333] rounded-xl shadow-2xl">
           <DialogHeader>
             <DialogTitle className="text-sm font-semibold text-white tracking-wide uppercase">Encrypted Backup Detected</DialogTitle>

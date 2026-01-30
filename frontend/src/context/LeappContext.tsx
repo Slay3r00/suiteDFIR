@@ -1,5 +1,5 @@
 
-import React, { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from 'react'
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode, useMemo } from 'react'
 import { useCase } from './CaseContext';
 import { createLeappApi } from '../services/leappApi'
 import { Module } from '@/types/leapp';
@@ -28,7 +28,10 @@ interface ToolState {
 }
 
 interface LeappContextType {
-    states: Record<string, ToolState>;
+    states: {
+        ileapp: ToolState;
+        aleapp: ToolState;
+    };
     updateConfig: (tool: string, updates: Partial<ToolConfig>) => void;
     fetchModules: (tool: string) => Promise<void>;
     toggleModule: (tool: string, name: string, selected: boolean) => Promise<void>;
@@ -41,6 +44,8 @@ interface LeappContextType {
 }
 
 const LeappContext = createContext<LeappContextType | undefined>(undefined)
+
+import { useCasePersistedState } from '@/hooks/useCasePersistedState';
 
 const STORAGE_KEY_PREFIX = 'vdf_leapp_configs_';
 const MAX_LOGS = 2000;
@@ -61,13 +66,34 @@ const INITIAL_CONFIG: ToolConfig = {
     artifactScrollPos: 0
 };
 
+interface LeappPersistedState {
+    ileapp: { config: ToolConfig; processing: ProcessingState };
+    aleapp: { config: ToolConfig; processing: ProcessingState };
+}
+
+const INITIAL_STATE: LeappPersistedState = {
+    ileapp: { config: { ...INITIAL_CONFIG }, processing: { ...INITIAL_PROCESSING } },
+    aleapp: { config: { ...INITIAL_CONFIG }, processing: { ...INITIAL_PROCESSING } }
+};
+
 export function LeappProvider({ children }: { children: ReactNode }) {
-    const [states, setStates] = useState<Record<string, ToolState>>({
-        ileapp: { config: { ...INITIAL_CONFIG }, processing: { ...INITIAL_PROCESSING }, modules: [], isLoadingModules: false },
-        aleapp: { config: { ...INITIAL_CONFIG }, processing: { ...INITIAL_PROCESSING }, modules: [], isLoadingModules: false }
+    const [persistedStates, setPersistedStates, isLoaded] = useCasePersistedState<LeappPersistedState>(
+        STORAGE_KEY_PREFIX,
+        INITIAL_STATE
+    );
+
+    // Feature-local state (non-persisted)
+    const [transientStates, setTransientStates] = useState<Record<string, { modules: Module[]; isLoadingModules: boolean }>>({
+        ileapp: { modules: [], isLoadingModules: false },
+        aleapp: { modules: [], isLoadingModules: false }
     });
 
-    const [isLoaded, setIsLoaded] = useState(false);
+    // Derived states
+    const states = useMemo(() => ({
+        ileapp: { ...persistedStates.ileapp, ...transientStates.ileapp },
+        aleapp: { ...persistedStates.aleapp, ...transientStates.aleapp }
+    }), [persistedStates, transientStates]);
+
     const [readyToReconnect, setReadyToReconnect] = useState<string | null>(null);
     const eventSourceRefs = useRef<Record<string, EventSource>>({});
     const statesRef = useRef(states);
@@ -84,97 +110,43 @@ export function LeappProvider({ children }: { children: ReactNode }) {
         };
     }, []);
 
-    // Load configs from sessionStorage when selectedCaseId changes
-    useEffect(() => {
-        if (!selectedCaseId) {
-            setIsLoaded(true);
-            setReadyToReconnect(null);
-            return;
-        }
-
-        setIsLoaded(false);
-        setReadyToReconnect(null);
-
-        try {
-            const stored = sessionStorage.getItem(`${STORAGE_KEY_PREFIX}${selectedCaseId}`);
-            if (stored) {
-                const parsedConfigs = JSON.parse(stored);
-                setStates(prev => {
-                    const next = { ...prev };
-                    Object.keys(parsedConfigs).forEach(tool => {
-                        if (next[tool]) {
-                            next[tool] = {
-                                ...next[tool],
-                                config: { ...next[tool].config, ...parsedConfigs[tool].config },
-                                processing: {
-                                    ...INITIAL_PROCESSING,
-                                    ...(parsedConfigs[tool].processing || {})
-                                }
-                            };
-                        }
-                    });
-                    return next;
-                });
-            } else {
-                // Reset to defaults if no saved state for this case
-                setStates({
-                    ileapp: { config: { ...INITIAL_CONFIG }, processing: { ...INITIAL_PROCESSING }, modules: [], isLoadingModules: false },
-                    aleapp: { config: { ...INITIAL_CONFIG }, processing: { ...INITIAL_PROCESSING }, modules: [], isLoadingModules: false }
-                });
-            }
-        } catch (e) {
-            console.error('Failed to load LEAPP configs:', e);
-            // Fallback reset
-            setStates({
-                ileapp: { config: { ...INITIAL_CONFIG }, processing: { ...INITIAL_PROCESSING }, modules: [], isLoadingModules: false },
-                aleapp: { config: { ...INITIAL_CONFIG }, processing: { ...INITIAL_PROCESSING }, modules: [], isLoadingModules: false }
-            });
-        }
-        setIsLoaded(true);
-    }, [selectedCaseId]);
-
     // Signal ready for reconnection after state has been updated
-    // This runs AFTER the state update from the previous effect has propagated
     useEffect(() => {
         if (isLoaded && selectedCaseId) {
             setReadyToReconnect(selectedCaseId);
         }
-    }, [isLoaded, selectedCaseId, states.ileapp.processing.taskId, states.aleapp.processing.taskId]);
-
-    // Save configs and processing state to sessionStorage
-    useEffect(() => {
-        if (!isLoaded || !selectedCaseId) return;
-        const stateToSave = {
-            ileapp: { config: states.ileapp.config, processing: states.ileapp.processing },
-            aleapp: { config: states.aleapp.config, processing: states.aleapp.processing }
-        };
-        sessionStorage.setItem(`${STORAGE_KEY_PREFIX}${selectedCaseId}`, JSON.stringify(stateToSave));
-    }, [states.ileapp.config, states.aleapp.config, states.ileapp.processing, states.aleapp.processing, isLoaded, selectedCaseId]);
+    }, [isLoaded, selectedCaseId, persistedStates.ileapp.processing.taskId, persistedStates.aleapp.processing.taskId]);
 
     const updateConfig = useCallback((tool: string, updates: Partial<ToolConfig>) => {
-        setStates(prev => ({
-            ...prev,
-            [tool]: {
-                ...prev[tool],
-                config: { ...prev[tool].config, ...updates }
-            }
-        }));
-    }, []);
+        setPersistedStates(prev => {
+            const toolKey = tool as keyof LeappPersistedState;
+            return {
+                ...prev,
+                [tool]: {
+                    ...prev[toolKey],
+                    config: { ...prev[toolKey].config, ...updates }
+                }
+            };
+        });
+    }, [setPersistedStates]);
 
     const updateProcessing = useCallback((tool: string, updates: Partial<ProcessingState>) => {
-        setStates(prev => ({
-            ...prev,
-            [tool]: {
-                ...prev[tool],
-                processing: { ...prev[tool].processing, ...updates }
-            }
-        }));
-    }, []);
+        setPersistedStates(prev => {
+            const toolKey = tool as keyof LeappPersistedState;
+            return {
+                ...prev,
+                [tool]: {
+                    ...prev[toolKey],
+                    processing: { ...prev[toolKey].processing, ...updates }
+                }
+            };
+        });
+    }, [setPersistedStates]);
 
     const fetchModules = useCallback(async (tool: string) => {
         // Prevent redundant fetches
         let alreadyLoading = false;
-        setStates(prev => {
+        setTransientStates(prev => {
             if (prev[tool].isLoadingModules || prev[tool].modules.length > 0) {
                 alreadyLoading = true;
                 return prev;
@@ -189,8 +161,18 @@ export function LeappProvider({ children }: { children: ReactNode }) {
             const data = await api.modules.getAll();
             const selectedModuleNames = data.modules.filter(m => m.selected).map(m => m.name);
 
-            setStates(prev => {
-                const currentSelection = prev[tool].config.selectedModules;
+            setTransientStates(prev => ({
+                ...prev,
+                [tool]: {
+                    ...prev[tool],
+                    modules: data.modules,
+                    isLoadingModules: false
+                }
+            }));
+
+            // Also update persisted selections if necessary
+            setPersistedStates(prev => {
+                const currentSelection = prev[tool as keyof LeappPersistedState].config.selectedModules;
                 const serverSelected = selectedModuleNames;
 
                 // Merge policy: if we have local selections (even an empty list), prefer them.
@@ -202,30 +184,29 @@ export function LeappProvider({ children }: { children: ReactNode }) {
                 return {
                     ...prev,
                     [tool]: {
-                        ...prev[tool],
-                        modules: data.modules,
-                        isLoadingModules: false,
-                        config: { ...prev[tool].config, selectedModules: finalSelected }
+                        ...prev[tool as keyof LeappPersistedState],
+                        config: { ...prev[tool as keyof LeappPersistedState].config, selectedModules: finalSelected }
                     }
                 };
             });
         } catch (error) {
             console.error(`Failed to load modules for ${tool}:`, error);
-            setStates(prev => ({ ...prev, [tool]: { ...prev[tool], isLoadingModules: false } }));
+            setTransientStates(prev => ({ ...prev, [tool]: { ...prev[tool], isLoadingModules: false } }));
         }
-    }, []);
+    }, [setPersistedStates]);
 
     const toggleModule = useCallback(async (tool: string, name: string, selected: boolean) => {
-        setStates(prev => {
-            const currentSelected = new Set(prev[tool].config.selectedModules);
+        setPersistedStates(prev => {
+            const toolKey = tool as keyof LeappPersistedState;
+            const currentSelected = new Set(prev[toolKey].config.selectedModules);
             if (selected) currentSelected.add(name);
             else currentSelected.delete(name);
 
             return {
                 ...prev,
                 [tool]: {
-                    ...prev[tool],
-                    config: { ...prev[tool].config, selectedModules: Array.from(currentSelected) }
+                    ...prev[toolKey],
+                    config: { ...prev[toolKey].config, selectedModules: Array.from(currentSelected) }
                 }
             };
         });
@@ -236,11 +217,12 @@ export function LeappProvider({ children }: { children: ReactNode }) {
         } catch (error) {
             console.error(`Failed to update module ${name} for ${tool}:`, error);
         }
-    }, []);
+    }, [setPersistedStates]);
 
     const selectAll = useCallback(async (tool: string) => {
-        const toolState = statesRef.current[tool];
-        const allModuleNames = toolState.modules.map(m => m.name);
+        const toolKey = tool as keyof LeappPersistedState;
+        const toolState = statesRef.current[toolKey];
+        const allModuleNames = toolState.modules.map((m: Module) => m.name);
 
         updateConfig(tool, { selectedModules: allModuleNames });
 
@@ -256,12 +238,13 @@ export function LeappProvider({ children }: { children: ReactNode }) {
     }, [updateConfig]);
 
     const selectNone = useCallback(async (tool: string) => {
-        const toolState = statesRef.current[tool];
+        const toolKey = tool as keyof LeappPersistedState;
+        const toolState = statesRef.current[toolKey];
         updateConfig(tool, { selectedModules: [] });
 
         const api = createLeappApi(tool);
         const selectionUpdates: Record<string, boolean> = {};
-        toolState.modules.forEach(m => selectionUpdates[m.name] = false);
+        toolState.modules.forEach((m: Module) => selectionUpdates[m.name] = false);
 
         try {
             await api.modules.select(selectionUpdates);
@@ -283,8 +266,9 @@ export function LeappProvider({ children }: { children: ReactNode }) {
         eventSource.onmessage = (event: MessageEvent) => {
             const message = event.data;
             if (message && message !== 'Stream ended') {
-                setStates(prev => {
-                    const toolState = prev[tool];
+                setPersistedStates(prev => {
+                    const toolKey = tool as keyof LeappPersistedState;
+                    const toolState = prev[toolKey];
                     const currentLogs = toolState.processing.logs;
                     const nextLogs = currentLogs.length >= MAX_LOGS
                         ? [...currentLogs.slice(-(MAX_LOGS - 1)), message]
@@ -332,18 +316,21 @@ export function LeappProvider({ children }: { children: ReactNode }) {
         eventSource.onerror = () => {
             eventSource.close();
             delete eventSourceRefs.current[tool];
-            setStates(prev => ({
-                ...prev,
-                [tool]: {
-                    ...prev[tool],
-                    processing: {
-                        ...prev[tool].processing,
-                        isProcessing: false,
-                        processingReportName: null,
-                        logs: [...prev[tool].processing.logs, 'Error: Connection to server lost']
+            setPersistedStates(prev => {
+                const toolKey = tool as keyof LeappPersistedState;
+                return {
+                    ...prev,
+                    [tool]: {
+                        ...prev[toolKey],
+                        processing: {
+                            ...prev[toolKey].processing,
+                            isProcessing: false,
+                            processingReportName: null,
+                            logs: [...prev[toolKey].processing.logs, 'Error: Connection to server lost']
+                        }
                     }
-                }
-            }));
+                };
+            });
         };
 
         return eventSource;
@@ -373,9 +360,10 @@ export function LeappProvider({ children }: { children: ReactNode }) {
         password?: string,
         caseId?: number
     ) => {
-        const selectedModules = states[tool].config.selectedModules;
+        const toolKey = tool as keyof LeappPersistedState;
+        const selectedModules = persistedStates[toolKey].config.selectedModules;
         const api = createLeappApi(tool);
-        const currentTaskId = states[tool].processing.taskId;
+        const currentTaskId = persistedStates[toolKey].processing.taskId;
 
         // Reset state
         updateProcessing(tool, {
@@ -396,16 +384,18 @@ export function LeappProvider({ children }: { children: ReactNode }) {
 
             connectToStream(tool, response.task_id, reportName);
         } catch (error) {
+            const toolKey = tool as keyof LeappPersistedState;
             updateProcessing(tool, {
                 isProcessing: false,
                 processingReportName: null,
-                logs: [...states[tool].processing.logs, `Error: ${error instanceof Error ? error.message : 'Unknown error'}`]
+                logs: [...persistedStates[toolKey].processing.logs, `Error: ${error instanceof Error ? error.message : 'Unknown error'}`]
             });
         }
     };
 
     const stopProcessing = async (tool: string) => {
-        const taskId = states[tool].processing.taskId;
+        const toolKey = tool as keyof LeappPersistedState;
+        const taskId = persistedStates[toolKey].processing.taskId;
         if (!taskId) return;
 
         const api = createLeappApi(tool);
@@ -414,7 +404,7 @@ export function LeappProvider({ children }: { children: ReactNode }) {
             updateProcessing(tool, {
                 isProcessing: false,
                 processingReportName: null,
-                logs: [...states[tool].processing.logs, 'Processing stopped by user']
+                logs: [...persistedStates[toolKey].processing.logs, 'Processing stopped by user']
             });
         } catch (error) {
             console.error('Failed to stop processing:', error);

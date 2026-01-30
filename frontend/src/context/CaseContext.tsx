@@ -10,27 +10,15 @@ interface CaseContextType {
 
 const CaseContext = createContext<CaseContextType | undefined>(undefined)
 
+import { useCasePersistedState } from '@/hooks/useCasePersistedState';
+
 export function CaseProvider({ children }: { children: React.ReactNode }) {
-    const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null)
+    const [selectedCaseId, setSelectedCaseId] = useCasePersistedState<string | null>(
+        'selectedCaseId',
+        null,
+        'local'
+    );
     const [cases, setCases] = useState<Case[]>([])
-
-    useEffect(() => {
-        // Load from localStorage on mount
-        const savedId = localStorage.getItem('selectedCaseId')
-        if (savedId) {
-            // eslint-disable-next-line react-hooks/set-state-in-effect
-            setSelectedCaseId(savedId)
-        }
-    }, [])
-
-    useEffect(() => {
-        // Save to localStorage on change
-        if (selectedCaseId) {
-            localStorage.setItem('selectedCaseId', selectedCaseId)
-        } else {
-            localStorage.removeItem('selectedCaseId')
-        }
-    }, [selectedCaseId])
 
     return (
         <CaseContext.Provider value={{ selectedCaseId, setSelectedCaseId, cases, setCases }}>

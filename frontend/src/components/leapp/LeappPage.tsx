@@ -34,7 +34,7 @@ interface Report {
     size: string;
 }
 
-function LeappContent({ tool }: { tool: string }) {
+function LeappContent({ tool }: { tool: 'ileapp' | 'aleapp' }) {
     const outputFolder = '';
     const { states, updateConfig, clearLogs, clearProcessingReportName, fetchModules } = useLeapp();
     const toolState = states[tool];

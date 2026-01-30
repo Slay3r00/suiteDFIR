@@ -368,14 +368,14 @@ export default function CasesPage() {
             {/* Case Form Modal */}
             <CaseFormDialog
                 open={isModalOpen}
-                onOpenChange={setIsModalOpen}
+                onOpenChange={(open: boolean) => setIsModalOpen(open)}
                 caseData={editingCase}
                 onSuccess={handleCaseSaved}
                 existingNames={cases.map(c => c.name)}
             />
 
             {/* Delete Confirmation Modal */}
-            <Dialog open={caseToDelete !== null} onOpenChange={(open) => !open && setCaseToDelete(null)}>
+            <Dialog open={caseToDelete !== null} onOpenChange={(open: boolean) => !open && setCaseToDelete(null)}>
                 <DialogContent className="max-w-[340px] p-5 bg-[#1A1A1A] border-[#333333] rounded-xl shadow-2xl">
                     <DialogHeader>
                         <DialogTitle className="text-sm font-semibold text-white tracking-wide uppercase">Delete Case</DialogTitle>

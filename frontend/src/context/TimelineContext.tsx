@@ -29,7 +29,7 @@ interface TimelineContextType extends TimelineState {
 
 const TimelineContext = createContext<TimelineContextType | undefined>(undefined);
 
-import { useCase } from './CaseContext';
+import { useCasePersistedState } from '@/hooks/useCasePersistedState';
 
 const STORAGE_KEY_PREFIX = 'vdf_timeline_state_v2_';
 
@@ -45,43 +45,14 @@ const INITIAL_CONFIG: TimelineConfig = {
 };
 
 export function TimelineProvider({ children }: { children: ReactNode }) {
-    const { selectedCaseId } = useCase();
-    const [config, setConfig] = useState<TimelineConfig>(INITIAL_CONFIG);
-    const [isLoaded, setIsLoaded] = useState(false);
-
-    // Load from sessionStorage when selectedCaseId changes
-    useEffect(() => {
-        if (!selectedCaseId) {
-            setIsLoaded(true);
-            return;
-        }
-
-        setIsLoaded(false);
-
-        const stored = sessionStorage.getItem(`${STORAGE_KEY_PREFIX}${selectedCaseId}`);
-        if (stored) {
-            try {
-                setConfig(prev => ({ ...prev, ...JSON.parse(stored) }));
-            } catch (e) {
-                console.error('Failed to parse timeline state:', e);
-                setConfig(INITIAL_CONFIG);
-            }
-        } else {
-            setConfig(INITIAL_CONFIG);
-        }
-        setIsLoaded(true);
-    }, [selectedCaseId]);
-
-    // Save to sessionStorage
-    useEffect(() => {
-        if (isLoaded && selectedCaseId) {
-            sessionStorage.setItem(`${STORAGE_KEY_PREFIX}${selectedCaseId}`, JSON.stringify(config));
-        }
-    }, [config, isLoaded, selectedCaseId]);
+    const [config, setConfig, isLoaded] = useCasePersistedState<TimelineConfig>(
+        STORAGE_KEY_PREFIX,
+        INITIAL_CONFIG
+    );
 
     const updateConfig = useCallback((updates: Partial<TimelineConfig>) => {
         setConfig(prev => ({ ...prev, ...updates }));
-    }, []);
+    }, [setConfig]);
 
     return (
         <TimelineContext.Provider value={{

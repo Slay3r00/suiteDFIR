@@ -34,7 +34,16 @@ interface BackupContextType extends BackupState {
 
 const BackupContext = createContext<BackupContextType | undefined>(undefined);
 
+import { useCasePersistedState } from '@/hooks/useCasePersistedState';
+
 const STORAGE_KEY_PREFIX = 'vdf_backup_config_';
+
+interface BackupPersistedState {
+    config: BackupConfig;
+    logs: string[];
+    isBackingUp: boolean;
+    activeBackupId: number | null;
+}
 
 const INITIAL_CONFIG: BackupConfig = {
     backupName: '',
@@ -43,15 +52,40 @@ const INITIAL_CONFIG: BackupConfig = {
     backupPassword: ''
 };
 
+const INITIAL_STATE: BackupPersistedState = {
+    config: INITIAL_CONFIG,
+    logs: [],
+    isBackingUp: false,
+    activeBackupId: null
+};
+
 export function BackupProvider({ children }: { children: ReactNode }) {
-    const [config, setConfig] = useState<BackupConfig>(INITIAL_CONFIG);
+    const [state, setState, isLoaded] = useCasePersistedState<BackupPersistedState>(
+        STORAGE_KEY_PREFIX,
+        INITIAL_STATE
+    );
+
+    const { config, logs, isBackingUp, activeBackupId } = state;
+
+    const setConfig = useCallback((updates: Partial<BackupConfig>) => {
+        setState(prev => ({ ...prev, config: { ...prev.config, ...updates } }));
+    }, [setState]);
+
+    const setLogs = useCallback((val: string[] | ((prev: string[]) => string[])) => {
+        setState(prev => ({ ...prev, logs: typeof val === 'function' ? val(prev.logs) : val }));
+    }, [setState]);
+
+    const setIsBackingUp = useCallback((val: boolean) => {
+        setState(prev => ({ ...prev, isBackingUp: val }));
+    }, [setState]);
+
+    const setActiveBackupId = useCallback((val: number | null) => {
+        setState(prev => ({ ...prev, activeBackupId: val }));
+    }, [setState]);
+
     const [devices, setDevices] = useState<Device[]>([]);
     const [backups, setBackups] = useState<Backup[]>([]);
-    const [logs, setLogs] = useState<string[]>([]);
-    const [isBackingUp, setIsBackingUp] = useState(false);
     const [isLoadingDevices, setIsLoadingDevices] = useState(false);
-    const [activeBackupId, setActiveBackupId] = useState<number | null>(null);
-    const [isLoaded, setIsLoaded] = useState(false);
 
     const api = React.useMemo(() => createLeappApi('ios'), []);
     const logStreamRef = useRef<EventSource | null>(null);
@@ -62,55 +96,7 @@ export function BackupProvider({ children }: { children: ReactNode }) {
         selectedDeviceRef.current = config.selectedDevice;
     }, [config.selectedDevice]);
 
-    const { selectedCaseId } = useCase();
-
-    // Load from sessionStorage when selectedCaseId changes
-    useEffect(() => {
-        if (!selectedCaseId) {
-            setIsLoaded(true);
-            return;
-        }
-
-        setIsLoaded(false);
-
-        try {
-            const stored = sessionStorage.getItem(`${STORAGE_KEY_PREFIX}${selectedCaseId}`);
-            if (stored) {
-                const parsed = JSON.parse(stored);
-                setConfig(parsed.config || INITIAL_CONFIG);
-                setLogs(parsed.logs || []);
-                setIsBackingUp(parsed.isBackingUp || false);
-                setActiveBackupId(parsed.activeBackupId || null);
-            } else {
-                // Reset to defaults
-                setConfig(INITIAL_CONFIG);
-                setLogs([]);
-                setIsBackingUp(false);
-                setActiveBackupId(null);
-            }
-        } catch (e) {
-            console.error('Failed to load backup config:', e);
-            setConfig(INITIAL_CONFIG);
-        }
-        setIsLoaded(true);
-    }, [selectedCaseId]);
-
-    // Save to sessionStorage
-    useEffect(() => {
-        if (isLoaded && selectedCaseId) {
-            const stateToSave = {
-                config,
-                logs,
-                isBackingUp,
-                activeBackupId
-            };
-            sessionStorage.setItem(`${STORAGE_KEY_PREFIX}${selectedCaseId}`, JSON.stringify(stateToSave));
-        }
-    }, [config, logs, isBackingUp, activeBackupId, isLoaded, selectedCaseId]);
-
-    const updateConfig = useCallback((updates: Partial<BackupConfig>) => {
-        setConfig(prev => ({ ...prev, ...updates }));
-    }, []);
+    const updateConfig = setConfig;
 
     const fetchDevices = useCallback(async () => {
         setIsLoadingDevices(true);
