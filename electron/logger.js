@@ -57,7 +57,7 @@ function init() {
         writeSync(`[${new Date().toISOString()}] [INFO ] New log path would be: ${newLogPath}`);
 
         // Don't change logPath - keep using fallback for reliability
-        // logPath = newLogPath;
+        logPath = newLogPath;
 
         // Ensure directory exists
         writeSync(`[${new Date().toISOString()}] [INFO ] Checking if userData dir exists...`);

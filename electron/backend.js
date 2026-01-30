@@ -190,11 +190,9 @@ async function start() {
         return false;
     }
 
-    // Allocate dynamic port (get-port is ESM-only, so use dynamic import)
-    const { default: getPort } = await import('get-port');
-    const [minPort, maxPort] = config.BACKEND_PORT_RANGE;
-    allocatedPort = await getPort({ port: Array.from({ length: maxPort - minPort + 1 }, (_, i) => minPort + i) });
-    logger.info('Allocated backend port:', allocatedPort);
+    // Use Port 0 (dynamic allocation by backend)
+    // We will parse the port from the backend's stdout
+    allocatedPort = null;
 
     // Build spawn arguments
     let cmd = config.PYTHON_PATH;
@@ -202,13 +200,14 @@ async function start() {
     let cwd = undefined;
 
     if (config.isDev) {
-        args = ['-m', 'uvicorn', 'src.main:app', '--host', '0.0.0.0', '--port', allocatedPort.toString()];
+        // Dev: pass port 0, backend will self-assign
+        args = ['-m', 'src.main', '--port', '0'];
         cwd = path.join(__dirname, '../backend');
-        logger.info('Dev mode - running uvicorn');
+        logger.info('Dev mode - running uvicorn with dynamic port');
     } else {
-        // Production: pass port via CLI argument
-        args = ['--port', allocatedPort.toString()];
-        logger.info('Production mode - running bundled executable');
+        // Production: pass port 0, backend will self-assign
+        args = ['--port', '0'];
+        logger.info('Production mode - running bundled executable with dynamic port');
     }
 
     logger.info('Spawn command:', cmd);
@@ -224,8 +223,16 @@ async function start() {
 
         logger.info('Backend process spawned with PID:', pythonProcess.pid);
 
+        // Listen for the magic port string
         pythonProcess.stdout.on('data', (data) => {
-            logger.debug(`[Backend stdout]: ${data.toString().trim()}`);
+            const output = data.toString();
+            logger.debug(`[Backend stdout]: ${output.trim()}`);
+
+            const match = output.match(/VDF_TOOLS_BACKEND_PORT:(\d+)/);
+            if (match && !allocatedPort) {
+                allocatedPort = parseInt(match[1], 10);
+                logger.info('Captured backend port:', allocatedPort);
+            }
         });
 
         pythonProcess.stderr.on('data', (data) => {
@@ -249,6 +256,19 @@ async function start() {
         logger.error('Exception spawning backend:', error.message);
         logger.error('Stack:', error.stack);
         windows.updateSplashStatus('Failed to start application');
+        return false;
+    }
+
+    // Wait for the port to be captured
+    let portCaptureAttempts = 0;
+    while (!allocatedPort && portCaptureAttempts < 30) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+        portCaptureAttempts++;
+    }
+
+    if (!allocatedPort) {
+        logger.error('Failed to capture backend port from stdout');
+        windows.updateSplashStatus('Failed to connect to backend');
         return false;
     }
 

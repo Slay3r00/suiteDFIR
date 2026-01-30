@@ -155,9 +155,25 @@ if __name__ == "__main__":
     # In development, use module string for reload support
     is_bundled = getattr(sys, 'frozen', False)
     
-    if is_bundled:
-        # Production: pass app object directly, no reload
-        uvicorn.run(app, host="0.0.0.0", port=args.port)
+    if args.port == 0:
+        # Dynamic port allocation via socket handover
+        import socket
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.bind(('0.0.0.0', 0))
+        port = sock.getsockname()[1]
+        
+        # Vital: Print the port so Electron can read it
+        print(f"VDF_TOOLS_BACKEND_PORT:{port}", flush=True)
+        
+        # Pass the socket FD to Uvicorn
+        # Uvicorn will use this existing socket instead of creating a new one
+        if is_bundled:
+            uvicorn.run(app, fd=sock.fileno())
+        else:
+            uvicorn.run("main:app", fd=sock.fileno(), reload=True)
     else:
-        # Development: use module string for hot reload
-        uvicorn.run("main:app", host="0.0.0.0", port=args.port, reload=True)
+        # Standard port binding
+        if is_bundled:
+            uvicorn.run(app, host="0.0.0.0", port=args.port)
+        else:
+            uvicorn.run("main:app", host="0.0.0.0", port=args.port, reload=True)

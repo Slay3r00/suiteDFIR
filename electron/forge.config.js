@@ -5,42 +5,18 @@ module.exports = {
     asar: true,
   },
   makers: [
-    // macOS
+    // macOS DMG
     {
       name: '@electron-forge/maker-dmg',
-      config: {},
-      platforms: ['darwin', 'mas'],
-    },
-    // Linux - AppImage (third-party, user-requested)
-    {
-      name: 'electron-forge-maker-appimage',
       config: {
-        options: {
-          icon: 'build/icon.png',
-        },
+        name: 'VDF Tools',
+        format: 'ULFO',
       },
-      platforms: ['linux'],
     },
-    // Linux - Flatpak (official Electron Forge support)
-    {
-      name: '@electron-forge/maker-flatpak',
-      config: {},
-      platforms: ['linux'],
-    },
-    // Windows - Squirrel (for future Windows support)
-    {
-      name: '@electron-forge/maker-squirrel',
-      config: {
-        name: 'vdf-tools',
-        authors: 'VDF Tools',
-        description: 'VDF Forensic Tools',
-        noMsi: true,
-      },
-      platforms: ['win32'],
-    },
+    // macOS ZIP (as fallback)
     {
       name: '@electron-forge/maker-zip',
-      platforms: ['win32'],
+      platforms: ['darwin'],
     },
   ],
 };

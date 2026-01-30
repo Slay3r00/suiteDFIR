@@ -23,7 +23,7 @@ const PYTHON_PATH = (() => {
 })();
 
 // Frontend URL
-// In production, use custom app:// protocol; in development, use dev server
+// In production, use custom app:// protocol; in development, use Vite dev server
 const FRONTEND_URL = isDev
     ? 'http://localhost:3000'
     : 'app://./index.html';

@@ -3,7 +3,7 @@
 # VDF Tools Production Build Script for macOS
 # This script builds the complete production bundle including:
 # - Python backend executable
-# - Next.js static frontend export
+# - Vite static frontend build
 # - Electron app bundle
 # - DMG distributable
 
@@ -23,9 +23,9 @@ echo "Backend built"
 
 # Step 2: Build Frontend
 echo ""
-echo "Building frontend static export..."
+echo "Building frontend..."
 cd frontend
-npm run build:static
+npm run build
 cd ..
 echo "Frontend built"
 
@@ -38,14 +38,15 @@ npm install
 npx electron-forge package
 
 # Copy resources manually (extraResource doesn't work reliably)
-APP_PATH="out/vdf-tools-darwin-arm64/VDF Tools.app"
+APP_PATH="out/vdf-tools-darwin-arm64/vdf-tools.app"
 RESOURCES_PATH="$APP_PATH/Contents/Resources"
 
 echo "  Copying Python backend..."
 cp -R ../backend/dist/VDF\ Tools\ Backend "$RESOURCES_PATH/"
 
-echo "  Copying helper binaries..."
-cp -R ../backend/bin "$RESOURCES_PATH/"
+echo "  Copying helper binaries (macOS only)..."
+mkdir -p "$RESOURCES_PATH/bin"
+cp -R ../backend/bin/macos/* "$RESOURCES_PATH/bin/"
 
 echo "  Relinking and signing binaries for portability..."
 # Run from electron directory, script is in root scripts folder
@@ -54,7 +55,7 @@ codesign --force --deep --sign - "$RESOURCES_PATH/bin/"*
 
 
 echo "  Copying frontend..."
-cp -R ../frontend/out "$RESOURCES_PATH/"
+cp -R ../frontend/dist "$RESOURCES_PATH/"
 
 echo "  Creating reports directory..."
 mkdir -p "$RESOURCES_PATH/reports"
@@ -72,5 +73,6 @@ echo ""
 echo "Build complete"
 echo ""
 echo "Output files:"
-echo "  - Electron .app: electron/out/VDF Tools-darwin-arm64/VDF Tools.app"
-echo "  - DMG Installer: electron/out/make/VDF Tools-0.1.0-arm64.dmg"
+echo "  - Electron .app: electron/out/vdf-tools-darwin-arm64/vdf-tools.app"
+echo "  - DMG Installer: electron/out/make/vdf-tools-0.1.0-arm64.dmg"
+
