@@ -1,0 +1,45 @@
+import { Outlet } from 'react-router-dom'
+import { useEffect, useState, Suspense } from 'react'
+import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar'
+import { AppSidebar } from '@/components/app-sidebar'
+import { ReportsProvider } from '@/context/ReportsContext'
+import { DashboardProvider } from '@/context/DashboardContext'
+import { SpatialProvider } from '@/context/SpatialContext'
+import { LeappProvider } from '@/context/LeappContext'
+import { BackupProvider } from '@/context/BackupContext'
+import { TimelineProvider } from '@/context/TimelineContext'
+import { LoadingPage } from '@/components/ui/LoadingPage'
+
+export default function MainLayout() {
+    const [defaultOpen, setDefaultOpen] = useState(true)
+
+    useEffect(() => {
+        const storedState = localStorage.getItem('sidebar_state')
+        if (storedState !== null) {
+            setDefaultOpen(storedState === 'true')
+        }
+    }, [])
+
+    return (
+        <ReportsProvider>
+            <DashboardProvider>
+                <SpatialProvider>
+                    <LeappProvider>
+                        <BackupProvider>
+                            <TimelineProvider>
+                                <SidebarProvider defaultOpen={defaultOpen} className="h-full w-full min-h-0 overflow-hidden">
+                                    <AppSidebar />
+                                    <SidebarInset className="bg-[#151515] flex flex-col overflow-hidden h-full min-h-0">
+                                        <Suspense fallback={<LoadingPage />}>
+                                            <Outlet />
+                                        </Suspense>
+                                    </SidebarInset>
+                                </SidebarProvider>
+                            </TimelineProvider>
+                        </BackupProvider>
+                    </LeappProvider>
+                </SpatialProvider>
+            </DashboardProvider>
+        </ReportsProvider>
+    )
+}
