@@ -1,5 +1,3 @@
-"use client"
-
 import {
     LayoutDashboard,
     FileText,
@@ -26,8 +24,7 @@ import {
     useSidebar,
 } from "@/components/ui/sidebar"
 
-import { usePathname, useRouter } from "next/navigation"
-import Link from "next/link"
+import { useLocation, useNavigate, Link } from "react-router-dom"
 
 // Menu items.
 const data = {
@@ -79,8 +76,9 @@ const data = {
 
 export function AppSidebar() {
     const { toggleSidebar } = useSidebar()
-    const pathname = usePathname()
-    const router = useRouter()
+    const location = useLocation()
+    const pathname = location.pathname
+    const navigate = useNavigate()
 
     return (
         <Sidebar collapsible="icon">
@@ -104,7 +102,7 @@ export function AppSidebar() {
                             {data.case.map((item) => (
                                 <SidebarMenuItem key={item.title}>
                                     <SidebarMenuButton asChild tooltip={item.title} isActive={pathname === item.url}>
-                                        <Link href={item.url}>
+                                        <Link to={item.url}>
                                             <item.icon />
                                             <span className="text-[11px] uppercase tracking-wider font-medium">{item.title}</span>
                                         </Link>
@@ -125,7 +123,7 @@ export function AppSidebar() {
                                 {data.ios.map((item) => (
                                     <SidebarMenuItem key={item.title}>
                                         <SidebarMenuButton asChild tooltip={item.title} isActive={pathname === item.url}>
-                                            <Link href={item.url}>
+                                            <Link to={item.url}>
                                                 <item.icon />
                                                 <span className="text-[11px] uppercase tracking-wider font-medium">
                                                     {item.title.split(" (")[0]}
@@ -150,7 +148,7 @@ export function AppSidebar() {
                                 {data.android.map((item) => (
                                     <SidebarMenuItem key={item.title}>
                                         <SidebarMenuButton asChild tooltip={item.title} isActive={pathname === item.url}>
-                                            <Link href={item.url}>
+                                            <Link to={item.url}>
                                                 <item.icon />
                                                 <span className="text-[11px] uppercase tracking-wider font-medium">
                                                     {item.title.split(" (")[0]}
@@ -176,7 +174,7 @@ export function AppSidebar() {
                             {data.data_analysis.map((item) => (
                                 <SidebarMenuItem key={item.title}>
                                     <SidebarMenuButton asChild tooltip={item.title} isActive={pathname === item.url}>
-                                        <Link href={item.url}>
+                                        <Link to={item.url}>
                                             <item.icon />
                                             <span className="text-[11px] uppercase tracking-wider font-medium">{item.title}</span>
                                         </Link>
@@ -192,7 +190,7 @@ export function AppSidebar() {
                     <SidebarMenuItem className="flex-[2]">
                         <SidebarMenuButton
                             tooltip="Back to Cases"
-                            onClick={() => router.push('/cases')}
+                            onClick={() => navigate('/cases')}
                             className="h-10 hover:bg-sidebar-accent px-3 gap-2 group-data-[state=collapsed]:justify-center"
                         >
                             <ChevronLeft className="h-4 w-4 shrink-0" />
@@ -206,7 +204,7 @@ export function AppSidebar() {
                             isActive={pathname === "/preferences"}
                             className="justify-center h-10 hover:bg-sidebar-accent"
                         >
-                            <Link href="/preferences">
+                            <Link to="/preferences">
                                 <Settings className="h-5 w-5" />
                             </Link>
                         </SidebarMenuButton>

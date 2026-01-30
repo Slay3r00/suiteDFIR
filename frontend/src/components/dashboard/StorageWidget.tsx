@@ -1,4 +1,3 @@
-"use client"
 
 import { useState, useEffect } from 'react'
 import { Card, CardContent } from "@/components/ui/Card"
@@ -97,7 +96,7 @@ export default function StorageWidget({ className }: StorageWidgetProps) {
 
                 <div className="flex-1 min-h-0 flex items-center justify-center gap-4 py-2 overflow-y-auto overflow-x-hidden">
                     <div className="h-full aspect-square relative max-h-[220px]" style={{ outline: 'none', outlineStyle: 'none' }}>
-                        <style jsx>{`
+                        <style>{`
                             .recharts-wrapper,
                             .recharts-responsive-container {
                                 outline: none !important;

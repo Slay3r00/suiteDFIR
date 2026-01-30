@@ -1,4 +1,3 @@
-"use client"
 
 import { useEffect, useState, useRef } from "react"
 import { MapContainer, TileLayer, useMap, GeoJSON } from "react-leaflet"

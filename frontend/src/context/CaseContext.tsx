@@ -1,16 +1,18 @@
-"use client"
-
 import React, { createContext, useContext, useState, useEffect } from 'react'
+import { Case } from "@/components/cases/CaseFormDialog"
 
 interface CaseContextType {
     selectedCaseId: string | null
     setSelectedCaseId: (id: string | null) => void
+    cases: Case[]
+    setCases: React.Dispatch<React.SetStateAction<Case[]>>
 }
 
 const CaseContext = createContext<CaseContextType | undefined>(undefined)
 
 export function CaseProvider({ children }: { children: React.ReactNode }) {
     const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null)
+    const [cases, setCases] = useState<Case[]>([])
 
     useEffect(() => {
         // Load from localStorage on mount
@@ -31,7 +33,7 @@ export function CaseProvider({ children }: { children: React.ReactNode }) {
     }, [selectedCaseId])
 
     return (
-        <CaseContext.Provider value={{ selectedCaseId, setSelectedCaseId }}>
+        <CaseContext.Provider value={{ selectedCaseId, setSelectedCaseId, cases, setCases }}>
             {children}
         </CaseContext.Provider>
     )

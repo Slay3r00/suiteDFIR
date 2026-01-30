@@ -1,6 +1,6 @@
 import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
 import { createLeappApi } from '../services/leappApi';
-import { Module } from '@/app/(main)/ileapp/types';
+import { Module } from '@/types/leapp';
 
 interface ModulesContextType {
   modules: Module[];

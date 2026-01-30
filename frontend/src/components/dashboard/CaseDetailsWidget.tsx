@@ -1,4 +1,3 @@
-"use client"
 
 import { useState, useEffect, useCallback } from "react"
 import { Card, CardContent } from "@/components/ui/Card"
@@ -11,7 +10,7 @@ import { Edit2 } from 'lucide-react'
 import { CaseFormDialog, Case } from "@/components/cases/CaseFormDialog"
 
 export default function CaseDetailsWidget({ className }: { className?: string }) {
-    const { selectedCaseId } = useCase()
+    const { selectedCaseId, cases } = useCase()
     const [caseData, setCaseData] = useState<Case | null>(null)
     const [isLoading, setIsLoading] = useState(false)
     const [isEditModalOpen, setIsEditModalOpen] = useState(false)
@@ -160,6 +159,7 @@ export default function CaseDetailsWidget({ className }: { className?: string })
                     open={isEditModalOpen}
                     onOpenChange={setIsEditModalOpen}
                     caseData={caseData}
+                    existingNames={cases.map((c: any) => c.name)}
                     onSuccess={handleCaseSaved}
                 />
             )}

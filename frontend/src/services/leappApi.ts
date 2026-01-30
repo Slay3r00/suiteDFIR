@@ -1,4 +1,4 @@
-import { Module, Profile } from '../app/(main)/ileapp/types';
+import { Module, Profile } from '../types/leapp';
 import { API } from '@/lib/api';
 
 async function handleApiResponse<T>(response: Response): Promise<T> {

@@ -1,9 +1,8 @@
-"use client"
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from 'react'
 import { useCase } from './CaseContext';
 import { createLeappApi } from '../services/leappApi'
-import { Module } from '@/app/(main)/ileapp/types';
+import { Module } from '@/types/leapp';
 
 interface ProcessingState {
     logs: string[];

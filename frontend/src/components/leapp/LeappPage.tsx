@@ -1,7 +1,5 @@
-'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
 import LogViewer from '../../components/ileapp/LogViewer';
 import FileSelector from '../../components/ileapp/FileSelector';
 import ModuleSelector from '../../components/ileapp/ModuleSelector';
@@ -35,7 +33,6 @@ interface Report {
 
 function LeappContent({ tool }: { tool: string }) {
     const outputFolder = '';
-    const router = useRouter();
     const { states, updateConfig, clearLogs, clearProcessingReportName, fetchModules } = useLeapp();
     const toolState = states[tool];
     const { config, processing } = toolState;

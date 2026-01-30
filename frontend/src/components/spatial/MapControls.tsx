@@ -1,4 +1,3 @@
-"use client"
 
 import React, { useState, useRef, useEffect } from "react"
 import { Search, Layers, Upload, Loader2, Map as MapIcon, Satellite, Globe, Folder, Check } from "lucide-react"

@@ -1,10 +1,8 @@
-"use client"
-
 import { useState, useEffect } from 'react'
 import { Card, CardContent } from "@/components/ui/Card"
 import { Clock, FileText, Smartphone, CheckCircle, XCircle, AlertCircle } from 'lucide-react'
 import { useCase } from "@/context/CaseContext"
-import { useRouter } from 'next/navigation'
+import { useNavigate } from 'react-router-dom'
 import { cn } from "@/lib/utils"
 import { API } from "@/lib/api"
 
@@ -19,7 +17,7 @@ interface Activity {
 
 export default function RecentActivityWidget() {
     const { selectedCaseId } = useCase()
-    const router = useRouter()
+    const navigate = useNavigate()
     const [activities, setActivities] = useState<Activity[]>([])
 
     useEffect(() => {
@@ -123,7 +121,7 @@ export default function RecentActivityWidget() {
                                 {activities.map((activity, i) => (
                                     <div
                                         key={`${activity.type}-${activity.id}`}
-                                        onClick={() => activity.type === 'report' && activity.path && router.push(`/reports?path=${encodeURIComponent(activity.path)}`)}
+                                        onClick={() => activity.type === 'report' && activity.path && navigate(`/reports?path=${encodeURIComponent(activity.path)}`)}
                                         className={`flex gap-3 relative z-10 p-2 rounded-lg transition-all duration-200 ${activity.type === 'report' ? 'cursor-pointer hover:bg-white/[0.03] group/item' : ''}`}
                                     >
                                         <div className="w-10 flex flex-col items-center shrink-0 relative">

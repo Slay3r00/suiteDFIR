@@ -1,6 +1,4 @@
-'use client';
-
-import Link from 'next/link';
+import { Link } from 'react-router-dom';
 
 interface ToolNotInstalledProps {
   tool: 'ileapp' | 'aleapp';
@@ -29,7 +27,7 @@ export default function ToolNotInstalled({ tool }: ToolNotInstalledProps) {
         You must download <span className="text-white font-medium">{info.name}</span> in Preferences before using this feature.
       </p>
       <Link
-        href="/preferences"
+        to="/preferences"
         className="px-6 py-2 bg-white text-black text-sm font-medium rounded-md hover:bg-white/90 transition-colors"
       >
         Go to Preferences
@@ -37,3 +35,4 @@ export default function ToolNotInstalled({ tool }: ToolNotInstalledProps) {
     </div>
   );
 }
+

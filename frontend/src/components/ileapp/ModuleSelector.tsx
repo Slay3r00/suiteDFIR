@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Button, Input, Dropdown, Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../ui';
 import { useProfiles, useDropdown } from '../../hooks';
-import { Module } from '@/app/(main)/ileapp/types';
+import { Module } from '../../types/leapp';
 import { useLeapp } from '@/context/LeappContext';
 import { Trash2 } from 'lucide-react';
 

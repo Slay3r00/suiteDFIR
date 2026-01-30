@@ -1,10 +1,10 @@
-"use client"
 
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/Button"
 import { Input } from "@/components/ui/Input"
 import { cn } from "@/lib/utils"
 import { API } from "@/lib/api"
+import { getUniqueName } from "@/lib/naming"
 import {
     Dialog,
     DialogContent,
@@ -44,13 +44,14 @@ interface CaseFormDialogProps {
     onOpenChange: (open: boolean) => void
     caseData?: Case | null
     onSuccess: (savedCase: Case) => void
+    existingNames: string[]
 }
 
 const Label = ({ className, ...props }: React.LabelHTMLAttributes<HTMLLabelElement>) => (
     <label className={cn("text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70", className)} {...props} />
 )
 
-export function CaseFormDialog({ open, onOpenChange, caseData, onSuccess }: CaseFormDialogProps) {
+export function CaseFormDialog({ open, onOpenChange, caseData, onSuccess, existingNames }: CaseFormDialogProps) {
     const [formData, setFormData] = useState<Partial<Case>>({})
     const [errors, setErrors] = useState<Record<string, string>>({})
 
@@ -62,7 +63,7 @@ export function CaseFormDialog({ open, onOpenChange, caseData, onSuccess }: Case
                 setFormData({
                     status: 'Active',
                     priority: 'Medium',
-                    case_number: `2024-${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}` // Auto-gen for now
+                    case_number: `${new Date().getFullYear()}-${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}` // Auto-gen
                 })
             }
             setErrors({})
@@ -120,10 +121,13 @@ export function CaseFormDialog({ open, onOpenChange, caseData, onSuccess }: Case
                 }
             } else {
                 // Create
+                const uniqueName = getUniqueName(formData.name!, existingNames)
+                const payload = { ...formData, name: uniqueName }
+
                 const res = await fetch(API.path('/cases'), {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(formData)
+                    body: JSON.stringify(payload)
                 })
                 if (res.ok) {
                     const newCase = await res.json()
