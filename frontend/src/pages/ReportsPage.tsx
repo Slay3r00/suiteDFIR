@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Search, FileText, FolderOpen, Download, Trash2, X, Maximize2 } from 'lucide-react';
-import { Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, LoadingPage } from '@/components/ui';
+import { Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, LoadingPage, LibraryCard } from '@/components/ui';
 import { useCase } from "@/context/CaseContext";
 import { ReportsProvider, useReports, ReportIframeState } from '@/context/ReportsContext';
 import { useSearchParams } from 'react-router-dom';
@@ -606,16 +606,15 @@ function ReportsContent() {
                             ) : (
                                 <div className="flex gap-3 h-full items-center">
                                     {filteredReports.map((report) => (
-                                        <div
+                                        <LibraryCard
                                             key={report.id}
                                             data-report-id={report.id}
-                                            className={`report-card group flex-shrink-0 w-72 min-h-[60px] rounded-lg px-2.5 flex items-center gap-2 border transition-colors cursor-pointer ${selectedReportId === report.id ? 'bg-[#1A1A1A] border-white/40' : 'bg-[#1A1A1A] border-white/10 hover:border-white/20'
-                                                }`}
+                                            className="report-card w-72"
+                                            title={report.name}
+                                            isSelected={selectedReportId === report.id}
                                             onClick={() => handleViewReport(report)}
-                                        >
-                                            {/* Icon - scales with container */}
-                                            <div className="report-card-icon shrink-0 bg-[#1a1a1a] rounded flex items-center justify-center p-0.5">
-                                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                            icon={
+                                                /* eslint-disable-next-line @next/next/no-img-element */
                                                 <img
                                                     src={report.tool === 'ileapp' ? '/apple-logo.svg' : '/android-logo.svg'}
                                                     alt={report.tool}
@@ -626,50 +625,31 @@ function ReportsContent() {
                                                             : 'brightness(0) saturate(100%) invert(80%) sepia(16%) saturate(1088%) hue-rotate(32deg) brightness(92%) contrast(87%)' // #a6c43b for Android
                                                     }}
                                                 />
-                                            </div>
-
-                                            {/* Info */}
-                                            <div className="flex-1 min-w-0 flex flex-col justify-center py-1 overflow-hidden">
-                                                <h3 className="text-white font-medium truncate text-xs w-full text-center">{report.name}</h3>
-                                                <div className="flex items-center justify-center gap-1.5 text-[10px] text-gray-400 mt-0.5 whitespace-nowrap">
+                                            }
+                                            subtitle={
+                                                <span className="flex items-center gap-1.5 shrink-0">
                                                     <span className="flex items-center gap-0.5 shrink-0">
                                                         <FileText size={9} className="shrink-0" />
                                                         <span>{new Date(report.created_at).toLocaleDateString()}</span>
                                                     </span>
                                                     <span className="shrink-0">•</span>
                                                     <span className="shrink-0">{report.size}</span>
-                                                </div>
-                                            </div>
-
-                                            {/* Actions */}
-                                            <div className="flex items-center gap-0.5 shrink-0">
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        handleOpenClick(report);
-                                                    }}
-                                                    title="Open in Finder"
-                                                    className="h-6 w-6 shrink-0 hover:bg-white/20 text-white"
-                                                >
-                                                    <FolderOpen size={11} className="shrink-0" />
-                                                </Button>
-
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        handleDeleteClick(report);
-                                                    }}
-                                                    title="Delete Report"
-                                                    className="h-6 w-6 shrink-0 hover:bg-red-900/30 text-white hover:text-red-400"
-                                                >
-                                                    <Trash2 size={11} className="shrink-0" />
-                                                </Button>
-                                            </div>
-                                        </div>
+                                                </span>
+                                            }
+                                            actions={[
+                                                {
+                                                    icon: FolderOpen,
+                                                    label: 'Open in Finder',
+                                                    onClick: () => handleOpenClick(report)
+                                                },
+                                                {
+                                                    icon: Trash2,
+                                                    label: 'Delete Report',
+                                                    variant: 'destructive',
+                                                    onClick: () => handleDeleteClick(report)
+                                                }
+                                            ]}
+                                        />
                                     ))}
                                 </div>
                             )}

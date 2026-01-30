@@ -7,10 +7,13 @@ import ProcessControls from '../../components/ileapp/ProcessControls';
 import ToolNotInstalled from '../../components/ui/ToolNotInstalled';
 import { useLeapp } from '@/context/LeappContext';
 
-import { Button, Input, Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../../components/ui';
+import { Button, Input } from '../../components/ui';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { LibraryCard } from '@/components/ui/LibraryCard';
 import { useCase } from '@/context/CaseContext';
 import { FolderOpen, Calendar, Trash2, Loader2, Download } from 'lucide-react';
 import { LoadingPage } from '../ui/LoadingPage';
+import { useConfirmDialog } from '@/hooks';
 
 import { getToolsStatus } from '@/lib/api/tools';
 import { cn } from '../../lib/utils';
@@ -41,14 +44,7 @@ function LeappContent({ tool }: { tool: string }) {
 
     const [reports, setReports] = useState<Report[]>([]);
     const { selectedCaseId } = useCase();
-    const [confirmConfig, setConfirmConfig] = useState<{
-        isOpen: boolean;
-        title: string;
-        message: string;
-        onConfirm: () => void | Promise<void>;
-        variant?: 'destructive' | 'default';
-        confirmLabel?: string;
-    }>({ isOpen: false, title: '', message: '', onConfirm: () => { } });
+    const { config: confirmConfig, show: showConfirm, hide: hideConfirm, handleConfirm } = useConfirmDialog();
 
 
 
@@ -102,8 +98,7 @@ function LeappContent({ tool }: { tool: string }) {
 
 
     const handleOpenLocation = (id: number) => {
-        setConfirmConfig({
-            isOpen: true,
+        showConfirm({
             title: 'Open Location',
             message: 'Open report location in Finder?',
             confirmLabel: 'Open',
@@ -115,14 +110,12 @@ function LeappContent({ tool }: { tool: string }) {
                 } catch (error) {
                     console.error('Failed to open location:', error);
                 }
-                setConfirmConfig(prev => ({ ...prev, isOpen: false }));
             }
         });
     };
 
     const handleDeleteReport = (id: number) => {
-        setConfirmConfig({
-            isOpen: true,
+        showConfirm({
             title: 'Delete Report',
             message: 'Are you sure you want to delete this report? This action cannot be undone.',
             variant: 'destructive',
@@ -138,7 +131,6 @@ function LeappContent({ tool }: { tool: string }) {
                 } catch (error) {
                     console.error('Failed to delete report:', error);
                 }
-                setConfirmConfig(prev => ({ ...prev, isOpen: false }));
             }
         });
     };
@@ -229,14 +221,11 @@ function LeappContent({ tool }: { tool: string }) {
                                 </div>
                             ) : (
                                 <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
-                                    {/* Processing Report Entry - show while processing OR while waiting for report to appear */}
+                                    {/* Processing Report Entry */}
                                     {processingReportName && (
-                                        <div
-                                            className="group flex-shrink-0 w-full rounded-lg p-2 flex items-center gap-2 border transition-colors bg-[#1A1A1A] border-white/20"
-                                        >
-                                            {/* Info */}
-                                            <div className="flex-1 min-w-0 flex flex-col justify-center items-start">
-                                                <h3 className="text-white font-medium truncate text-xs text-left">{processingReportName}</h3>
+                                        <LibraryCard
+                                            title={processingReportName}
+                                            subtitle={
                                                 <div className="flex items-center gap-2 text-[10px] text-gray-400 mt-0.5">
                                                     <span className="flex items-center gap-0.5">
                                                         <Calendar size={9} />
@@ -249,57 +238,27 @@ function LeappContent({ tool }: { tool: string }) {
                                                         </>
                                                     )}
                                                 </div>
-                                            </div>
-
-                                            {/* Badge - Centered on Right */}
-                                            <div className="flex items-center gap-2">
-                                                <span
-                                                    className="processing-badge shrink-0 text-[10px] font-medium px-1.5 py-0 rounded border border-white/50 flex items-center gap-1"
-                                                    style={{ backgroundColor: '#262626', color: 'white' }}
-                                                >
-                                                    <Loader2 size={8} className="animate-spin" />
-                                                    {isProcessing ? 'Processing' : 'Completing'}
-                                                </span>
-
-                                                {/* Action Buttons (Disabled during processing) */}
-                                                <div className="flex items-center gap-0.5 opacity-50 pointer-events-none">
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        disabled
-                                                        className="h-7 w-7 text-white"
-                                                    >
-                                                        <FolderOpen size={12} />
-                                                    </Button>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        disabled
-                                                        className="h-7 w-7 text-white"
-                                                    >
-                                                        <Download size={12} />
-                                                    </Button>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        disabled
-                                                        className="h-7 w-7 text-white"
-                                                    >
-                                                        <Trash2 size={12} />
-                                                    </Button>
-                                                </div>
-                                            </div>
-                                        </div>
+                                            }
+                                            status={{
+                                                state: 'processing',
+                                                label: isProcessing ? 'Processing' : 'Completing',
+                                                progress: 100 // Use indeterminate via CSS or full bar
+                                            }}
+                                            actions={[
+                                                { icon: FolderOpen, label: 'Open', onClick: () => { }, disabled: true },
+                                                { icon: Download, label: 'Download', onClick: () => { }, disabled: true },
+                                                { icon: Trash2, label: 'Delete', onClick: () => { }, disabled: true }
+                                            ]}
+                                            className="w-full"
+                                        />
                                     )}
+
                                     {/* Existing Reports */}
                                     {reports.map((report) => (
-                                        <div
+                                        <LibraryCard
                                             key={report.id}
-                                            className="group flex-shrink-0 w-full rounded-lg p-2 flex items-center gap-2 border transition-colors bg-[#1A1A1A] border-white/10 hover:border-white/20"
-                                        >
-                                            {/* Info */}
-                                            <div className="flex-1 min-w-0 flex flex-col justify-center items-start">
-                                                <h3 className="text-white font-medium truncate text-xs text-left">{report.name}</h3>
+                                            title={report.name}
+                                            subtitle={
                                                 <div className="flex items-center gap-2 text-[10px] text-gray-400 mt-0.5">
                                                     <span className="flex items-center gap-0.5">
                                                         <Calendar size={9} />
@@ -308,31 +267,22 @@ function LeappContent({ tool }: { tool: string }) {
                                                     <span>•</span>
                                                     <span>{report.size}</span>
                                                 </div>
-                                            </div>
-
-                                            {/* Action Buttons */}
-                                            <div className="flex items-center gap-0.5">
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    onClick={() => handleOpenLocation(report.id)}
-                                                    title="Open Location"
-                                                    className="h-7 w-7 hover:bg-white/20 text-white"
-                                                >
-                                                    <FolderOpen size={12} />
-                                                </Button>
-
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    onClick={() => handleDeleteReport(report.id)}
-                                                    title="Delete Report"
-                                                    className="h-7 w-7 hover:bg-red-900/30 text-white hover:text-red-400"
-                                                >
-                                                    <Trash2 size={12} />
-                                                </Button>
-                                            </div>
-                                        </div>
+                                            }
+                                            actions={[
+                                                {
+                                                    icon: FolderOpen,
+                                                    label: 'Open Location',
+                                                    onClick: () => handleOpenLocation(report.id)
+                                                },
+                                                {
+                                                    icon: Trash2,
+                                                    label: 'Delete Report',
+                                                    variant: 'destructive',
+                                                    onClick: () => handleDeleteReport(report.id)
+                                                }
+                                            ]}
+                                            className="w-full"
+                                        />
                                     ))}
                                 </div>
                             )}
@@ -341,41 +291,11 @@ function LeappContent({ tool }: { tool: string }) {
                 </div>
             </div>
             {/* Confirmation Dialog */}
-            <Dialog open={confirmConfig.isOpen} onOpenChange={(open) => !open && setConfirmConfig(prev => ({ ...prev, isOpen: false }))}>
-                <DialogContent className="max-w-[340px] p-5 bg-[#1A1A1A] border-[#333333]">
-                    <DialogHeader>
-                        <DialogTitle className="text-sm font-semibold text-white tracking-wide uppercase">{confirmConfig.title}</DialogTitle>
-                    </DialogHeader>
-                    <div className="py-2">
-                        <p className="text-[11px] text-gray-400 leading-relaxed">
-                            {confirmConfig.message}
-                        </p>
-                    </div>
-                    <DialogFooter className="mt-2 flex gap-2">
-                        <Button
-                            variant="secondary"
-                            size="sm"
-                            className="flex-1 h-8 text-[11px]"
-                            onClick={() => setConfirmConfig(prev => ({ ...prev, isOpen: false }))}
-                        >
-                            Cancel
-                        </Button>
-                        <Button
-                            variant={confirmConfig.variant === 'destructive' ? 'destructive' : 'default'}
-                            size="sm"
-                            className={cn(
-                                "flex-1 h-8 text-[11px]",
-                                confirmConfig.variant === 'destructive'
-                                    ? "bg-red-900/20 hover:bg-red-900/40 text-white border border-red-900/30"
-                                    : "bg-[#333333] hover:bg-[#404040] text-white border border-white/10"
-                            )}
-                            onClick={confirmConfig.onConfirm}
-                        >
-                            {confirmConfig.confirmLabel || 'Confirm'}
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+            <ConfirmDialog
+                config={confirmConfig}
+                onClose={hideConfirm}
+                onConfirm={handleConfirm}
+            />
         </div>
     );
 }

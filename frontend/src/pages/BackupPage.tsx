@@ -1,12 +1,13 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { createLeappApi } from '@/services/leappApi'
 import { RefreshCw, Smartphone, Trash2, ChevronDown, FolderOpen, Download, FileText, HardDrive } from 'lucide-react'
 import { Card, CardContent } from "@/components/ui/Card"
 import { Button } from "@/components/ui/Button"
 import { Input } from "@/components/ui/Input"
 import { Dropdown } from "@/components/ui"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/Dialog"
-import { useDropdown } from "@/hooks"
+import { LibraryCard } from "@/components/ui/LibraryCard"
+import { useDropdown, useConfirmDialog } from "@/hooks"
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog"
 import Iphone15Pro from "@/components/ui/shadcn-io/iphone-15-pro"
 import LogViewer from "@/components/ileapp/LogViewer"
 import { useToast } from "@/hooks/use-toast"
@@ -39,14 +40,7 @@ export default function BackupPage() {
     const deviceDropdown = useDropdown()
     const { toast } = useToast()
     const { selectedCaseId } = useCase()
-    const [confirmConfig, setConfirmConfig] = useState<{
-        isOpen: boolean;
-        title: string;
-        message: string;
-        onConfirm: () => void | Promise<void>;
-        variant?: 'destructive' | 'default';
-        confirmLabel?: string;
-    }>({ isOpen: false, title: '', message: '', onConfirm: () => { } });
+    const { config: confirmConfig, show: showConfirm, hide: hideConfirm, handleConfirm } = useConfirmDialog();
 
     // Initial fetch on mount for this specific page
     useEffect(() => {
@@ -355,75 +349,54 @@ export default function BackupPage() {
                                 ) : (
                                     <div className="flex-1 overflow-y-auto p-4 space-y-3">
                                         {backups.filter(b => b.status !== 'cancelled').map((backup) => (
-                                            <div
+                                            <LibraryCard
                                                 key={backup.id}
-                                                className="group flex-shrink-0 w-full rounded-lg p-2 flex items-center gap-2 border transition-colors bg-[#1A1A1A] border-white/10 hover:border-white/20"
-                                            >
-                                                {/* Info */}
-                                                <div className="flex-1 min-w-0 flex flex-col justify-center items-start">
-                                                    <h3 className="text-white font-medium truncate text-xs text-left">{backup.name}</h3>
-                                                    <div className="flex items-center gap-2 text-[10px] text-gray-400 mt-0.5">
-                                                        <span className="flex items-center gap-0.5">
-                                                            <Smartphone size={9} />
-                                                            {backup.device_name}
-                                                        </span>
-                                                    </div>
-                                                </div>
-
-                                                {backup.status !== 'completed' && (
-                                                    <span className={`
-                                                    shrink-0 text-[10px] font-medium px-1.5 py-0 rounded border border-white mr-2
-                                                    ${backup.status === 'failed' || backup.status === 'cancelled' ? 'bg-red-500/10 text-red-400 border-red-500/20' :
-                                                            'bg-white/10 text-white border-white/20 animate-pulse'}
-                                                    `}
-                                                        style={{ borderWidth: '0.5px' }}
-                                                    >
-                                                        {backup.status.toUpperCase().replace('_', ' ')}
+                                                title={backup.name}
+                                                subtitle={
+                                                    <span className="flex items-center gap-0.5">
+                                                        <Smartphone size={9} />
+                                                        {backup.device_name}
                                                     </span>
-                                                )}
-
-                                                {/* Actions */}
-                                                <div className={`flex items-center gap-0.5 transition-opacity ${backup.status === 'in_progress' ? 'opacity-50' : ''}`}>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        disabled={backup.status === 'in_progress'}
-                                                        onClick={() => {
-                                                            setConfirmConfig({
-                                                                isOpen: true,
+                                                }
+                                                status={backup.status !== 'completed' ? {
+                                                    state: backup.status === 'in_progress' ? 'processing' :
+                                                        backup.status === 'failed' ? 'error' : 'default',
+                                                    label: backup.status === 'in_progress' ? 'PROCESSING' :
+                                                        backup.status.toUpperCase().replace('_', ' '),
+                                                    progress: backup.progress !== undefined ? backup.progress : 0
+                                                } : undefined}
+                                                actions={[
+                                                    {
+                                                        icon: FolderOpen,
+                                                        label: 'Open Location',
+                                                        disabled: backup.status === 'in_progress',
+                                                        onClick: () => {
+                                                            showConfirm({
                                                                 title: 'Open Location',
                                                                 message: 'Open backup location in Finder?',
                                                                 confirmLabel: 'Open',
                                                                 onConfirm: () => handleOpenLocation(backup.path)
                                                             });
-                                                        }}
-                                                        title="Open Location"
-                                                        className="h-7 w-7 hover:bg-white/20 text-white"
-                                                    >
-                                                        <FolderOpen size={12} />
-                                                    </Button>
-
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        disabled={backup.status === 'in_progress'}
-                                                        onClick={() => {
-                                                            setConfirmConfig({
-                                                                isOpen: true,
+                                                        }
+                                                    },
+                                                    {
+                                                        icon: Trash2,
+                                                        label: 'Delete Backup',
+                                                        disabled: backup.status === 'in_progress',
+                                                        variant: 'destructive',
+                                                        onClick: () => {
+                                                            showConfirm({
                                                                 title: 'Delete Backup',
                                                                 message: 'Are you sure you want to delete this backup? This action cannot be undone.',
                                                                 variant: 'destructive',
                                                                 confirmLabel: 'Delete',
                                                                 onConfirm: () => handleDeleteBackup(backup.id)
                                                             });
-                                                        }}
-                                                        title="Delete Backup"
-                                                        className="h-7 w-7 hover:bg-red-900/30 text-white hover:text-red-400"
-                                                    >
-                                                        <Trash2 size={12} />
-                                                    </Button>
-                                                </div>
-                                            </div>
+                                                        }
+                                                    }
+                                                ]}
+                                                className="w-full"
+                                            />
                                         ))}
                                     </div>
                                 )}
@@ -432,44 +405,11 @@ export default function BackupPage() {
                     </div>
                 </div>
             </div>
-            <Dialog open={confirmConfig.isOpen} onOpenChange={(open) => !open && setConfirmConfig(prev => ({ ...prev, isOpen: false }))}>
-                <DialogContent className="max-w-[340px] p-5 bg-[#1A1A1A] border-[#333333]">
-                    <DialogHeader>
-                        <DialogTitle className="text-sm font-semibold text-white tracking-wide uppercase">{confirmConfig.title}</DialogTitle>
-                    </DialogHeader>
-                    <div className="py-2">
-                        <p className="text-[11px] text-gray-400 leading-relaxed">
-                            {confirmConfig.message}
-                        </p>
-                    </div>
-                    <DialogFooter className="mt-2 flex gap-2">
-                        <Button
-                            variant="secondary"
-                            size="sm"
-                            className="flex-1 h-8 text-[11px]"
-                            onClick={() => setConfirmConfig(prev => ({ ...prev, isOpen: false }))}
-                        >
-                            Cancel
-                        </Button>
-                        <Button
-                            variant={confirmConfig.variant === 'destructive' ? 'destructive' : 'default'}
-                            size="sm"
-                            className={cn(
-                                "flex-1 h-8 text-[11px]",
-                                confirmConfig.variant === 'destructive'
-                                    ? "bg-red-900/20 hover:bg-red-900/40 text-white border border-red-900/30"
-                                    : "bg-[#333333] hover:bg-[#404040] text-white border border-white/10"
-                            )}
-                            onClick={async () => {
-                                await confirmConfig.onConfirm();
-                                setConfirmConfig(prev => ({ ...prev, isOpen: false }));
-                            }}
-                        >
-                            {confirmConfig.confirmLabel || "Confirm"}
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+            <ConfirmDialog
+                config={confirmConfig}
+                onClose={hideConfirm}
+                onConfirm={handleConfirm}
+            />
         </div>
     )
 }
