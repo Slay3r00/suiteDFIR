@@ -10,13 +10,13 @@ interface CaseContextType {
 
 const CaseContext = createContext<CaseContextType | undefined>(undefined)
 
-import { useCasePersistedState } from '@/hooks/useCasePersistedState';
+import { usePersistedState } from '@/hooks/usePersistedState';
 
 export function CaseProvider({ children }: { children: React.ReactNode }) {
-    const [selectedCaseId, setSelectedCaseId] = useCasePersistedState<string | null>(
+    const [selectedCaseId, setSelectedCaseId] = usePersistedState<string | null>(
         'selectedCaseId',
         null,
-        'local'
+        typeof window !== 'undefined' ? localStorage : null
     );
     const [cases, setCases] = useState<Case[]>([])
 
