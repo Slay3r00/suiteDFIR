@@ -35,3 +35,4 @@ frontend/out/
 build.spec.spec
 package-lock.json
 backend/data/
+frontend/dist/
