@@ -7,7 +7,10 @@
 # - Electron app bundle
 # - DMG distributable
 
-set -e  # Exit on error
+# Set project root relative to script location
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+PROJECT_ROOT="$( cd "$SCRIPT_DIR/.." && pwd )"
+cd "$PROJECT_ROOT"
 
 echo "Building VDF Tools for macOS..."
 
@@ -18,7 +21,7 @@ cd backend
 source venv/bin/activate
 rm -rf build dist
 pyinstaller build.spec
-cd ..
+cd "$PROJECT_ROOT"
 echo "Backend built"
 
 # Step 2: Build Frontend
@@ -26,7 +29,7 @@ echo ""
 echo "Building frontend..."
 cd frontend
 npm run build
-cd ..
+cd "$PROJECT_ROOT"
 echo "Frontend built"
 
 # Step 3: Package Electron App
@@ -48,9 +51,7 @@ echo "  Copying helper binaries (macOS only)..."
 mkdir -p "$RESOURCES_PATH/bin"
 cp -R ../backend/bin/macos/* "$RESOURCES_PATH/bin/"
 
-echo "  Relinking and signing binaries for portability..."
-# Run from electron directory, script is in root scripts folder
-../scripts/relink_binaries.sh "$RESOURCES_PATH/bin"
+echo "  Signing binaries for portability..."
 codesign --force --deep --sign - "$RESOURCES_PATH/bin/"*
 
 

@@ -1,5 +1,9 @@
 #!/bin/bash
-set -e
+# Set project root relative to script location
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+PROJECT_ROOT="$( cd "$SCRIPT_DIR/.." && pwd )"
+cd "$PROJECT_ROOT"
+
 echo "Building VDF Tools for Linux..."
 
 # Step 1: Build Python backend
@@ -8,13 +12,13 @@ source venv/bin/activate
 echo "Building Python backend with PyInstaller..."
 rm -rf build dist
 pyinstaller build.spec
-cd ..
+cd "$PROJECT_ROOT"
 
 # Step 2: Build Frontend
 cd frontend
-echo "Building Next.js static export..."
-npm run build:static
-cd ..
+echo "Building frontend..."
+npm run build
+cd "$PROJECT_ROOT"
 
 # Step 3: Package Electron App
 cd electron

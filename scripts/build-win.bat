@@ -6,9 +6,9 @@ echo   VDF Tools Production Build (Windows)
 echo ==========================================
 
 REM --- Configuration ---
-set "BACKEND_DIR=%~dp0backend"
-set "FRONTEND_DIR=%~dp0frontend"
-set "ELECTRON_DIR=%~dp0electron"
+set "BACKEND_DIR=%~dp0..\backend"
+set "FRONTEND_DIR=%~dp0..\frontend"
+set "ELECTRON_DIR=%~dp0..\electron"
 set "BUILD_DIR=%ELECTRON_DIR%\out"
 
 REM Check for Python
