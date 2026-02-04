@@ -3,6 +3,7 @@ import sys
 import json
 import logging
 import asyncio
+import subprocess
 import importlib.util
 import platform
 from pathlib import Path
@@ -155,6 +156,18 @@ def get_binary_path(binary_name):
     return binary_name # subprocess will try to find it, but we warned. 
     # Ideally should raise, but helpers.py structure suggests returning string.
 
+def get_subprocess_startupinfo():
+    """
+    Returns a subprocess.STARTUPINFO object with SW_HIDE flag set
+    only if running on Windows. Returns None on other platforms.
+    """
+    if platform.system() == "Windows":
+        startupinfo = subprocess.STARTUPINFO()
+        startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+        startupinfo.wShowWindow = subprocess.SW_HIDE
+        return startupinfo
+    return None
+
 async def broadcast_event(event_type: str, data: dict):
     """Broadcast event to all connected clients"""
     if not event_clients:
@@ -195,7 +208,8 @@ async def get_device_details(udid: str):
         # Get Device Name
         proc_name = await asyncio.create_subprocess_exec(
             ideviceinfo_cmd, "-u", udid, "-k", "DeviceName",
-            stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
+            stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
+            startupinfo=get_subprocess_startupinfo()
         )
         stdout_name, _ = await proc_name.communicate()
         if proc_name.returncode == 0:
@@ -204,7 +218,8 @@ async def get_device_details(udid: str):
         # Get Product Type
         proc_type = await asyncio.create_subprocess_exec(
             ideviceinfo_cmd, "-u", udid, "-k", "ProductType",
-            stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
+            stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
+            startupinfo=get_subprocess_startupinfo()
         )
         stdout_type, _ = await proc_type.communicate()
         if proc_type.returncode == 0:
@@ -213,7 +228,8 @@ async def get_device_details(udid: str):
         # Check Encryption (com.apple.mobile.backup Domain)
         proc_enc = await asyncio.create_subprocess_exec(
             ideviceinfo_cmd, "-u", udid, "-q", "com.apple.mobile.backup",
-            stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
+            stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
+            startupinfo=get_subprocess_startupinfo()
         )
         stdout_enc, _ = await proc_enc.communicate()
         if proc_enc.returncode == 0:
@@ -235,7 +251,8 @@ async def get_connected_devices():
         idevice_id_cmd = get_binary_path("idevice_id")
         proc = await asyncio.create_subprocess_exec(
             idevice_id_cmd, "-l",
-            stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
+            stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
+            startupinfo=get_subprocess_startupinfo()
         )
         stdout, _ = await proc.communicate()
         
