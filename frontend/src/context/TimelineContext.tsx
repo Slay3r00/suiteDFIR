@@ -1,19 +1,15 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react'
-import type {
-    MRT_PaginationState,
-    MRT_SortingState,
-    MRT_ColumnFiltersState,
-    MRT_DensityState
-} from 'material-react-table'
+import type { PaginationState, SortingState, ColumnFiltersState } from '@tanstack/react-table'
+import type { MRT_DensityState } from '@/components/ui/DataTable'
 
 interface TimelineConfig {
     selectedReportId: number | 'all';
     selectedTimezone: string;
-    pagination: MRT_PaginationState;
-    sorting: MRT_SortingState;
+    pagination: PaginationState;
+    sorting: SortingState;
     globalFilter: string;
-    columnFilters: MRT_ColumnFiltersState;
+    columnFilters: ColumnFiltersState;
     density: MRT_DensityState;
     scrollPosition: number;
 }
