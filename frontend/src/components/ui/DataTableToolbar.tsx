@@ -9,6 +9,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/Select"
+import { cn } from "@/lib/utils"
 import type { MRT_DensityState } from "./DataTable"
 
 interface DataTableToolbarProps<TData> {
@@ -82,12 +83,15 @@ export function DataTableToolbar<TData>({
 
                 {/* Global search */}
                 <div className="relative">
-                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Search className={cn(
+                        "absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 transition-colors",
+                        globalFilter ? "text-white fill-white" : "text-muted-foreground"
+                    )} />
                     <Input
                         placeholder="Search..."
                         value={globalFilter}
                         onChange={(e) => onGlobalFilterChange(e.target.value)}
-                        className="h-8 w-[200px] pl-8 bg-[#1A1A1A] border-white/10"
+                        className="h-8 w-[200px] pl-8 bg-[#2b2b2b] border-white/10"
                     />
                 </div>
 
@@ -96,6 +100,7 @@ export function DataTableToolbar<TData>({
                     <Button
                         variant="ghost"
                         size="sm"
+                        data-sidebar-ignore="true"
                         className="h-8 w-8 p-0 bg-transparent border-none text-white/70 hover:text-white hover:bg-transparent flex items-center justify-center focus:ring-0 focus-visible:ring-0 shadow-none transition-colors"
                         onClick={() => onDensityChange(density === "compact" ? "comfortable" : "compact")}
                         aria-label={`Switch to ${density === "compact" ? "Normal" : "Compact"} density`}

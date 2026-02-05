@@ -112,13 +112,13 @@ export function DataTablePagination<TData>({
                             table.setPageSize(Number(value))
                         }}
                     >
-                        <SelectTrigger className="h-8 w-[70px] bg-[#1A1A1A] dark:bg-input/30 border-white/10 focus:ring-0 focus:ring-offset-0 focus-visible:ring-0">
+                        <SelectTrigger className="h-8 w-[80px] bg-[#2b2b2b] border-white/10 focus:ring-0 focus:ring-offset-0 focus-visible:ring-0">
                             <SelectValue placeholder={pageSize.toString()} />
                         </SelectTrigger>
                         <SelectContent
                             side="top"
                             align="start"
-                            className="bg-[#1A1A1A] dark:bg-input/30 backdrop-blur-md border-white/10 min-w-[70px]"
+                            className="bg-[#2b2b2b] border-white/10 min-w-[70px]"
                         >
                             {[10, 25, 50, 100].map((size) => (
                                 <SelectItem key={size} value={size.toString()}>
@@ -136,7 +136,7 @@ export function DataTablePagination<TData>({
                         value={pageInput}
                         onChange={(e) => setPageInput(e.target.value)}
                         onKeyDown={handleGoToPage}
-                        className="h-8 w-12 text-center bg-[#1A1A1A] border-white/10"
+                        className="h-8 w-12 text-center bg-[#2b2b2b] border-white/10"
                     />
                 </div>
             </div>
