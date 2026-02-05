@@ -244,6 +244,9 @@ export default function Timeline() {
                     }}
                     scrollPosition={config.scrollPosition}
                     onScroll={(pos) => updateConfig({ scrollPosition: pos })}
+                    selectedEvent={data.find(e => e.id === config.selectedEventId) ?? null}
+                    onRowClick={(event) => updateConfig({ selectedEventId: event.id })}
+                    onCloseSidebar={() => updateConfig({ selectedEventId: null })}
                     renderRightToolbar={() => (
                         <div className="flex items-center gap-4">
                             {/* Report Filter */}
@@ -255,7 +258,7 @@ export default function Timeline() {
                                     open={openDropdown === 'report'}
                                     onOpenChange={(open) => setOpenDropdown(open ? 'report' : null)}
                                 >
-                                    <SelectTrigger className="h-8 w-fit min-w-[140px] max-w-[250px] bg-[#1A1A1A] dark:bg-input/30 border-white/10 text-xs focus:!ring-0 focus:!ring-offset-0 px-2">
+                                    <SelectTrigger className="h-8 w-fit min-w-[140px] max-w-[250px] bg-[#2b2b2b] border-white/10 text-xs focus:!ring-0 focus:!ring-offset-0 px-2">
                                         <SelectValue placeholder="All Reports">
                                             {selectedReport === "all"
                                                 ? "All Reports"
@@ -265,7 +268,7 @@ export default function Timeline() {
                                             }
                                         </SelectValue>
                                     </SelectTrigger>
-                                    <SelectContent className="min-w-[200px] max-h-[300px] overflow-y-auto bg-[#1A1A1A] dark:bg-input/30 backdrop-blur-md border-white/10 text-white">
+                                    <SelectContent className="min-w-[200px] max-h-[300px] overflow-y-auto bg-[#2b2b2b] border-white/10 text-white">
                                         <SelectItem value="all">All Reports</SelectItem>
                                         {reports.map((report) => (
                                             <SelectItem key={report.id} value={String(report.id)}>
@@ -288,19 +291,19 @@ export default function Timeline() {
                                     open={openDropdown === 'timezone'}
                                     onOpenChange={(open) => setOpenDropdown(open ? 'timezone' : null)}
                                 >
-                                    <SelectTrigger className="h-8 w-fit min-w-[120px] max-w-[240px] bg-[#1A1A1A] dark:bg-input/30 border-white/10 text-xs focus:!ring-0 focus:!ring-offset-0 px-2">
+                                    <SelectTrigger className="h-8 w-fit min-w-[120px] max-w-[240px] bg-[#2b2b2b] border-white/10 text-xs focus:!ring-0 focus:!ring-offset-0 px-2">
                                         <SelectValue placeholder="UTC">
                                             {timezonesWithOffsets.find(t => t.id === selectedTimezone)?.label || selectedTimezone}
                                         </SelectValue>
                                     </SelectTrigger>
-                                    <SelectContent className="w-[250px] bg-[#1A1A1A] dark:bg-input/30 backdrop-blur-md border-white/10 text-white p-0">
+                                    <SelectContent className="w-[250px] bg-[#2b2b2b] border-white/10 text-white p-0">
                                         <div className="p-2 border-b border-white/5 sticky top-0 bg-transparent z-10">
                                             <Input
                                                 placeholder="Search timezones..."
                                                 value={tzSearch}
                                                 onChange={(e) => setTzSearch(e.target.value)}
                                                 onClick={(e) => e.stopPropagation()}
-                                                className="h-8 bg-white/5 border-white/10 text-xs"
+                                                className="h-8 bg-[#2b2b2b] border-white/10 text-xs"
                                             />
                                         </div>
                                         <div className="max-h-[300px] overflow-y-auto p-1">

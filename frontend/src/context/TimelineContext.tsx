@@ -12,6 +12,7 @@ interface TimelineConfig {
     columnFilters: ColumnFiltersState;
     density: MRT_DensityState;
     scrollPosition: number;
+    selectedEventId: number | null;
 }
 
 interface TimelineState {
@@ -38,6 +39,7 @@ const INITIAL_CONFIG: TimelineConfig = {
     columnFilters: [],
     density: 'compact',
     scrollPosition: 0,
+    selectedEventId: null,
 };
 
 export function TimelineProvider({ children }: { children: ReactNode }) {

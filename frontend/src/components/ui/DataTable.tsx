@@ -29,8 +29,9 @@ import { Input } from "./Input"
 import { ArrowUp, ArrowDown, ArrowUpDown, Filter, X } from "lucide-react"
 import { formatInTimeZone } from "date-fns-tz"
 import { mkConfig, generateCsv, download } from "export-to-csv"
-import { cn } from "@/lib/utils"
+import { cn, highlightText } from "@/lib/utils"
 import { type Column } from "@tanstack/react-table"
+import { TimelineDetailSidebar } from "./TimelineDetailSidebar"
 
 // Re-export the density type for compatibility
 export type MRT_DensityState = "compact" | "comfortable"
@@ -42,9 +43,11 @@ export type MRT_DensityState = "compact" | "comfortable"
 function ColumnFilterHeader<TData>({
     column,
     title,
+    align = "left",
 }: {
     column: Column<TData, unknown>
     title: React.ReactNode | string
+    align?: "left" | "right"
 }) {
     const [isOpen, setIsOpen] = useState(false)
     const [localValue, setLocalValue] = useState((column.getFilterValue() as string) ?? "")
@@ -101,17 +104,23 @@ function ColumnFilterHeader<TData>({
                     )}
                     aria-label={`Filter ${title}`}
                 >
-                    <Filter className="h-3.5 w-3.5" />
+                    <Filter className={cn(
+                        "h-3.5 w-3.5 transition-colors",
+                        hasFilter && "fill-white"
+                    )} />
                 </button>
                 {isOpen && (
-                    <div className="absolute z-50 top-full left-0 mt-1 p-2 bg-[#1A1A1A] border border-white/10 rounded-md shadow-lg min-w-[180px]">
+                    <div className={cn(
+                        "absolute z-50 top-full mt-1 p-2 bg-[#2b2b2b] border border-white/10 rounded-md shadow-lg min-w-[180px]",
+                        align === "right" ? "right-0" : "left-0"
+                    )}>
                         <div className="flex items-center gap-1">
                             <Input
                                 ref={inputRef}
                                 value={localValue}
                                 onChange={(e) => setLocalValue(e.target.value)}
                                 placeholder={`Filter ${title}...`}
-                                className="h-7 text-xs bg-white/5 border-white/10"
+                                className="h-7 text-xs bg-[#2b2b2b] border-white/10 focus:ring-0"
                                 onKeyDown={(e) => {
                                     if (e.key === "Enter") setIsOpen(false)
                                     if (e.key === "Escape") {
@@ -193,6 +202,10 @@ interface DataTableProps {
     onScroll?: (pos: number) => void
     renderLeftToolbar?: () => React.ReactNode
     renderRightToolbar?: () => React.ReactNode
+    // Sidebar props
+    selectedEvent?: TimelineEvent | null
+    onRowClick?: (event: TimelineEvent) => void
+    onCloseSidebar?: () => void
 }
 
 export function DataTable({
@@ -215,11 +228,28 @@ export function DataTable({
     onScroll,
     renderLeftToolbar,
     renderRightToolbar,
+    selectedEvent,
+    onRowClick,
+    onCloseSidebar,
 }: DataTableProps) {
     const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
     const tableContainerRef = useRef<HTMLDivElement>(null)
     const hasRestoredScroll = useRef(false)
     const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+
+    // Build search terms array for highlighting - use ref to avoid column recreation
+    const searchTermsRef = useRef<string[]>([])
+    const searchTerms = useMemo(() => {
+        const terms: string[] = []
+        if (globalFilter) terms.push(globalFilter)
+        columnFilters.forEach(f => {
+            if (f.value && typeof f.value === 'string') terms.push(f.value)
+        })
+        return terms
+    }, [globalFilter, columnFilters])
+
+    // Update ref whenever searchTerms changes - the ref is read by cell renderers
+    searchTermsRef.current = searchTerms
 
     // Build columns with timezone-aware date formatting
     const columns = useMemo<ColumnDef<TimelineEvent>[]>(
@@ -282,16 +312,19 @@ export function DataTable({
                     if (!val) return ""
 
                     const date = parseForensicDate(val)
-                    if (isNaN(date.getTime())) return val
+                    if (isNaN(date.getTime())) return highlightText(val, searchTermsRef.current)
 
+                    let formatted: string
                     if (selectedTimezone) {
                         try {
-                            return formatInTimeZone(date, selectedTimezone, "MMM d, yyyy h:mm:ss a zzz")
+                            formatted = formatInTimeZone(date, selectedTimezone, "MMM d, yyyy h:mm:ss a zzz")
                         } catch {
-                            return date.toLocaleString()
+                            formatted = date.toLocaleString()
                         }
+                    } else {
+                        formatted = date.toLocaleString()
                     }
-                    return date.toLocaleString()
+                    return highlightText(formatted, searchTermsRef.current)
                 },
                 size: 220,
             },
@@ -300,6 +333,10 @@ export function DataTable({
                 header: ({ column }) => <ColumnFilterHeader column={column} title="Artifact" />,
                 size: 150,
                 enableSorting: false,
+                cell: ({ cell }) => {
+                    const val = cell.getValue<string>()
+                    return val ? highlightText(val, searchTermsRef.current) : ""
+                },
             },
             {
                 accessorKey: "description",
@@ -355,7 +392,7 @@ export function DataTable({
                                     <span className="font-semibold text-muted-foreground mr-1">
                                         {k}:
                                     </span>
-                                    <span className="text-foreground">{formatValue(v)}</span>
+                                    <span className="text-foreground">{highlightText(formatValue(v), searchTermsRef.current)}</span>
                                     {i < entries.length - 1 ? ", " : ""}
                                 </span>
                             ))}
@@ -365,9 +402,13 @@ export function DataTable({
             },
             {
                 accessorKey: "source",
-                header: ({ column }) => <ColumnFilterHeader column={column} title="Source" />,
+                header: ({ column }) => <ColumnFilterHeader column={column} title="Source" align="right" />,
                 enableSorting: false,
                 size: 120,
+                cell: ({ cell }) => {
+                    const val = cell.getValue<string>()
+                    return val ? highlightText(val, searchTermsRef.current) : ""
+                },
             },
         ],
         [selectedTimezone]
@@ -499,75 +540,95 @@ export function DataTable({
                 renderRightToolbar={renderRightToolbar}
             />
 
-            {/* Table container with scroll */}
-            <div
-                ref={tableContainerRef}
-                className="flex-1 overflow-auto custom-scrollbar"
-            >
-                <Table style={{ tableLayout: density === "compact" ? "auto" : "fixed" }}>
-                    <TableHeader className="bg-[#212121] z-20">
-                        {table.getHeaderGroups().map((headerGroup) => (
-                            <TableRow key={headerGroup.id} className="border-none hover:bg-transparent">
-                                {headerGroup.headers.map((header) => (
-                                    <TableHead
-                                        key={header.id}
-                                        style={{ width: density === "compact" ? "auto" : header.getSize() }}
-                                        className="bg-[#212121] text-white border-b border-white/10 sticky top-0 z-20 shadow-[0_1px_0_rgba(255,255,255,0.1)] whitespace-nowrap"
-                                    >
-                                        {header.isPlaceholder
-                                            ? null
-                                            : flexRender(
-                                                header.column.columnDef.header,
-                                                header.getContext()
-                                            )}
-                                    </TableHead>
-                                ))}
-                            </TableRow>
-                        ))}
-                    </TableHeader>
-                    <TableBody>
-                        {isLoading ? (
-                            <TableRow>
-                                <TableCell
-                                    colSpan={columns.length}
-                                    className="h-24 text-center text-muted-foreground"
-                                >
-                                    Loading...
-                                </TableCell>
-                            </TableRow>
-                        ) : table.getRowModel().rows?.length ? (
-                            table.getRowModel().rows.map((row) => (
-                                <TableRow
-                                    key={row.id}
-                                    data-state={row.getIsSelected() && "selected"}
-                                    className={cn("bg-[#1A1A1A] transition-all", densityStyles.rowClass)}
-                                >
-                                    {row.getVisibleCells().map((cell) => (
-                                        <TableCell
-                                            key={cell.id}
-                                            style={{ width: density === "compact" ? "auto" : cell.column.getSize() }}
-                                            className={cn(densityStyles.cellClass, densityStyles.fontSize)}
+            {/* Table container with scroll and sidebar */}
+            <div className="flex-1 min-h-0 relative overflow-hidden">
+                <div
+                    ref={tableContainerRef}
+                    className={cn(
+                        "h-full overflow-auto custom-scrollbar",
+                        selectedEvent ? "pr-[400px]" : ""
+                    )}
+                >
+                    <Table style={{ tableLayout: density === "compact" ? "auto" : "fixed" }}>
+                        <TableHeader className="bg-[#212121] z-20">
+                            {table.getHeaderGroups().map((headerGroup) => (
+                                <TableRow key={headerGroup.id} className="border-none hover:bg-transparent">
+                                    {headerGroup.headers.map((header) => (
+                                        <TableHead
+                                            key={header.id}
+                                            style={{ width: density === "compact" ? "auto" : header.getSize() }}
+                                            className="bg-[#212121] text-white border-b border-white/10 sticky top-0 z-20 focus-within:z-30 shadow-[0_1px_0_rgba(255,255,255,0.1)] whitespace-nowrap"
                                         >
-                                            {flexRender(
-                                                cell.column.columnDef.cell,
-                                                cell.getContext()
-                                            )}
-                                        </TableCell>
+                                            {header.isPlaceholder
+                                                ? null
+                                                : flexRender(
+                                                    header.column.columnDef.header,
+                                                    header.getContext()
+                                                )}
+                                        </TableHead>
                                     ))}
                                 </TableRow>
-                            ))
-                        ) : (
-                            <TableRow>
-                                <TableCell
-                                    colSpan={columns.length}
-                                    className="h-24 text-center text-muted-foreground"
-                                >
-                                    No results.
-                                </TableCell>
-                            </TableRow>
-                        )}
-                    </TableBody>
-                </Table>
+                            ))}
+                        </TableHeader>
+                        <TableBody key={searchTerms.join('|')}>
+                            {isLoading ? (
+                                <TableRow>
+                                    <TableCell
+                                        colSpan={columns.length}
+                                        className="h-24 text-center text-muted-foreground"
+                                    >
+                                        Loading...
+                                    </TableCell>
+                                </TableRow>
+                            ) : table.getRowModel().rows?.length ? (
+                                table.getRowModel().rows.map((row) => (
+                                    <TableRow
+                                        key={row.id}
+                                        data-row-id={row.original.id}
+                                        data-state={row.getIsSelected() && "selected"}
+                                        onClick={() => onRowClick?.(row.original)}
+                                        className={cn(
+                                            "bg-[#1A1A1A] transition-all cursor-pointer",
+                                            densityStyles.rowClass,
+                                            selectedEvent?.id === row.original.id && "bg-white/5",
+                                            "hover:bg-white/[0.03]"
+                                        )}
+                                    >
+                                        {row.getVisibleCells().map((cell) => (
+                                            <TableCell
+                                                key={cell.id}
+                                                style={{ width: density === "compact" ? "auto" : cell.column.getSize() }}
+                                                className={cn(densityStyles.cellClass, densityStyles.fontSize)}
+                                            >
+                                                {flexRender(
+                                                    cell.column.columnDef.cell,
+                                                    cell.getContext()
+                                                )}
+                                            </TableCell>
+                                        ))}
+                                    </TableRow>
+                                ))
+                            ) : (
+                                <TableRow>
+                                    <TableCell
+                                        colSpan={columns.length}
+                                        className="h-24 text-center text-muted-foreground"
+                                    >
+                                        No results.
+                                    </TableCell>
+                                </TableRow>
+                            )}
+                        </TableBody>
+                    </Table>
+                </div>
+
+                {/* Detail Sidebar */}
+                <TimelineDetailSidebar
+                    event={selectedEvent ?? null}
+                    isOpen={!!selectedEvent}
+                    onClose={() => onCloseSidebar?.()}
+                    selectedTimezone={selectedTimezone}
+                />
             </div>
 
             {/* Pagination */}
