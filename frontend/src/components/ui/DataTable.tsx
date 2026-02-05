@@ -570,17 +570,8 @@ export function DataTable({
                                 </TableRow>
                             ))}
                         </TableHeader>
-                        <TableBody key={searchTerms.join('|')}>
-                            {isLoading ? (
-                                <TableRow>
-                                    <TableCell
-                                        colSpan={columns.length}
-                                        className="h-24 text-center text-muted-foreground"
-                                    >
-                                        Loading...
-                                    </TableCell>
-                                </TableRow>
-                            ) : table.getRowModel().rows?.length ? (
+                        <TableBody>
+                            {table.getRowModel().rows?.length ? (
                                 table.getRowModel().rows.map((row) => (
                                     <TableRow
                                         key={row.id}
@@ -608,6 +599,15 @@ export function DataTable({
                                         ))}
                                     </TableRow>
                                 ))
+                            ) : isLoading ? (
+                                <TableRow>
+                                    <TableCell
+                                        colSpan={columns.length}
+                                        className="h-24 text-center text-muted-foreground"
+                                    >
+                                        Loading...
+                                    </TableCell>
+                                </TableRow>
                             ) : (
                                 <TableRow>
                                     <TableCell

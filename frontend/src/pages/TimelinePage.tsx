@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo, useRef } from "react"
 import { DataTable, TimelineEvent } from "@/components/ui/DataTable"
 import { useCase } from "@/context/CaseContext"
 import {
@@ -11,6 +11,7 @@ import {
 import { Input } from "@/components/ui/Input"
 import { useTimeline } from "@/context/TimelineContext"
 import { API } from "@/lib/api"
+import { LoadingPage } from "@/components/ui/LoadingPage"
 
 interface Report {
     id: number
@@ -39,6 +40,7 @@ export default function Timeline() {
     const [reports, setReports] = useState<Report[]>([])
     const [tzSearch, setTzSearch] = useState("")
     const [openDropdown, setOpenDropdown] = useState<'report' | 'timezone' | null>(null)
+    const hasInitiallyLoaded = useRef(false)
 
     const timezonesWithOffsets = useMemo(() => {
         let tzs: string[] = [];
@@ -164,6 +166,7 @@ export default function Timeline() {
                     const result = await res.json()
                     setData(result.events || [])
                     setTotalCount(result.total || 0)
+                    hasInitiallyLoaded.current = true
                 }
             } catch (error) {
                 console.error("Error fetching timeline:", error)
@@ -174,6 +177,12 @@ export default function Timeline() {
 
         fetchData()
     }, [selectedCaseId, pagination, sorting, selectedReport, globalFilter, columnFilters, isLoaded])
+
+    // Show unified loading state during initial load only
+    // Show LoadingPage until we've successfully loaded data at least once
+    if (!hasInitiallyLoaded.current && (!isLoaded || !selectedCaseId || isLoading || data.length === 0)) {
+        return <LoadingPage />
+    }
 
     const handleExportAll = async () => {
         if (!selectedCaseId) return
@@ -258,7 +267,10 @@ export default function Timeline() {
                                     open={openDropdown === 'report'}
                                     onOpenChange={(open) => setOpenDropdown(open ? 'report' : null)}
                                 >
-                                    <SelectTrigger className="h-8 w-fit min-w-[140px] max-w-[250px] bg-[#2b2b2b] border-white/10 text-xs focus:!ring-0 focus:!ring-offset-0 px-2">
+                                    <SelectTrigger
+                                        data-sidebar-ignore="true"
+                                        className="h-8 w-fit min-w-[140px] max-w-[250px] bg-[#2b2b2b] border-white/10 text-xs focus:!ring-0 focus:!ring-offset-0 px-2"
+                                    >
                                         <SelectValue placeholder="All Reports">
                                             {selectedReport === "all"
                                                 ? "All Reports"
@@ -268,7 +280,10 @@ export default function Timeline() {
                                             }
                                         </SelectValue>
                                     </SelectTrigger>
-                                    <SelectContent className="min-w-[200px] max-h-[300px] overflow-y-auto bg-[#2b2b2b] border-white/10 text-white">
+                                    <SelectContent
+                                        data-sidebar-ignore="true"
+                                        className="min-w-[200px] max-h-[300px] overflow-y-auto bg-[#2b2b2b] border-white/10 text-white"
+                                    >
                                         <SelectItem value="all">All Reports</SelectItem>
                                         {reports.map((report) => (
                                             <SelectItem key={report.id} value={String(report.id)}>
@@ -291,12 +306,18 @@ export default function Timeline() {
                                     open={openDropdown === 'timezone'}
                                     onOpenChange={(open) => setOpenDropdown(open ? 'timezone' : null)}
                                 >
-                                    <SelectTrigger className="h-8 w-fit min-w-[120px] max-w-[240px] bg-[#2b2b2b] border-white/10 text-xs focus:!ring-0 focus:!ring-offset-0 px-2">
+                                    <SelectTrigger
+                                        data-sidebar-ignore="true"
+                                        className="h-8 w-fit min-w-[120px] max-w-[240px] bg-[#2b2b2b] border-white/10 text-xs focus:!ring-0 focus:!ring-offset-0 px-2"
+                                    >
                                         <SelectValue placeholder="UTC">
                                             {timezonesWithOffsets.find(t => t.id === selectedTimezone)?.label || selectedTimezone}
                                         </SelectValue>
                                     </SelectTrigger>
-                                    <SelectContent className="w-[250px] bg-[#2b2b2b] border-white/10 text-white p-0">
+                                    <SelectContent
+                                        data-sidebar-ignore="true"
+                                        className="w-[250px] bg-[#2b2b2b] border-white/10 text-white p-0"
+                                    >
                                         <div className="p-2 border-b border-white/5 sticky top-0 bg-transparent z-10">
                                             <Input
                                                 placeholder="Search timezones..."
