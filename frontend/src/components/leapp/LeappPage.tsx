@@ -88,10 +88,10 @@ function LeappContent({ tool }: { tool: 'ileapp' | 'aleapp' }) {
     useEffect(() => {
         const currentToolState = states[tool];
         // Only fetch if not currently processing AND not already loaded
-        if (currentToolState.modules.length === 0 && !currentToolState.isLoadingModules && !processing.isProcessing) {
+        if (currentToolState.modules.length === 0 && !currentToolState.isLoadingModules) {
             fetchModules(tool);
         }
-    }, [tool, fetchModules, states, processing.isProcessing]);
+    }, [tool, fetchModules, states]);
 
 
 
