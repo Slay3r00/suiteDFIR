@@ -6,6 +6,7 @@
 
 const { protocol, net } = require('electron');
 const path = require('path');
+const url = require('url');
 const config = require('./config');
 const logger = require('./logger');
 
@@ -34,8 +35,8 @@ function registerHandler() {
     logger.info('Registering app:// protocol, distDir:', distDir);
 
     protocol.handle('app', (request) => {
-        const url = new URL(request.url);
-        let filePath = url.pathname;
+        const requestUrl = new URL(request.url);
+        let filePath = requestUrl.pathname;
 
         // Remove leading ./ if present (from relative URLs)
         if (filePath.startsWith('./')) {
@@ -54,9 +55,10 @@ function registerHandler() {
         }
 
         const absolutePath = path.join(distDir, filePath);
-        logger.debug('Protocol request:', request.url, '->', absolutePath);
+        const fileUrl = url.pathToFileURL(absolutePath).href;
+        logger.debug('Protocol request:', request.url, '->', absolutePath, '->', fileUrl);
 
-        return net.fetch(`file://${absolutePath}`);
+        return net.fetch(fileUrl);
     });
 }
 
