@@ -4,19 +4,25 @@ module.exports = {
     executableName: 'vdf-tools',
     asar: true,
   },
-  makers: [
     // macOS DMG
     {
-      name: '@electron-forge/maker-dmg',
-      config: {
-        name: 'VDF Tools',
-        format: 'ULFO',
+  name: '@electron-forge/maker-dmg',
+    config: {
+    name: 'VDF Tools',
+      format: 'ULFO',
       },
-    },
-    // macOS ZIP (as fallback)
-    {
-      name: '@electron-forge/maker-zip',
-      platforms: ['darwin'],
+},
+// Windows Squirrel
+{
+  name: '@electron-forge/maker-squirrel',
+    config: {
+    name: 'vdf_tools',
+      },
+},
+// ZIP (macOS + Windows as portable)
+{
+  name: '@electron-forge/maker-zip',
+    platforms: ['darwin', 'win32'],
     },
   ],
 };
