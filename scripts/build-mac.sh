@@ -20,7 +20,7 @@ echo "Building Python backend..."
 cd backend
 source venv/bin/activate
 rm -rf build dist
-pyinstaller build.spec
+pyinstaller vdf-backend.spec
 cd "$PROJECT_ROOT"
 echo "Backend built"
 

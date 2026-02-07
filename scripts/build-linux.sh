@@ -11,7 +11,7 @@ cd backend
 source venv/bin/activate
 echo "Building Python backend with PyInstaller..."
 rm -rf build dist
-pyinstaller build.spec
+pyinstaller vdf-backend.spec
 cd "$PROJECT_ROOT"
 
 # Step 2: Build Frontend
