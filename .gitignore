@@ -19,7 +19,7 @@ backend/build/
 backend/dist/
 backend/venv/
 backend/*.spec
-!backend/build.spec
+!backend/vdf-backend.spec
 electron/out/
 frontend/.next/
 frontend/out/
