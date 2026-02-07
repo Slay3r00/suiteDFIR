@@ -64,8 +64,8 @@ class BackupManager:
         
         # Create DB entry
         backup_id = await db_execute_return_id(
-            "INSERT INTO backups (name, device_udid, device_name, path, status, password, case_id) VALUES (?, ?, ?, ?, ?, ?, ?)",
-            (request.name, request.udid, device['name'], backup_path, 'in_progress', request.password, request.case_id)
+            "INSERT INTO backups (name, device_udid, device_name, path, status, password, case_id, type) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (request.name, request.udid, device['name'], backup_path, 'in_progress', request.password, request.case_id, 'ios')
         )
 
         # Initialize task queue for SSE streaming (maxsize prevents unbounded memory growth)

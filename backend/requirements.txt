@@ -72,5 +72,5 @@ fitdecode==0.10.0
 # Build Tools (for PyInstaller bundling)
 # =============================================================================
 
-pyinstaller
+pyinstaller==6.17.0
 wheel
