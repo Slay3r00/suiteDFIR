@@ -52,10 +52,10 @@ echo.
 echo [2/5] Building Frontend (Static Export)...
 cd "%FRONTEND_DIR%"
 call npm install
-call npm run build:static
+call npm run build
 
-if not exist out (
-    echo [ERROR] Frontend build failed. 'out' directory not found.
+if not exist dist (
+    echo [ERROR] Frontend build failed. 'dist' directory not found.
     exit /b 1
 )
 echo   Frontend built successfully.
@@ -88,8 +88,8 @@ if not exist "%RESOURCES_PATH%\VDF Tools Backend" mkdir "%RESOURCES_PATH%\VDF To
 xcopy /E /I /Y /Q "%BACKEND_DIR%\dist\VDF Tools Backend" "%RESOURCES_PATH%\VDF Tools Backend"
 
 echo   Copying Frontend...
-if not exist "%RESOURCES_PATH%\out" mkdir "%RESOURCES_PATH%\out"
-xcopy /E /I /Y /Q "%FRONTEND_DIR%\out" "%RESOURCES_PATH%\out"
+if not exist "%RESOURCES_PATH%\dist" mkdir "%RESOURCES_PATH%\dist"
+xcopy /E /I /Y /Q "%FRONTEND_DIR%\dist" "%RESOURCES_PATH%\dist"
 
 echo   Copying Binaries...
 if not exist "%RESOURCES_PATH%\bin" mkdir "%RESOURCES_PATH%\bin"
