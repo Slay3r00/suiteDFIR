@@ -179,10 +179,10 @@ if __name__ == "__main__":
         if is_bundled:
             uvicorn.run(app, host="0.0.0.0", port=port)
         else:
-            uvicorn.run("main:app", host="0.0.0.0", port=port, reload=True)
+            uvicorn.run("main:app", host="0.0.0.0", port=port, reload=False)
     else:
         # Standard port binding
         if is_bundled:
             uvicorn.run(app, host="0.0.0.0", port=args.port)
         else:
-            uvicorn.run("main:app", host="0.0.0.0", port=args.port, reload=True)
+            uvicorn.run("main:app", host="0.0.0.0", port=args.port, reload=False)
