@@ -2,6 +2,11 @@ import os
 import sys
 import asyncio
 import logging
+
+# On Windows, the ProactorEventLoop is required for subprocess support
+if sys.platform == 'win32':
+    asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -25,7 +30,8 @@ from utils.device_watcher import start_device_watcher, stop_device_watcher
 from services.case_manager import case_manager
 
 # Setup logging
-setup_logging()
+log_level = logging.DEBUG if not getattr(sys, 'frozen', False) else logging.INFO
+setup_logging(level=log_level)
 logger = logging.getLogger(__name__)
 
 @asynccontextmanager
@@ -39,6 +45,8 @@ async def lifespan(app: FastAPI):
     load_plugins()
     
     # Start device watcher for real-time iOS device detection
+    loop = asyncio.get_running_loop()
+    logger.info(f"Using event loop: {loop.__class__.__name__}")
     await start_device_watcher()
     logger.info("Device watcher started")
     

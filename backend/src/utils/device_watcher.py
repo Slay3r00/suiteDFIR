@@ -97,4 +97,3 @@ async def stop_device_watcher():
             pass
         _watcher_task = None
         logger.info("Device watcher stopped")
-
