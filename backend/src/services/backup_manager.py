@@ -316,6 +316,7 @@ class BackupManager:
 
         try:
             result = check_backup_encryption(input_path)
+            logger.info(f"Validation result for {input_path}: {result}")
 
             if "error" in result:
                 logger.warning(f"Validation error: {result['error']}")

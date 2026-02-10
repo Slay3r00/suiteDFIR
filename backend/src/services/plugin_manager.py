@@ -99,6 +99,9 @@ def load_plugins():
                 tool_subdir = config.get("subdir", tool_id)
                 tool_path = os.path.join(TOOLS_DIR, "leapp-tools", tool_subdir)
                 logger.info(f"Using derived path: {tool_path}")
+
+            # Store the determined path in config so helpers.py can use it
+            config['path'] = tool_path
             
             if not os.path.exists(tool_path):
                 logger.warning(f"{config['name']} path not found: {tool_path}")

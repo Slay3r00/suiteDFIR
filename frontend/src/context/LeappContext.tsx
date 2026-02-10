@@ -11,6 +11,7 @@ interface ProcessingState {
     taskId: string | null;
     processingReportName: string | null;
     encryptionDetected: boolean;
+    passwordProvided: boolean;
 }
 
 interface ToolConfig {
@@ -56,7 +57,8 @@ const INITIAL_PROCESSING: ProcessingState = {
     progress: { current: 0, total: 0 },
     taskId: null,
     processingReportName: null,
-    encryptionDetected: false
+    encryptionDetected: false,
+    passwordProvided: false
 };
 
 const INITIAL_CONFIG: ToolConfig = {
@@ -276,7 +278,7 @@ export function LeappProvider({ children }: { children: ReactNode }) {
                     let nextProgress = toolState.processing.progress;
                     let nextEnc = toolState.processing.encryptionDetected;
 
-                    if (message.includes("Detected encrypted iTunes backup")) {
+                    if (message.includes("Detected encrypted iTunes backup") && !toolState.processing.passwordProvided) {
                         nextEnc = true;
                     }
 
@@ -370,6 +372,7 @@ export function LeappProvider({ children }: { children: ReactNode }) {
             logs: [],
             progress: { current: 0, total: 0 },
             encryptionDetected: false,
+            passwordProvided: !!password,
             isProcessing: true,
             processingReportName: reportName || null
         });

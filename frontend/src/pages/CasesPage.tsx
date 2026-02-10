@@ -156,9 +156,8 @@ export default function CasesPage() {
         <div className="h-full flex flex-col bg-[#151515] text-white overflow-hidden">
             {/* Header */}
             <div className="px-8 py-6 bg-[#151515] flex justify-between items-center shrink-0">
-                <div className="flex items-center">
-                    <img src="/vdf-logo-dark.png" alt="VDF Tools" className="h-8 w-auto grayscale invert" />
-                </div>
+                <div />
+
                 <Button
                     size="sm"
                     onClick={handleOpenCreate}

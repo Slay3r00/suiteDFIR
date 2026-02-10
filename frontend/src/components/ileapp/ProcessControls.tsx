@@ -62,6 +62,15 @@ export default function ProcessControls({ tool, inputFile, outputFolder, reportN
       const api = createLeappApi('ios');
       const validation = await api.processing.validateBackup(inputFile);
 
+      if (!validation.valid) {
+        toast({
+          title: "Validation Failed",
+          description: validation.error || "The selected folder is not a valid backup.",
+          variant: "destructive"
+        });
+        return;
+      }
+
       if (validation.encrypted) {
         setShowPasswordDialog(true);
       } else {
@@ -70,9 +79,11 @@ export default function ProcessControls({ tool, inputFile, outputFolder, reportN
       }
     } catch (error) {
       console.error("Validation failed:", error);
-      // If validation fails (e.g. not a backup folder), just try to process anyway
-      // It might be a zip or tar that the validator doesn't handle yet
-      await startProcessing(tool, inputFile, outputFolder, uniqueName, undefined, caseId);
+      toast({
+        title: "Validation Error",
+        description: "An error occurred while validating the backup. Please check logs.",
+        variant: "destructive"
+      });
     } finally {
       setIsValidating(false);
     }
