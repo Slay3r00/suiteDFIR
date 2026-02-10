@@ -24,8 +24,8 @@ cd "$PROJECT_ROOT"
 cd electron
 echo "Packaging Electron application..."
 rm -rf out dist
-npm install
-npx electron-builder --dir --linux
+yarn install
+yarn run electron-builder --dir --linux
 
 # Copy resources manually
 APP_PATH="out/linux-unpacked"
@@ -42,13 +42,13 @@ mkdir -p "$RESOURCES_PATH/bin"
 cp -R ../backend/bin/linux/* "$RESOURCES_PATH/bin/"
 
 # Copy frontend static files
-cp -R ../frontend/out "$RESOURCES_PATH/"
+cp -R ../frontend/dist "$RESOURCES_PATH/"
 
 # Create reports directory
 mkdir -p "$RESOURCES_PATH/reports"
 
 echo "Creating AppImage..."
 # Step 4: Create AppImage
-npx electron-builder --linux AppImage --prepackaged "$APP_PATH"
+yarn run electron-builder --linux AppImage --prepackaged "$APP_PATH"
 
 echo "Build complete! AppImage should be in electron/out/"
