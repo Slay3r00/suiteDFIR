@@ -173,7 +173,7 @@ export default function CasesPage() {
                 <div className="relative flex-1 max-w-md">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={16} />
                     <Input
-                        placeholder="Search cases..."
+                        placeholder="Search..."
                         className="pl-9 bg-[#1A1A1A] border-[#333333] text-white placeholder:text-gray-500 focus-visible:ring-1 focus-visible:ring-gray-500"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
