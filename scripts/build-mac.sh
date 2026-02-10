@@ -36,12 +36,12 @@ echo "Frontend built"
 echo ""
 echo "Packaging Electron app..."
 cd electron
-rm -rf out
+rm -rf out dist
 npm install
-npx electron-forge package
+npx electron-builder --dir --mac
 
 # Copy resources manually (extraResource doesn't work reliably)
-APP_PATH="out/vdf-tools-darwin-arm64/vdf-tools.app"
+APP_PATH="out/mac-arm64/vdf-tools.app"
 RESOURCES_PATH="$APP_PATH/Contents/Resources"
 
 echo "  Copying Python backend..."
@@ -66,7 +66,7 @@ echo "Electron app packaged"
 # Step 4: Create DMG
 echo ""
 echo "Creating DMG distributable..."
-npx electron-forge make --skip-package
+npx electron-builder --mac dmg --prepackaged "$APP_PATH"
 echo "DMG created"
 
 # Done
@@ -74,6 +74,6 @@ echo ""
 echo "Build complete"
 echo ""
 echo "Output files:"
-echo "  - Electron .app: electron/out/vdf-tools-darwin-arm64/vdf-tools.app"
-echo "  - DMG Installer: electron/out/make/vdf-tools-0.1.0-arm64.dmg"
+echo "  - Electron .app: electron/out/mac-arm64/vdf-tools.app"
+echo "  - DMG Installer: electron/out/"
 

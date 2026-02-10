@@ -23,12 +23,12 @@ cd "$PROJECT_ROOT"
 # Step 3: Package Electron App
 cd electron
 echo "Packaging Electron application..."
-rm -rf out
+rm -rf out dist
 npm install
-npx electron-forge package
+npx electron-builder --dir --linux
 
 # Copy resources manually
-APP_PATH="out/VDF Tools-linux-x64"
+APP_PATH="out/linux-unpacked"
 RESOURCES_PATH="$APP_PATH/resources"
 
 echo "Copying resources to Electron app..."
@@ -49,6 +49,6 @@ mkdir -p "$RESOURCES_PATH/reports"
 
 echo "Creating AppImage..."
 # Step 4: Create AppImage
-npx electron-forge make --skip-package
+npx electron-builder --linux AppImage --prepackaged "$APP_PATH"
 
-echo "✅ Build complete! AppImage should be in electron/out/make/"
+echo "Build complete! AppImage should be in electron/out/"

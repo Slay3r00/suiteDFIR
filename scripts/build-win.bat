@@ -65,11 +65,12 @@ echo.
 echo [3/5] Packaging Electron App...
 cd "%ELECTRON_DIR%"
 if exist out rd /s /q out
+if exist dist rd /s /q dist
 call npm install
-call npx electron-forge package
+call npx electron-builder --dir --win
 
 REM Find the output directory (handling version/arch variations)
-for /d %%D in ("out\vdf-tools-win32-*") do set "APP_ROOT=%ELECTRON_DIR%\%%D"
+set "APP_ROOT=%ELECTRON_DIR%\out\win-unpacked"
 
 if not defined APP_ROOT (
     echo [ERROR] Electron package failed. Output directory not found.
@@ -107,12 +108,12 @@ echo.
 echo [5/5] Creating Installer...
 cd "%ELECTRON_DIR%"
 REM Explicitly set platform/arch to avoid "paths[0] undefined" resolution errors
-call npx electron-forge make --skip-package --platform win32 --arch x64
+call npx electron-builder --win nsis --prepackaged "%APP_ROOT%"
 
 echo.
 echo ==========================================
 echo   Build Complete!
 echo ==========================================
 echo.
-echo Output artifacts should be in: electron\out\make
+echo Output artifacts should be in: electron\out\
 pause
