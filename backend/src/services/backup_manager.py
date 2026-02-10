@@ -28,7 +28,7 @@ class BackupManager:
         if not case_id:
             return []
         return await db_fetch_all(
-            "SELECT id, name, device_udid as udid, device_name, path, created_at, status, size, progress, type, case_id FROM backups WHERE case_id = ? ORDER BY created_at DESC",
+            "SELECT id, name, device_udid, device_name, path, created_at, status, size, progress, type, case_id FROM backups WHERE case_id = ? ORDER BY created_at DESC",
             (case_id,)
         )
 
