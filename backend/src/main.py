@@ -80,6 +80,15 @@ async def global_exception_handler(request, exc):
         content={"detail": f"Internal Server Error: {str(exc)}"},
     )
 
+# Configure CORS - MUST be before route registration so middleware wraps all handlers
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 # Include Routers
 app.include_router(system.router)
 app.include_router(cases.router)
@@ -90,16 +99,6 @@ app.include_router(processing.router)
 app.include_router(backups.router)
 app.include_router(timeline.router)
 app.include_router(tools.router)
-
-
-# Configure CORS
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
 from core.config import TOOLS_CONFIG, REPORTS_DIR, BACKUPS_DIR, TOOLS_DIR
 
@@ -128,8 +127,8 @@ if __name__ == "__main__":
         # Force unbuffered stdout/stderr
         # This is critical for real-time log streaming in the bundled app
         try:
-            sys.stdout.reconfigure(line_buffering=True)
-            sys.stderr.reconfigure(line_buffering=True)
+            sys.stdout.reconfigure(encoding='utf-8', line_buffering=True)
+            sys.stderr.reconfigure(encoding='utf-8', line_buffering=True)
         except AttributeError:
              pass # In case not available, though Python 3.12 supports it
         

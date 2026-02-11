@@ -201,7 +201,7 @@ async def get_device_details(udid: str):
 
     def run_ideviceinfo(args):
         cmd = [get_binary_path("ideviceinfo")] + args
-        return subprocess.run(cmd, capture_output=True, text=True, startupinfo=get_subprocess_startupinfo())
+        return subprocess.run(cmd, capture_output=True, encoding='utf-8', errors='replace', startupinfo=get_subprocess_startupinfo())
 
     try:
         # Get Device Name
@@ -232,7 +232,7 @@ async def get_connected_devices():
     
     def list_udids():
         cmd = [get_binary_path("idevice_id"), "-l"]
-        return subprocess.run(cmd, capture_output=True, text=True, startupinfo=get_subprocess_startupinfo())
+        return subprocess.run(cmd, capture_output=True, encoding='utf-8', errors='replace', startupinfo=get_subprocess_startupinfo())
 
     try:
         res = await asyncio.to_thread(list_udids)

@@ -152,7 +152,7 @@ class BackupManager:
         stdout, stderr = await enc_proc.communicate()
 
         if enc_proc.returncode != 0:
-            error_msg = f"Failed to enable encryption: {stderr.decode()}"
+            error_msg = f"Failed to enable encryption: {stderr.decode('utf-8', errors='replace')}"
             logger.error(error_msg)
 
             # Update database status
@@ -179,7 +179,7 @@ class BackupManager:
                 if not line:
                     break
 
-                line_text = line.decode().strip()
+                line_text = line.decode('utf-8', errors='replace').strip()
                 if line_text:
                     # Skip common noisy lines
                     if "*** Waiting for passcode to be entered on the device ***" in line_text:
