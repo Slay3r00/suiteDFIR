@@ -71,9 +71,15 @@ While processing is local, certain UI and utility features require an internet c
 - **Build**: [PyInstaller](https://pyinstaller.org/), [Vite](https://vitejs.dev/)
 
 ## Powered By
-Veritas Lab stands on the shoulders of giants:
+
+Veritas Lab stands on the shoulders of giants. See [THIRD-PARTY-NOTICES.md](file:///Users/jacobcontreras/vdf-tools-dev/THIRD-PARTY-NOTICES.md) for full attributions and license texts.
+
 - [iLEAPP](https://github.com/abrignoni/iLEAPP) & [aLEAPP](https://github.com/abrignoni/aLEAPP)
-- [libimobiledevice](https://libimobiledevice.org/)
+- [libimobiledevice](https://libimobiledevice.org/) (Licensed under LGPL 2.1+)
+
+## License
+
+This project is licensed under the **Apache License 2.0**. See the [LICENSE](file:///Users/jacobcontreras/vdf-tools-dev/LICENSE) and [NOTICE](file:///Users/jacobcontreras/vdf-tools-dev/NOTICE) files for details.
 
 ## Development
 
@@ -114,4 +120,7 @@ Build the full production bundle for your current platform:
 - **Frontend Only**: `npm run build:frontend` (Builds static Vite assets)
 
 ## License
-Apache-2.0
+
+This project is licensed under the **Apache License 2.0**. See the [LICENSE](file:///Users/jacobcontreras/vdf-tools-dev/LICENSE) and [NOTICE](file:///Users/jacobcontreras/vdf-tools-dev/NOTICE) files for details.
+
+Third-party components are subject to their own licenses. See [THIRD-PARTY-NOTICES.md](file:///Users/jacobcontreras/vdf-tools-dev/THIRD-PARTY-NOTICES.md) for full attributions.
