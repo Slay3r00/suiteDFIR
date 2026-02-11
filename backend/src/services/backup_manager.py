@@ -28,7 +28,7 @@ class BackupManager:
         if not case_id:
             return []
         return await db_fetch_all(
-            "SELECT id, name, device_udid as udid, device_name, path, created_at, status, size, progress, type, case_id FROM backups WHERE case_id = ? ORDER BY created_at DESC",
+            "SELECT id, name, device_udid, device_name, path, created_at, status, size, progress, type, case_id FROM backups WHERE case_id = ? ORDER BY created_at DESC",
             (case_id,)
         )
 
@@ -64,8 +64,8 @@ class BackupManager:
         
         # Create DB entry
         backup_id = await db_execute_return_id(
-            "INSERT INTO backups (name, device_udid, device_name, path, status, password, case_id) VALUES (?, ?, ?, ?, ?, ?, ?)",
-            (request.name, request.udid, device['name'], backup_path, 'in_progress', request.password, request.case_id)
+            "INSERT INTO backups (name, device_udid, device_name, path, status, password, case_id, type) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (request.name, request.udid, device['name'], backup_path, 'in_progress', request.password, request.case_id, 'ios')
         )
 
         # Initialize task queue for SSE streaming (maxsize prevents unbounded memory growth)
@@ -152,7 +152,7 @@ class BackupManager:
         stdout, stderr = await enc_proc.communicate()
 
         if enc_proc.returncode != 0:
-            error_msg = f"Failed to enable encryption: {stderr.decode()}"
+            error_msg = f"Failed to enable encryption: {stderr.decode('utf-8', errors='replace')}"
             logger.error(error_msg)
 
             # Update database status
@@ -179,7 +179,7 @@ class BackupManager:
                 if not line:
                     break
 
-                line_text = line.decode().strip()
+                line_text = line.decode('utf-8', errors='replace').strip()
                 if line_text:
                     # Skip common noisy lines
                     if "*** Waiting for passcode to be entered on the device ***" in line_text:
@@ -316,6 +316,7 @@ class BackupManager:
 
         try:
             result = check_backup_encryption(input_path)
+            logger.info(f"Validation result for {input_path}: {result}")
 
             if "error" in result:
                 logger.warning(f"Validation error: {result['error']}")

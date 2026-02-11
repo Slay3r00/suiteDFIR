@@ -83,6 +83,10 @@ class ReportManager:
         if os.path.exists(path):
             try:
                 await self._delete_path(path)
+                
+                # Cleanup empty parent directories recursively
+                await self._cleanup_empty_parents(os.path.dirname(path))
+                
                 return {"message": "Report deleted successfully"}
             except Exception as e:
                 logger.error(f"Error deleting report files at {path}: {e}")
@@ -122,6 +126,28 @@ class ReportManager:
 
         loop = asyncio.get_running_loop()
         await loop.run_in_executor(None, _do_delete)
+
+    async def _cleanup_empty_parents(self, parent_path: str):
+        """Recursively remove empty parent directories up to REPORTS_DIR."""
+        def _cleanup():
+            curr = os.path.abspath(parent_path)
+            root = os.path.abspath(REPORTS_DIR)
+            
+            # Don't delete upward beyond the reports root
+            while curr != root and curr.startswith(root):
+                if os.path.exists(curr) and os.path.isdir(curr) and not os.listdir(curr):
+                    try:
+                        os.rmdir(curr)
+                        logger.debug(f"Removed empty parent directory: {curr}")
+                        curr = os.path.dirname(curr)
+                    except Exception as e:
+                        logger.error(f"Failed to remove empty parent {curr}: {e}")
+                        break
+                else:
+                    break
+        
+        loop = asyncio.get_running_loop()
+        await loop.run_in_executor(None, _cleanup)
 
     async def prepare_report_file(self, report_id: int, file_path: str) -> Dict[str, Any]:
         """

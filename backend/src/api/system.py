@@ -89,6 +89,41 @@ async def get_kml_data(path: str):
         raise HTTPException(status_code=404, detail="KML file not found")
 
 
+@router.get("/spatial/search")
+async def search_location(q: str):
+    """Proxy Nominatim search to avoid CORS issues in bundled environment."""
+    try:
+        import httpx
+    except ImportError:
+        logger.error("httpx is not installed")
+        raise HTTPException(status_code=500, detail="Search dependency missing")
+
+    url = "https://nominatim.openstreetmap.org/search"
+    params = {
+        "format": "json",
+        "q": q,
+        "addressdetails": 1,
+        "limit": 5
+    }
+    # Use headers that Nominatim accepts (avoid blocked generic/example strings)
+    headers = {
+        "User-Agent": "VDF-Tools-Forensics/1.0",
+        "Referer": "https://vdf-tools.com"
+    }
+    
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.get(url, params=params, headers=headers, timeout=10.0, follow_redirects=True)
+            response.raise_for_status()
+            return response.json()
+        except httpx.HTTPStatusError as e:
+            logger.error(f"Nominatim API error: {e.response.status_code} - {e.response.text}")
+            raise HTTPException(status_code=502, detail="Location search service error")
+        except Exception as e:
+            logger.error(f"Search proxy failed: {e}")
+            raise HTTPException(status_code=500, detail="Location search failed")
+
+
 # Shutdown
 
 @router.post("/shutdown", response_model=MessageResponse)

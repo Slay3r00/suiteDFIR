@@ -8,9 +8,10 @@
 const { app } = require('electron');
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 
-// Fallback log path before app is ready (uses local directory for debugging)
-const FALLBACK_LOG_DIR = path.join(__dirname, 'logs');
+// Fallback log path before app is ready
+const FALLBACK_LOG_DIR = path.join(os.tmpdir(), 'vdf-tools-logs');
 const FALLBACK_LOG_PATH = path.join(FALLBACK_LOG_DIR, 'startup.log');
 
 // Log file configuration

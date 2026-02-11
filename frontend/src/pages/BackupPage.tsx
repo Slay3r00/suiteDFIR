@@ -127,7 +127,7 @@ export default function BackupPage() {
     }
 
     return (
-        <div className="h-full w-full flex flex-col bg-[#151515] text-white py-[3vh] px-[9vh]">
+        <div className="h-full w-full flex flex-col bg-[#151515] text-white py-[3vh] px-[9vh] dark">
             <div className="flex-1 min-h-0 flex gap-[9vh]">
                 {/* Left Section - Device Configuration */}
                 <div className="flex-1 flex flex-col min-h-0">

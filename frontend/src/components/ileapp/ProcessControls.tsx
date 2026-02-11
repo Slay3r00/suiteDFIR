@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, Input } from '../ui';
+import { Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, Input } from '@/components/ui';
 import { useLeapp } from '../../context/LeappContext';
 import { Lock } from 'lucide-react';
 import { createLeappApi } from '../../services/leappApi';
@@ -7,7 +7,7 @@ import { useToast } from '../../hooks/use-toast';
 import { getUniqueName } from '@/lib/naming';
 
 interface ProcessControlsProps {
-  tool: string;
+  tool: 'ileapp' | 'aleapp';
   inputFile: string;
   outputFolder: string;
   reportName?: string;
@@ -62,6 +62,15 @@ export default function ProcessControls({ tool, inputFile, outputFolder, reportN
       const api = createLeappApi('ios');
       const validation = await api.processing.validateBackup(inputFile);
 
+      if (!validation.valid) {
+        toast({
+          title: "Validation Failed",
+          description: validation.error || "The selected folder is not a valid backup.",
+          variant: "destructive"
+        });
+        return;
+      }
+
       if (validation.encrypted) {
         setShowPasswordDialog(true);
       } else {
@@ -70,9 +79,11 @@ export default function ProcessControls({ tool, inputFile, outputFolder, reportN
       }
     } catch (error) {
       console.error("Validation failed:", error);
-      // If validation fails (e.g. not a backup folder), just try to process anyway
-      // It might be a zip or tar that the validator doesn't handle yet
-      await startProcessing(tool, inputFile, outputFolder, uniqueName, undefined, caseId);
+      toast({
+        title: "Validation Error",
+        description: "An error occurred while validating the backup. Please check logs.",
+        variant: "destructive"
+      });
     } finally {
       setIsValidating(false);
     }
@@ -127,7 +138,7 @@ export default function ProcessControls({ tool, inputFile, outputFolder, reportN
         )}
       </div>
 
-      <Dialog open={showPasswordDialog} onOpenChange={setShowPasswordDialog}>
+      <Dialog open={showPasswordDialog} onOpenChange={(open: boolean) => setShowPasswordDialog(open)}>
         <DialogContent className="max-w-[340px] p-5 bg-[#1A1A1A] border-[#333333] rounded-xl shadow-2xl">
           <DialogHeader>
             <DialogTitle className="text-sm font-semibold text-white tracking-wide uppercase">Encrypted Backup Detected</DialogTitle>

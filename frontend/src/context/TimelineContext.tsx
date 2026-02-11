@@ -1,21 +1,18 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react'
-import type {
-    MRT_PaginationState,
-    MRT_SortingState,
-    MRT_ColumnFiltersState,
-    MRT_DensityState
-} from 'material-react-table'
+import type { PaginationState, SortingState, ColumnFiltersState } from '@tanstack/react-table'
+import type { MRT_DensityState } from '@/components/ui/DataTable'
 
 interface TimelineConfig {
     selectedReportId: number | 'all';
     selectedTimezone: string;
-    pagination: MRT_PaginationState;
-    sorting: MRT_SortingState;
+    pagination: PaginationState;
+    sorting: SortingState;
     globalFilter: string;
-    columnFilters: MRT_ColumnFiltersState;
+    columnFilters: ColumnFiltersState;
     density: MRT_DensityState;
     scrollPosition: number;
+    selectedEventId: number | null;
 }
 
 interface TimelineState {
@@ -29,7 +26,7 @@ interface TimelineContextType extends TimelineState {
 
 const TimelineContext = createContext<TimelineContextType | undefined>(undefined);
 
-import { useCase } from './CaseContext';
+import { useCasePersistedState } from '@/hooks/useCasePersistedState';
 
 const STORAGE_KEY_PREFIX = 'vdf_timeline_state_v2_';
 
@@ -42,46 +39,18 @@ const INITIAL_CONFIG: TimelineConfig = {
     columnFilters: [],
     density: 'compact',
     scrollPosition: 0,
+    selectedEventId: null,
 };
 
 export function TimelineProvider({ children }: { children: ReactNode }) {
-    const { selectedCaseId } = useCase();
-    const [config, setConfig] = useState<TimelineConfig>(INITIAL_CONFIG);
-    const [isLoaded, setIsLoaded] = useState(false);
-
-    // Load from sessionStorage when selectedCaseId changes
-    useEffect(() => {
-        if (!selectedCaseId) {
-            setIsLoaded(true);
-            return;
-        }
-
-        setIsLoaded(false);
-
-        const stored = sessionStorage.getItem(`${STORAGE_KEY_PREFIX}${selectedCaseId}`);
-        if (stored) {
-            try {
-                setConfig(prev => ({ ...prev, ...JSON.parse(stored) }));
-            } catch (e) {
-                console.error('Failed to parse timeline state:', e);
-                setConfig(INITIAL_CONFIG);
-            }
-        } else {
-            setConfig(INITIAL_CONFIG);
-        }
-        setIsLoaded(true);
-    }, [selectedCaseId]);
-
-    // Save to sessionStorage
-    useEffect(() => {
-        if (isLoaded && selectedCaseId) {
-            sessionStorage.setItem(`${STORAGE_KEY_PREFIX}${selectedCaseId}`, JSON.stringify(config));
-        }
-    }, [config, isLoaded, selectedCaseId]);
+    const [config, setConfig, isLoaded] = useCasePersistedState<TimelineConfig>(
+        STORAGE_KEY_PREFIX,
+        INITIAL_CONFIG
+    );
 
     const updateConfig = useCallback((updates: Partial<TimelineConfig>) => {
         setConfig(prev => ({ ...prev, ...updates }));
-    }, []);
+    }, [setConfig]);
 
     return (
         <TimelineContext.Provider value={{

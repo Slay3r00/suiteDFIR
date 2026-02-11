@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Button, Input, Dropdown, Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../ui';
+import { Button, Input, Dropdown, Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui';
 import { useProfiles, useDropdown } from '../../hooks';
 import { Module } from '../../types/leapp';
 import { useLeapp } from '@/context/LeappContext';
@@ -33,7 +33,7 @@ const slowModules = new Set([
 ]);
 
 interface ModuleSelectorProps {
-  tool: string;
+  tool: 'ileapp' | 'aleapp';
   isProcessing?: boolean;
 }
 
@@ -363,7 +363,7 @@ export default function ModuleSelector({ tool, isProcessing }: ModuleSelectorPro
         </div>
       </div>
 
-      <Dialog open={confirmDeleteProfileId !== null} onOpenChange={(open) => !open && setConfirmDeleteProfileId(null)}>
+      <Dialog open={confirmDeleteProfileId !== null} onOpenChange={(open: boolean) => !open && setConfirmDeleteProfileId(null)}>
         <DialogContent className="max-w-[340px] p-5 bg-[#1A1A1A] border-[#333333]">
           <DialogHeader>
             <DialogTitle className="text-sm font-semibold text-white tracking-wide uppercase">Delete Profile</DialogTitle>

@@ -183,11 +183,13 @@ class BackupInfo(BaseModel):
     """Backup record response."""
     model_config = ConfigDict(from_attributes=True)
     id: int
-    udid: str
+    device_udid: str
     name: str
+    device_name: str
     status: str
     path: Optional[str] = None
     created_at: str
+    type: str = "ios"
     case_id: int
 
 

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Search, FileText, FolderOpen, Download, Trash2, X, Maximize2 } from 'lucide-react';
-import { Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, LoadingPage, LibraryCard } from '@/components/ui';
+import { Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, LoadingPage, LibraryCard } from '@/components/ui/index';
 import { useCase } from "@/context/CaseContext";
 import { ReportsProvider, useReports, ReportIframeState } from '@/context/ReportsContext';
 import { useSearchParams } from 'react-router-dom';
@@ -689,7 +689,7 @@ function ReportsContent() {
                 </div>
             )}
 
-            <Dialog open={reportToDelete !== null} onOpenChange={(open) => !open && setReportToDelete(null)}>
+            <Dialog open={reportToDelete !== null} onOpenChange={(open: boolean) => !open && setReportToDelete(null)}>
                 <DialogContent className="max-w-[340px] p-5 bg-[#1A1A1A] border-[#333333] rounded-xl shadow-2xl">
                     <DialogHeader>
                         <DialogTitle className="text-sm font-semibold text-white tracking-wide uppercase">Delete Report</DialogTitle>
@@ -720,7 +720,7 @@ function ReportsContent() {
                 </DialogContent>
             </Dialog>
 
-            <Dialog open={reportToOpen !== null} onOpenChange={(open) => !open && setReportToOpen(null)}>
+            <Dialog open={reportToOpen !== null} onOpenChange={(open: boolean) => !open && setReportToOpen(null)}>
                 <DialogContent className="max-w-[340px] p-5 bg-[#1A1A1A] border-[#333333] rounded-xl shadow-2xl">
                     <DialogHeader>
                         <DialogTitle className="text-sm font-semibold text-white tracking-wide uppercase">Open Folder</DialogTitle>
@@ -751,7 +751,7 @@ function ReportsContent() {
                 </DialogContent>
             </Dialog>
 
-            <Dialog open={reportToDownload !== null} onOpenChange={(open) => !open && setReportToDownload(null)}>
+            <Dialog open={reportToDownload !== null} onOpenChange={(open: boolean) => !open && setReportToDownload(null)}>
                 <DialogContent className="max-w-[340px] p-5 bg-[#1A1A1A] border-[#333333] rounded-xl shadow-2xl">
                     <DialogHeader>
                         <DialogTitle className="text-sm font-semibold text-white tracking-wide uppercase">Download Report</DialogTitle>

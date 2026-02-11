@@ -51,8 +51,9 @@ import { useCase } from './CaseContext';
 
 const ReportsContext = createContext<ReportsContextType | undefined>(undefined)
 
+import { useCasePersistedState } from '@/hooks/useCasePersistedState';
+
 const STORAGE_KEY_PREFIX = 'vdf_reports_state_v2_';
-const MAX_STORED_REPORTS = 50; // Limit stored scroll positions to prevent localStorage bloat
 
 interface StoredState {
     selectedReportId: number | null;
@@ -63,144 +64,67 @@ interface StoredState {
     iframeStates: Record<number, ReportIframeState>;
 }
 
-// Helper to load initial state from sessionStorage
-function getInitialState(caseId: string | null): StoredState | null {
-    if (typeof window === 'undefined' || !caseId) return null;
-    try {
-        const stored = sessionStorage.getItem(`${STORAGE_KEY_PREFIX}${caseId}`);
-        if (stored) {
-            return JSON.parse(stored);
-        }
-    } catch (error) {
-        console.error('Failed to load reports state from sessionStorage:', error);
-    }
-    return null;
-}
+const INITIAL_STATE: StoredState = {
+    selectedReportId: null,
+    filter: 'all',
+    sort: 'newest',
+    searchQuery: '',
+    reportViewStates: {},
+    iframeStates: {}
+};
 
 export function ReportsProvider({ children }: { children: React.ReactNode }) {
-    const { selectedCaseId } = useCase();
-    // Initialize with default/null to match SSR
-    const [selectedReportId, setSelectedReportId] = useState<number | null>(null);
+    const [state, setState, isStateLoaded] = useCasePersistedState<StoredState>(
+        STORAGE_KEY_PREFIX,
+        INITIAL_STATE
+    );
 
-    const [filter, setFilter] = useState<'all' | 'ileapp' | 'aleapp'>('all');
+    const { selectedReportId, filter, sort, searchQuery, reportViewStates, iframeStates } = state;
 
-    const [sort, setSort] = useState<'newest' | 'oldest' | 'name'>('newest');
-
-    const [searchQuery, setSearchQuery] = useState('');
-
-    const [reportViewStates, setReportViewStates] = useState<Map<number, ReportViewState>>(new Map());
-
-    const [isStateLoaded, setIsStateLoaded] = useState(false);
-
-    // Load state from localStorage on mount
-    // Load state from localStorage on mount
-    useEffect(() => {
-        if (!selectedCaseId) {
-            setIsStateLoaded(true);
-            return;
-        }
-
-        setIsStateLoaded(false);
-
-        const stored = getInitialState(selectedCaseId);
-        if (stored) {
-            if (stored.selectedReportId) {
-                setSelectedReportId(stored.selectedReportId);
-            } else {
-                setSelectedReportId(null);
-            }
-            if (stored.filter) setFilter(stored.filter);
-            else setFilter('all');
-            if (stored.sort) setSort(stored.sort);
-            else setSort('newest');
-            if (stored.searchQuery) setSearchQuery(stored.searchQuery);
-            else setSearchQuery('');
-
-            if (stored.reportViewStates) {
-                setReportViewStates(new Map(Object.entries(stored.reportViewStates).map(([k, v]) => [parseInt(k), v])));
-            } else {
-                setReportViewStates(new Map());
-            }
-
-            if (stored.iframeStates) {
-                iframeStatesRef.current = new Map(Object.entries(stored.iframeStates).map(([k, v]) => [parseInt(k), v]));
-            } else {
-                iframeStatesRef.current = new Map();
-            }
-        } else {
-            // Reset to defaults
-            setSelectedReportId(null);
-            setFilter('all');
-            setSort('newest');
-            setSearchQuery('');
-            setReportViewStates(new Map());
-            iframeStatesRef.current = new Map();
-        }
-        setIsStateLoaded(true);
-    }, [selectedCaseId]);
-
-    // Save state to sessionStorage whenever it changes
-    useEffect(() => {
-        if (!isStateLoaded || !selectedCaseId) return;
-
-        try {
-            const state: StoredState = {
-                selectedReportId,
-                filter,
-                sort,
-                searchQuery,
-                reportViewStates: Object.fromEntries(reportViewStates),
-                iframeStates: Object.fromEntries(iframeStatesRef.current)
-            };
-
-            sessionStorage.setItem(`${STORAGE_KEY_PREFIX}${selectedCaseId}`, JSON.stringify(state));
-        } catch (error) {
-            console.error('Failed to save reports state to sessionStorage:', error);
-        }
-    }, [selectedReportId, filter, sort, searchQuery, reportViewStates, isStateLoaded, selectedCaseId]);
+    const setSelectedReportId = (val: number | null) => setState(prev => ({ ...prev, selectedReportId: val }));
+    const setFilter = (val: 'all' | 'ileapp' | 'aleapp') => setState(prev => ({ ...prev, filter: val }));
+    const setSort = (val: 'newest' | 'oldest' | 'name') => setState(prev => ({ ...prev, sort: val }));
+    const setSearchQuery = (val: string) => setState(prev => ({ ...prev, searchQuery: val }));
 
     const saveReportScrollPosition = useCallback((reportId: number, scrollY: number) => {
-        setReportViewStates(prev => {
-            const next = new Map(prev);
-            next.set(reportId, {
-                scrollPosition: scrollY,
-                timestamp: Date.now()
-            });
-            return next;
-        });
-    }, []);
+        setState(prev => ({
+            ...prev,
+            reportViewStates: {
+                ...prev.reportViewStates,
+                [reportId]: {
+                    scrollPosition: scrollY,
+                    timestamp: Date.now()
+                }
+            }
+        }));
+    }, [setState]);
 
     const getReportScrollPosition = useCallback((reportId: number): number => {
-        return reportViewStates.get(reportId)?.scrollPosition ?? 0;
+        return reportViewStates[reportId]?.scrollPosition ?? 0;
     }, [reportViewStates]);
 
-    // Session-only enhanced iframe state (not persisted to localStorage)
-    const iframeStatesRef = useRef<Map<number, ReportIframeState>>(new Map());
+    // Session-only enhanced iframe state (using Ref for performance, but persisting periodically)
+    const iframeStatesRef = useRef<Record<number, ReportIframeState>>({});
 
-    const saveReportIframeState = useCallback((reportId: number, state: ReportIframeState) => {
-        iframeStatesRef.current.set(reportId, state);
-
-        // Formulate and save complete state immediately since Ref changes don't trigger useEffect
-        if (isStateLoaded && selectedCaseId) {
-            try {
-                const fullState: StoredState = {
-                    selectedReportId,
-                    filter,
-                    sort,
-                    searchQuery,
-                    reportViewStates: Object.fromEntries(reportViewStates),
-                    iframeStates: Object.fromEntries(iframeStatesRef.current)
-                };
-                sessionStorage.setItem(`${STORAGE_KEY_PREFIX}${selectedCaseId}`, JSON.stringify(fullState));
-            } catch (error) {
-                console.error('Failed to save iframe state to sessionStorage:', error);
-            }
+    // Sync Ref with state on load
+    useEffect(() => {
+        if (isStateLoaded) {
+            iframeStatesRef.current = iframeStates;
         }
-    }, [isStateLoaded, selectedCaseId, selectedReportId, filter, sort, searchQuery, reportViewStates]);
+    }, [isStateLoaded, iframeStates]);
+
+    const saveReportIframeState = useCallback((reportId: number, stateVal: ReportIframeState) => {
+        iframeStatesRef.current[reportId] = stateVal;
+
+        // Persist the whole Record to state (and thus to storage)
+        setState(prev => ({
+            ...prev,
+            iframeStates: { ...iframeStatesRef.current }
+        }));
+    }, [setState]);
 
     const getReportIframeState = useCallback((reportId: number) => {
-        const state = iframeStatesRef.current.get(reportId) ?? null;
-        return state;
+        return iframeStatesRef.current[reportId] ?? null;
     }, []);
 
     return (

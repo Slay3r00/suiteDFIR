@@ -184,7 +184,7 @@ class ProcessManager:
                     if not line:
                         break
 
-                    log_message = line.decode().strip()
+                    log_message = line.decode('utf-8', errors='replace').strip()
 
                     await broadcast_event("log", {
                         "tool": tool,
@@ -213,7 +213,7 @@ class ProcessManager:
             error_msg = None
             if status == "error":
                 stderr_data = await process.stderr.read()
-                error_msg = stderr_data.decode()
+                error_msg = stderr_data.decode('utf-8', errors='replace')
                 logger.error(f"Execution failed for {tool} on {case_name}: {error_msg}")
             
             # Post-processing (identify new report)

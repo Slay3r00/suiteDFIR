@@ -11,7 +11,7 @@ interface ConfirmDialogProps {
 
 export function ConfirmDialog({ config, onClose, onConfirm }: ConfirmDialogProps) {
     return (
-        <Dialog open={config.isOpen} onOpenChange={(open) => !open && onClose()}>
+        <Dialog open={config.isOpen} onOpenChange={(open: boolean) => !open && onClose()}>
             <DialogContent className="max-w-[340px] p-5 bg-[#1A1A1A] border-[#333333]">
                 <DialogHeader>
                     <DialogTitle className="text-sm font-semibold text-white tracking-wide uppercase">

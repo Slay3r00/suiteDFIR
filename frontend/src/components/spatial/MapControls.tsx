@@ -91,11 +91,13 @@ export default function MapControls({ onSearch, onLayerChange, onDataUpload, onK
 
         setIsSearching(true)
         try {
-            const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}`)
-            const data = await res.json()
-            if (data && data.length > 0) {
-                const { lat, lon } = data[0]
-                onSearch(parseFloat(lat), parseFloat(lon))
+            const res = await fetch(API.path(`/spatial/search?q=${encodeURIComponent(searchQuery)}`))
+            if (res.ok) {
+                const data = await res.json()
+                if (data && data.length > 0) {
+                    const { lat, lon } = data[0]
+                    onSearch(parseFloat(lat), parseFloat(lon))
+                }
             }
         } catch (error) {
             console.error("Search failed:", error)

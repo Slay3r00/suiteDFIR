@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo } from "react"
-import EnhancedTable, { TimelineEvent } from "@/components/ui/MUITable"
+import { useState, useEffect, useMemo, useRef } from "react"
+import { DataTable, TimelineEvent } from "@/components/ui/DataTable"
 import { useCase } from "@/context/CaseContext"
 import {
     Select,
@@ -11,6 +11,7 @@ import {
 import { Input } from "@/components/ui/Input"
 import { useTimeline } from "@/context/TimelineContext"
 import { API } from "@/lib/api"
+import { LoadingPage } from "@/components/ui/LoadingPage"
 
 interface Report {
     id: number
@@ -38,6 +39,8 @@ export default function Timeline() {
     const [isLoading, setIsLoading] = useState(false)
     const [reports, setReports] = useState<Report[]>([])
     const [tzSearch, setTzSearch] = useState("")
+    const [openDropdown, setOpenDropdown] = useState<'report' | 'timezone' | null>(null)
+    const hasInitiallyLoaded = useRef(false)
 
     const timezonesWithOffsets = useMemo(() => {
         let tzs: string[] = [];
@@ -163,6 +166,7 @@ export default function Timeline() {
                     const result = await res.json()
                     setData(result.events || [])
                     setTotalCount(result.total || 0)
+                    hasInitiallyLoaded.current = true
                 }
             } catch (error) {
                 console.error("Error fetching timeline:", error)
@@ -173,6 +177,12 @@ export default function Timeline() {
 
         fetchData()
     }, [selectedCaseId, pagination, sorting, selectedReport, globalFilter, columnFilters, isLoaded])
+
+    // Show unified loading state during initial load only
+    // Show LoadingPage until we've successfully loaded data at least once
+    if (!hasInitiallyLoaded.current && (!isLoaded || !selectedCaseId || isLoading || data.length === 0)) {
+        return <LoadingPage />
+    }
 
     const handleExportAll = async () => {
         if (!selectedCaseId) return
@@ -221,73 +231,8 @@ export default function Timeline() {
 
     return (
         <div className="h-full w-full flex flex-col bg-[#151515] overflow-hidden">
-            {/* Toolbar */}
-            <div className="flex items-center gap-8 px-4 py-3 border-b border-white/10 bg-[#1A1A1A]">
-                <div className="flex items-center gap-4">
-                    <h2 className="text-sm font-medium text-gray-400">Filter by Report:</h2>
-                    <Select value={String(selectedReport)} onValueChange={(val) => updateConfig({ selectedReportId: val === "all" ? "all" : parseInt(val) })}>
-                        <SelectTrigger className="h-8 w-[300px] bg-[#212121] border-white/10 text-white focus:!ring-0 focus:!ring-offset-0">
-                            <SelectValue placeholder="Select a report">
-                                {selectedReport === "all"
-                                    ? "All Reports"
-                                    : reports.find(r => r.id === selectedReport)
-                                        ? `${reports.find(r => r.id === selectedReport)?.name} (${reports.find(r => r.id === selectedReport)?.tool})`
-                                        : "Select a report"
-                                }
-                            </SelectValue>
-                        </SelectTrigger>
-                        <SelectContent className="w-full left-0 max-h-[300px] overflow-y-auto bg-[#212121] border-white/10 text-white">
-                            <SelectItem value="all">All Reports</SelectItem>
-                            {reports.map((report) => (
-                                <SelectItem key={report.id} value={String(report.id)}>
-                                    {report.name} ({report.tool})
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                </div>
-
-                <div className="flex items-center gap-4">
-                    <h2 className="text-sm font-medium text-gray-400">Timezone:</h2>
-                    <Select value={selectedTimezone} onValueChange={(val) => {
-                        updateConfig({ selectedTimezone: val });
-                        setTzSearch(""); // Clear search on selection
-                    }}>
-                        <SelectTrigger className="h-8 w-[350px] bg-[#212121] border-white/10 text-white focus:!ring-0 focus:!ring-offset-0">
-                            <SelectValue placeholder="Select timezone">
-                                {timezonesWithOffsets.find(t => t.id === selectedTimezone)?.label || selectedTimezone}
-                            </SelectValue>
-                        </SelectTrigger>
-                        <SelectContent className="w-[300px] bg-[#212121] border-white/10 text-white p-0">
-                            <div className="p-2 border-b border-white/5 sticky top-0 bg-[#212121] z-10">
-                                <Input
-                                    placeholder="Search timezones..."
-                                    value={tzSearch}
-                                    onChange={(e) => setTzSearch(e.target.value)}
-                                    onClick={(e) => e.stopPropagation()}
-                                    className="h-8 bg-white/5 border-white/10 text-xs"
-                                />
-                            </div>
-                            <div className="max-h-[300px] overflow-y-auto p-1">
-                                {filteredTimezones.length > 0 ? (
-                                    filteredTimezones.map((tz) => (
-                                        <SelectItem key={tz.id} value={tz.id}>
-                                            {tz.label}
-                                        </SelectItem>
-                                    ))
-                                ) : (
-                                    <div className="px-2 py-4 text-xs text-gray-500 text-center">
-                                        No timezones found
-                                    </div>
-                                )}
-                            </div>
-                        </SelectContent>
-                    </Select>
-                </div>
-            </div>
-
             <div className="flex-1 min-h-0">
-                <EnhancedTable
+                <DataTable
                     rows={data}
                     isLoading={isLoading}
                     totalCount={totalCount}
@@ -308,6 +253,98 @@ export default function Timeline() {
                     }}
                     scrollPosition={config.scrollPosition}
                     onScroll={(pos) => updateConfig({ scrollPosition: pos })}
+                    selectedEvent={data.find(e => e.id === config.selectedEventId) ?? null}
+                    onRowClick={(event) => updateConfig({ selectedEventId: event.id })}
+                    onCloseSidebar={() => updateConfig({ selectedEventId: null })}
+                    renderRightToolbar={() => (
+                        <div className="flex items-center gap-4">
+                            {/* Report Filter */}
+                            <div className="flex items-center gap-2">
+                                <span className="text-xs font-medium text-gray-400 whitespace-nowrap">Report:</span>
+                                <Select
+                                    value={String(selectedReport)}
+                                    onValueChange={(val) => updateConfig({ selectedReportId: val === "all" ? "all" : parseInt(val) })}
+                                    open={openDropdown === 'report'}
+                                    onOpenChange={(open) => setOpenDropdown(open ? 'report' : null)}
+                                >
+                                    <SelectTrigger
+                                        data-sidebar-ignore="true"
+                                        className="h-8 w-fit min-w-[140px] max-w-[250px] bg-[#2b2b2b] border-white/10 text-xs focus:!ring-0 focus:!ring-offset-0 px-2"
+                                    >
+                                        <SelectValue placeholder="All Reports">
+                                            {selectedReport === "all"
+                                                ? "All Reports"
+                                                : reports.find(r => r.id === selectedReport)
+                                                    ? `${reports.find(r => r.id === selectedReport)?.name} (${reports.find(r => r.id === selectedReport)?.tool})`
+                                                    : "All Reports"
+                                            }
+                                        </SelectValue>
+                                    </SelectTrigger>
+                                    <SelectContent
+                                        data-sidebar-ignore="true"
+                                        className="min-w-[200px] max-h-[300px] overflow-y-auto bg-[#2b2b2b] border-white/10 text-white"
+                                    >
+                                        <SelectItem value="all">All Reports</SelectItem>
+                                        {reports.map((report) => (
+                                            <SelectItem key={report.id} value={String(report.id)}>
+                                                {report.name} ({report.tool})
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            {/* Timezone Filter */}
+                            <div className="flex items-center gap-2">
+                                <span className="text-xs font-medium text-gray-400 whitespace-nowrap">TZ:</span>
+                                <Select
+                                    value={selectedTimezone}
+                                    onValueChange={(val) => {
+                                        updateConfig({ selectedTimezone: val });
+                                        setTzSearch("");
+                                    }}
+                                    open={openDropdown === 'timezone'}
+                                    onOpenChange={(open) => setOpenDropdown(open ? 'timezone' : null)}
+                                >
+                                    <SelectTrigger
+                                        data-sidebar-ignore="true"
+                                        className="h-8 w-fit min-w-[120px] max-w-[240px] bg-[#2b2b2b] border-white/10 text-xs focus:!ring-0 focus:!ring-offset-0 px-2"
+                                    >
+                                        <SelectValue placeholder="UTC">
+                                            {timezonesWithOffsets.find(t => t.id === selectedTimezone)?.label || selectedTimezone}
+                                        </SelectValue>
+                                    </SelectTrigger>
+                                    <SelectContent
+                                        data-sidebar-ignore="true"
+                                        className="w-[250px] bg-[#2b2b2b] border-white/10 text-white p-0"
+                                    >
+                                        <div className="p-2 border-b border-white/5 sticky top-0 bg-transparent z-10">
+                                            <Input
+                                                placeholder="Search timezones..."
+                                                value={tzSearch}
+                                                onChange={(e) => setTzSearch(e.target.value)}
+                                                onClick={(e) => e.stopPropagation()}
+                                                className="h-8 bg-[#2b2b2b] border-white/10 text-xs"
+                                            />
+                                        </div>
+                                        <div className="max-h-[300px] overflow-y-auto p-1">
+                                            {filteredTimezones.length > 0 ? (
+                                                filteredTimezones.map((tz) => (
+                                                    <SelectItem key={tz.id} value={tz.id}>
+                                                        {tz.label}
+                                                    </SelectItem>
+                                                ))
+                                            ) : (
+                                                <div className="px-2 py-4 text-xs text-gray-500 text-center">
+                                                    No results
+                                                </div>
+                                            )}
+                                        </div>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
+                    )}
                 />
             </div>
         </div>

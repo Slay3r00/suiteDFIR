@@ -130,8 +130,8 @@ exe = EXE(
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
-    upx=True,
-    console=False,  # Set to True to see backend console for debugging
+    upx=False,
+    console=True,  # Set to True for Electron to capture port from stdout on Windows
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,
@@ -146,7 +146,7 @@ coll = COLLECT(
     a.zipfiles,
     a.datas,
     strip=False,
-    upx=True,
+    upx=False,
     upx_exclude=[],
     name='VDF Tools Backend',
 )

@@ -9,10 +9,10 @@
         "electron": "cd electron && npm start",
         "dev:electron": "concurrently --raw \"npm run dev\" \"npm run electron\"",
         "install:all": "npm install && cd frontend && npm install && cd ../electron && npm install",
-        "build:frontend": "cd frontend && npm run build:static",
+        "build:frontend": "cd frontend && npm run build",
         "build:backend": "cd backend && ./build.sh",
         "build:all": "npm run build:backend && npm run build:frontend",
-        "package": "cd electron && electron-forge package",
+        "package": "cd electron && npx electron-builder --dir",
         "build:mac": "scripts/build-mac.sh",
         "build:linux": "scripts/build-linux.sh",
         "build:win": "scripts\\build-win.bat"

@@ -38,7 +38,7 @@ pip install pyinstaller
 echo   Running PyInstaller...
 if exist build rd /s /q build
 if exist dist rd /s /q dist
-pyinstaller build.spec
+pyinstaller vdf-backend.spec
 
 echo   Checking if backend executable exists...
 if not exist "dist\VDF Tools Backend\vdf-backend.exe" (
@@ -52,10 +52,10 @@ echo.
 echo [2/5] Building Frontend (Static Export)...
 cd "%FRONTEND_DIR%"
 call npm install
-call npm run build:static
+call npm run build
 
-if not exist out (
-    echo [ERROR] Frontend build failed. 'out' directory not found.
+if not exist dist (
+    echo [ERROR] Frontend build failed. 'dist' directory not found.
     exit /b 1
 )
 echo   Frontend built successfully.
@@ -65,11 +65,12 @@ echo.
 echo [3/5] Packaging Electron App...
 cd "%ELECTRON_DIR%"
 if exist out rd /s /q out
+if exist dist rd /s /q dist
 call npm install
-call npx electron-forge package
+call npx electron-builder --dir --win
 
 REM Find the output directory (handling version/arch variations)
-for /d %%D in ("out\vdf-tools-win32-*") do set "APP_ROOT=%ELECTRON_DIR%\%%D"
+set "APP_ROOT=%ELECTRON_DIR%\out\win-unpacked"
 
 if not defined APP_ROOT (
     echo [ERROR] Electron package failed. Output directory not found.
@@ -88,8 +89,8 @@ if not exist "%RESOURCES_PATH%\VDF Tools Backend" mkdir "%RESOURCES_PATH%\VDF To
 xcopy /E /I /Y /Q "%BACKEND_DIR%\dist\VDF Tools Backend" "%RESOURCES_PATH%\VDF Tools Backend"
 
 echo   Copying Frontend...
-if not exist "%RESOURCES_PATH%\out" mkdir "%RESOURCES_PATH%\out"
-xcopy /E /I /Y /Q "%FRONTEND_DIR%\out" "%RESOURCES_PATH%\out"
+if not exist "%RESOURCES_PATH%\dist" mkdir "%RESOURCES_PATH%\dist"
+xcopy /E /I /Y /Q "%FRONTEND_DIR%\dist" "%RESOURCES_PATH%\dist"
 
 echo   Copying Binaries...
 if not exist "%RESOURCES_PATH%\bin" mkdir "%RESOURCES_PATH%\bin"
@@ -107,12 +108,12 @@ echo.
 echo [5/5] Creating Installer...
 cd "%ELECTRON_DIR%"
 REM Explicitly set platform/arch to avoid "paths[0] undefined" resolution errors
-call npx electron-forge make --skip-package --platform win32 --arch x64
+call npx electron-builder --win nsis --prepackaged "%APP_ROOT%"
 
 echo.
 echo ==========================================
 echo   Build Complete!
 echo ==========================================
 echo.
-echo Output artifacts should be in: electron\out\make
+echo Output artifacts should be in: electron\out\
 pause

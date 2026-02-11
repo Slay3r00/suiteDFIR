@@ -10,7 +10,7 @@ python-dotenv==1.0.0
 websockets==12.0
 aiofiles==23.2.1
 psutil>=6.0.0
-
+httpx>=0.25.0
 # =============================================================================
 # LEAPP Shared Dependencies
 # Source: forensic-tools/leapp-tools/{iLEAPP,ALEAPP}/requirements.txt
@@ -72,5 +72,5 @@ fitdecode==0.10.0
 # Build Tools (for PyInstaller bundling)
 # =============================================================================
 
-pyinstaller
+pyinstaller==6.17.0
 wheel

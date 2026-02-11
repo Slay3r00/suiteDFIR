@@ -15,7 +15,7 @@ pip install pyinstaller
 rm -rf build dist
 
 # Build with PyInstaller
-pyinstaller build.spec
+pyinstaller vdf-backend.spec
 
 echo "✅ Backend build complete!"
 echo "Executable location: backend/dist/VDF Tools Backend/vdf-backend"

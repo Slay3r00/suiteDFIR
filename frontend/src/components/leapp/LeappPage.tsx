@@ -7,9 +7,7 @@ import ProcessControls from '../../components/ileapp/ProcessControls';
 import ToolNotInstalled from '../../components/ui/ToolNotInstalled';
 import { useLeapp } from '@/context/LeappContext';
 
-import { Button, Input } from '../../components/ui';
-import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
-import { LibraryCard } from '@/components/ui/LibraryCard';
+import { Button, Input, ConfirmDialog, LibraryCard } from '@/components/ui';
 import { useCase } from '@/context/CaseContext';
 import { FolderOpen, Calendar, Trash2, Loader2, Download } from 'lucide-react';
 import { LoadingPage } from '../ui/LoadingPage';
@@ -34,7 +32,7 @@ interface Report {
     size: string;
 }
 
-function LeappContent({ tool }: { tool: string }) {
+function LeappContent({ tool }: { tool: 'ileapp' | 'aleapp' }) {
     const outputFolder = '';
     const { states, updateConfig, clearLogs, clearProcessingReportName, fetchModules } = useLeapp();
     const toolState = states[tool];
@@ -90,10 +88,10 @@ function LeappContent({ tool }: { tool: string }) {
     useEffect(() => {
         const currentToolState = states[tool];
         // Only fetch if not currently processing AND not already loaded
-        if (currentToolState.modules.length === 0 && !currentToolState.isLoadingModules && !processing.isProcessing) {
+        if (currentToolState.modules.length === 0 && !currentToolState.isLoadingModules) {
             fetchModules(tool);
         }
-    }, [tool, fetchModules, states, processing.isProcessing]);
+    }, [tool, fetchModules, states]);
 
 
 

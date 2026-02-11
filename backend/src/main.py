@@ -2,6 +2,11 @@ import os
 import sys
 import asyncio
 import logging
+
+# On Windows, the ProactorEventLoop is required for subprocess support
+if sys.platform == 'win32':
+    asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -25,7 +30,8 @@ from utils.device_watcher import start_device_watcher, stop_device_watcher
 from services.case_manager import case_manager
 
 # Setup logging
-setup_logging()
+log_level = logging.DEBUG if not getattr(sys, 'frozen', False) else logging.INFO
+setup_logging(level=log_level)
 logger = logging.getLogger(__name__)
 
 @asynccontextmanager
@@ -39,6 +45,8 @@ async def lifespan(app: FastAPI):
     load_plugins()
     
     # Start device watcher for real-time iOS device detection
+    loop = asyncio.get_running_loop()
+    logger.info(f"Using event loop: {loop.__class__.__name__}")
     await start_device_watcher()
     logger.info("Device watcher started")
     
@@ -72,6 +80,15 @@ async def global_exception_handler(request, exc):
         content={"detail": f"Internal Server Error: {str(exc)}"},
     )
 
+# Configure CORS - MUST be before route registration so middleware wraps all handlers
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 # Include Routers
 app.include_router(system.router)
 app.include_router(cases.router)
@@ -82,16 +99,6 @@ app.include_router(processing.router)
 app.include_router(backups.router)
 app.include_router(timeline.router)
 app.include_router(tools.router)
-
-
-# Configure CORS
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
 from core.config import TOOLS_CONFIG, REPORTS_DIR, BACKUPS_DIR, TOOLS_DIR
 
@@ -120,8 +127,8 @@ if __name__ == "__main__":
         # Force unbuffered stdout/stderr
         # This is critical for real-time log streaming in the bundled app
         try:
-            sys.stdout.reconfigure(line_buffering=True)
-            sys.stderr.reconfigure(line_buffering=True)
+            sys.stdout.reconfigure(encoding='utf-8', line_buffering=True)
+            sys.stderr.reconfigure(encoding='utf-8', line_buffering=True)
         except AttributeError:
              pass # In case not available, though Python 3.12 supports it
         
@@ -156,24 +163,25 @@ if __name__ == "__main__":
     is_bundled = getattr(sys, 'frozen', False)
     
     if args.port == 0:
-        # Dynamic port allocation via socket handover
+        # Dynamic port allocation: bind to 0 to find a free port, then close and let Uvicorn bind
+        # This avoids passing file descriptors which is problematic on Windows (AF_UNIX error)
         import socket
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.bind(('0.0.0.0', 0))
         port = sock.getsockname()[1]
+        sock.close()
         
         # Vital: Print the port so Electron can read it
         print(f"VDF_TOOLS_BACKEND_PORT:{port}", flush=True)
         
-        # Pass the socket FD to Uvicorn
-        # Uvicorn will use this existing socket instead of creating a new one
+        # Run Uvicorn with the explicit port
         if is_bundled:
-            uvicorn.run(app, fd=sock.fileno())
+            uvicorn.run(app, host="0.0.0.0", port=port)
         else:
-            uvicorn.run("main:app", fd=sock.fileno(), reload=True)
+            uvicorn.run("main:app", host="0.0.0.0", port=port, reload=False)
     else:
         # Standard port binding
         if is_bundled:
             uvicorn.run(app, host="0.0.0.0", port=args.port)
         else:
-            uvicorn.run("main:app", host="0.0.0.0", port=args.port, reload=True)
+            uvicorn.run("main:app", host="0.0.0.0", port=args.port, reload=False)

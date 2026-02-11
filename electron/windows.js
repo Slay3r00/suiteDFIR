@@ -101,7 +101,7 @@ function createMainWindow() {
             nodeIntegration: false,
             webSecurity: !config.isDev
         },
-        title: 'VDF Tools',
+        title: '',
         show: false
     });
 

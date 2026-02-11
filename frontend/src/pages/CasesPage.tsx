@@ -156,9 +156,8 @@ export default function CasesPage() {
         <div className="h-full flex flex-col bg-[#151515] text-white overflow-hidden">
             {/* Header */}
             <div className="px-8 py-6 bg-[#151515] flex justify-between items-center shrink-0">
-                <div className="flex items-center">
-                    <img src="/vdf-logo-dark.png" alt="VDF Tools" className="h-8 w-auto grayscale invert" />
-                </div>
+                <div />
+
                 <Button
                     size="sm"
                     onClick={handleOpenCreate}
@@ -174,7 +173,7 @@ export default function CasesPage() {
                 <div className="relative flex-1 max-w-md">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={16} />
                     <Input
-                        placeholder="Search cases..."
+                        placeholder="Search..."
                         className="pl-9 bg-[#1A1A1A] border-[#333333] text-white placeholder:text-gray-500 focus-visible:ring-1 focus-visible:ring-gray-500"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
@@ -368,14 +367,14 @@ export default function CasesPage() {
             {/* Case Form Modal */}
             <CaseFormDialog
                 open={isModalOpen}
-                onOpenChange={setIsModalOpen}
+                onOpenChange={(open: boolean) => setIsModalOpen(open)}
                 caseData={editingCase}
                 onSuccess={handleCaseSaved}
                 existingNames={cases.map(c => c.name)}
             />
 
             {/* Delete Confirmation Modal */}
-            <Dialog open={caseToDelete !== null} onOpenChange={(open) => !open && setCaseToDelete(null)}>
+            <Dialog open={caseToDelete !== null} onOpenChange={(open: boolean) => !open && setCaseToDelete(null)}>
                 <DialogContent className="max-w-[340px] p-5 bg-[#1A1A1A] border-[#333333] rounded-xl shadow-2xl">
                     <DialogHeader>
                         <DialogTitle className="text-sm font-semibold text-white tracking-wide uppercase">Delete Case</DialogTitle>

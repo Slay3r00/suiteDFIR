@@ -19,7 +19,7 @@ backend/build/
 backend/dist/
 backend/venv/
 backend/*.spec
-!backend/build.spec
+!backend/vdf-backend.spec
 electron/out/
 frontend/.next/
 frontend/out/
@@ -36,3 +36,6 @@ build.spec.spec
 package-lock.json
 backend/data/
 frontend/dist/
+
+# Electron extracted AppImage
+electron/squashfs-root/

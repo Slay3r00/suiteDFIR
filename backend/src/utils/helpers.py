@@ -3,6 +3,7 @@ import sys
 import json
 import logging
 import asyncio
+import subprocess
 import importlib.util
 import platform
 from pathlib import Path
@@ -155,6 +156,18 @@ def get_binary_path(binary_name):
     return binary_name # subprocess will try to find it, but we warned. 
     # Ideally should raise, but helpers.py structure suggests returning string.
 
+def get_subprocess_startupinfo():
+    """
+    Returns a subprocess.STARTUPINFO object with SW_HIDE flag set
+    only if running on Windows. Returns None on other platforms.
+    """
+    if platform.system() == "Windows":
+        startupinfo = subprocess.STARTUPINFO()
+        startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+        startupinfo.wShowWindow = subprocess.SW_HIDE
+        return startupinfo
+    return None
+
 async def broadcast_event(event_type: str, data: dict):
     """Broadcast event to all connected clients"""
     if not event_clients:
@@ -174,7 +187,7 @@ async def broadcast_event(event_type: str, data: dict):
         event_clients.remove(client)
 
 async def get_device_details(udid: str):
-    """Fetch detailed info for an iOS device asynchronously"""
+    """Fetch detailed info for an iOS device asynchronously using threads for Windows stability"""
     device_info = {
         "id": udid,
         "udid": udid,
@@ -186,38 +199,25 @@ async def get_device_details(udid: str):
         "is_encrypted": False
     }
 
+    def run_ideviceinfo(args):
+        cmd = [get_binary_path("ideviceinfo")] + args
+        return subprocess.run(cmd, capture_output=True, encoding='utf-8', errors='replace', startupinfo=get_subprocess_startupinfo())
+
     try:
-        # Run ideviceinfo -x (XML) or simple key lookups
-        # We'll do key lookups as they are simpler to parse without xmltodict
-        
-        ideviceinfo_cmd = get_binary_path("ideviceinfo")
-        
         # Get Device Name
-        proc_name = await asyncio.create_subprocess_exec(
-            ideviceinfo_cmd, "-u", udid, "-k", "DeviceName",
-            stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
-        )
-        stdout_name, _ = await proc_name.communicate()
-        if proc_name.returncode == 0:
-            device_info["name"] = stdout_name.decode().strip()
+        res = await asyncio.to_thread(run_ideviceinfo, ["-u", udid, "-k", "DeviceName"])
+        if res.returncode == 0:
+            device_info["name"] = res.stdout.strip()
 
         # Get Product Type
-        proc_type = await asyncio.create_subprocess_exec(
-            ideviceinfo_cmd, "-u", udid, "-k", "ProductType",
-            stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
-        )
-        stdout_type, _ = await proc_type.communicate()
-        if proc_type.returncode == 0:
-            device_info["type"] = stdout_type.decode().strip()
+        res = await asyncio.to_thread(run_ideviceinfo, ["-u", udid, "-k", "ProductType"])
+        if res.returncode == 0:
+            device_info["type"] = res.stdout.strip()
 
-        # Check Encryption (com.apple.mobile.backup Domain)
-        proc_enc = await asyncio.create_subprocess_exec(
-            ideviceinfo_cmd, "-u", udid, "-q", "com.apple.mobile.backup",
-            stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
-        )
-        stdout_enc, _ = await proc_enc.communicate()
-        if proc_enc.returncode == 0:
-            output = stdout_enc.decode()
+        # Check Encryption
+        res = await asyncio.to_thread(run_ideviceinfo, ["-u", udid, "-q", "com.apple.mobile.backup"])
+        if res.returncode == 0:
+            output = res.stdout
             if "WillEncrypt: true" in output or "RequiresEncryption: 1" in output:
                 device_info["is_encrypted"] = True
                 
@@ -227,28 +227,27 @@ async def get_device_details(udid: str):
     return device_info
 
 async def get_connected_devices():
-    """Helper to get list of connected devices with details"""
+    """Helper to get list of connected devices with details using thread-safe calls"""
     devices = []
     
-    # Check for iOS devices using idevice_id
+    def list_udids():
+        cmd = [get_binary_path("idevice_id"), "-l"]
+        return subprocess.run(cmd, capture_output=True, encoding='utf-8', errors='replace', startupinfo=get_subprocess_startupinfo())
+
     try:
-        idevice_id_cmd = get_binary_path("idevice_id")
-        proc = await asyncio.create_subprocess_exec(
-            idevice_id_cmd, "-l",
-            stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
-        )
-        stdout, _ = await proc.communicate()
+        res = await asyncio.to_thread(list_udids)
         
-        if proc.returncode == 0:
-            udids = stdout.decode().strip().splitlines()
+        if res.returncode == 0:
+            udids = res.stdout.strip().splitlines()
             for udid in udids:
                 if udid:
-                    # Get details for each device
                     details = await get_device_details(udid)
                     devices.append(details)
+        else:
+            logger.error(f"idevice_id failed with return code {res.returncode}: {res.stderr}")
                     
     except Exception as e:
-        logger.error(f"Error checking for devices: {e}")
+        logger.error(f"Error checking for devices: {e}", exc_info=True)
         
     return devices
 
@@ -299,4 +298,3 @@ def check_backup_encryption(path):
     except Exception as e:
         logger.error(f"Error checking backup encryption: {e}")
         return {"error": str(e)}
-
