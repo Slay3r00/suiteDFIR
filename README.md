@@ -7,16 +7,16 @@
 > **Beta (v0.1.0)**:
 >This project is current in **Beta**, While it leverages industry-standard forensic tools (iLEAPP, aLEAPP, libimobiledevice), it remains a forensic best practice to always independently verify significant findings against raw data and secondary tools.
 
-Veritas Lab is a forensic extraction and analysis suite built for speed and privacy.
+Veritas Lab is a forensic extraction and analysis suite built for speed, ease-of-use, and privacy.
 
 **Co-developed with**: [Slay3r00](https://github.com/Slay3r00)
 
 ## Features
-- **Device Extraction**: Extract iOS backups via USB using libimobiledevice. Supports encrypted and unencrypted backups with real-time progress tracking and automatic case organization.
-- **LEAPP Analysis**: Integrated iLEAPP (iOS) and aLEAPP (Android) forensic parsers for automated artifact extraction. Processes call logs, messages, contacts, location data, app usage, and system events with embedded HTML report generation.
-- **Timeline Events**: Chronological reconstruction from multiple data sources with timezone-aware display, advanced filtering by artifact type, cross-source correlation, and full-text search across all timeline events.
-- **Geospatial Data Viewer**: Interactive mapping of GPS coordinates, cell tower locations, Wi-Fi access points, and photo EXIF data. Supports KML/KMZ imports, heat maps, marker clustering, and multi-layer visualization with Leaflet.
-- **Local-First & Private**: Forensic extraction and processing happen entirely on your machine. No forensic data from your cases is ever transmitted to external servers.
+- **Device Extraction**: Extract iOS backups via USB using libimobiledevice. Supports encrypted and unencrypted backups with progress tracking.
+- **LEAPP Analysis**: Integrated iLEAPP (iOS) and aLEAPP (Android) forensic parsers for artifact extraction.
+- **Timeline Events**: Reconstruct data from multiple sources into a searchable chronological view.
+- **Geospatial Viewer**: Map GPS, cell tower, and Wi-Fi locations. Automatically extracts KML files from LEAPP reports.
+- **Private & Local**: All data processing is done on your local machine. Forensic data is never sent to external servers.
 
 ## Showcase
 
@@ -48,12 +48,11 @@ Veritas Lab is designed to prioritize your privacy and the security of forensic 
 - **Case Database**: All investigative data, metadata, and case files are stored on your local disk.
 - **Analysis & Timeline**: Data correlation and timeline reconstruction are 100% offline.
 
-### Non-Local Dependencies (Must be enabled in settings)
+### Non-Local Dependencies
 While processing is local, certain UI and utility features require an internet connection:
 - **Map Page**: Rendering map tiles and layers requires connecting to providers (Google, Carto, OpenStreetMap).
 - **Location Search**: Geocoding and searching for addresses (via Nominatim) is performed via external API calls.
 - **Tool Management**: Checking for updates and downloading the latest forensic tool versions requires access to GitHub and PyPI.
-- **Typography**: Interface fonts are loaded via Google Fonts.
 
 ## Quick Start
 1. **Launch**: Open Veritas Lab on your workstation.
@@ -97,13 +96,13 @@ This project is licensed under the **Apache License 2.0**. See the [LICENSE](fil
 ### Installation
 Install all dependencies for root, frontend, and electron layers:
 ```bash
-npm run install:all
+yarn install:all
 ```
 
 ### Local Development
 Start the concurrent development environment (Vite + Electron):
 ```bash
-npm run dev:electron
+yarn dev:electron
 ```
 
 ### Build Procedures
@@ -111,13 +110,13 @@ Veritas Lab uses a multi-stage build process to bundle the Python environment, V
 
 #### Desktop Application
 Build the full production bundle for your current platform:
-- **macOS**: `npm run build:mac`
-- **Windows**: `npm run build:win`
-- **Linux**: `npm run build:linux`
+- **macOS**: `yarn build:mac`
+- **Windows**: `yarn build:win`
+- **Linux**: `yarn build:linux`
 
 #### Component Builds
-- **Backend Only**: `npm run build:backend` (Packages Python via PyInstaller)
-- **Frontend Only**: `npm run build:frontend` (Builds static Vite assets)
+- **Backend Only**: `yarn build:backend` (Packages Python via PyInstaller)
+- **Frontend Only**: `yarn build:frontend` (Builds static Vite assets)
 
 ## License
 
