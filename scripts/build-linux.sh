@@ -17,7 +17,7 @@ cd "$PROJECT_ROOT"
 # Step 2: Build Frontend
 cd frontend
 echo "Building frontend..."
-npm run build
+yarn run build
 cd "$PROJECT_ROOT"
 
 # Step 3: Package Electron App

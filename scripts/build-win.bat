@@ -51,8 +51,8 @@ REM --- Step 2: Build Frontend ---
 echo.
 echo [2/5] Building Frontend (Static Export)...
 cd "%FRONTEND_DIR%"
-call npm install
-call npm run build
+call yarn install
+call yarn run build
 
 if not exist dist (
     echo [ERROR] Frontend build failed. 'dist' directory not found.
@@ -66,8 +66,8 @@ echo [3/5] Packaging Electron App...
 cd "%ELECTRON_DIR%"
 if exist out rd /s /q out
 if exist dist rd /s /q dist
-call npm install
-call npx electron-builder --dir --win
+call yarn install
+call yarn electron-builder --dir --win
 
 REM Find the output directory (handling version/arch variations)
 set "APP_ROOT=%ELECTRON_DIR%\out\win-unpacked"
@@ -108,7 +108,7 @@ echo.
 echo [5/5] Creating Installer...
 cd "%ELECTRON_DIR%"
 REM Explicitly set platform/arch to avoid "paths[0] undefined" resolution errors
-call npx electron-builder --win nsis --prepackaged "%APP_ROOT%"
+call yarn electron-builder --win nsis --prepackaged "%APP_ROOT%"
 
 echo.
 echo ==========================================

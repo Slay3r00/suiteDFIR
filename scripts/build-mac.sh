@@ -28,7 +28,7 @@ echo "Backend built"
 echo ""
 echo "Building frontend..."
 cd frontend
-npm run build
+yarn run build
 cd "$PROJECT_ROOT"
 echo "Frontend built"
 
@@ -37,8 +37,8 @@ echo ""
 echo "Packaging Electron app..."
 cd electron
 rm -rf out dist
-npm install
-npx electron-builder --dir --mac
+yarn install
+yarn electron-builder --dir --mac
 
 # Copy resources manually (extraResource doesn't work reliably)
 APP_PATH="out/mac-arm64/vdf-tools.app"
@@ -66,7 +66,7 @@ echo "Electron app packaged"
 # Step 4: Create DMG
 echo ""
 echo "Creating DMG distributable..."
-npx electron-builder --mac dmg --prepackaged "$APP_PATH"
+yarn electron-builder --mac dmg --prepackaged "$APP_PATH"
 echo "DMG created"
 
 # Done
