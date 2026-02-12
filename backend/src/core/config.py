@@ -52,7 +52,18 @@ TOOLS_CONFIG: Dict[str, Dict[str, Any]] = {
 # Directory Configuration
 REPORTS_DIR = str(BASE_DIR / "reports")
 BACKUPS_DIR = str(BASE_DIR / "backups")
-TOOLS_DIR = str(BASE_DIR / "forensic-tools")
+
+def get_tools_dir() -> str:
+    """Get the directory for forensic tools."""
+    if not getattr(sys, 'frozen', False):
+        # Development: backend/forensic-tools
+        return str(BASE_DIR / "forensic-tools")
+    else:
+        # Production: Resources/forensic-tools (sibling to VDF Tools Backend)
+        # Structure: Resources/{VDF Tools Backend, forensic-tools}
+        return str(Path(sys.executable).parent.parent / "forensic-tools")
+
+TOOLS_DIR = get_tools_dir()
 
 
 # Database Configuration

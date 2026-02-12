@@ -41,6 +41,10 @@ cp -R ../backend/dist/VDF\ Tools\ Backend "$RESOURCES_PATH/"
 mkdir -p "$RESOURCES_PATH/bin"
 cp -R ../backend/bin/linux/* "$RESOURCES_PATH/bin/"
 
+# Copy forensic tools
+mkdir -p "$RESOURCES_PATH/forensic-tools"
+cp -R ../backend/forensic-tools "$RESOURCES_PATH/"
+
 # Copy frontend static files
 cp -R ../frontend/dist "$RESOURCES_PATH/"
 

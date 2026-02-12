@@ -54,6 +54,10 @@ cp -R ../backend/bin/macos/* "$RESOURCES_PATH/bin/"
 echo "  Signing binaries for portability..."
 codesign --force --deep --sign - "$RESOURCES_PATH/bin/"*
 
+echo "  Copying forensic-tools..."
+mkdir -p "$RESOURCES_PATH/forensic-tools"
+cp -R ../backend/forensic-tools "$RESOURCES_PATH/"
+
 
 echo "  Copying frontend..."
 cp -R ../frontend/dist "$RESOURCES_PATH/"

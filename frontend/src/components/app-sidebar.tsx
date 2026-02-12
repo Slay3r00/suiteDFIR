@@ -4,7 +4,6 @@ import {
     Smartphone,
     Box,
     Clock,
-    Settings,
     PanelLeft,
     Archive,
     ChevronLeft
@@ -82,28 +81,7 @@ export function AppSidebar() {
 
     return (
         <Sidebar collapsible="icon">
-            <SidebarHeader className="pt-4 px-2">
-                <SidebarMenu>
-                    <SidebarMenuItem className="flex items-center gap-1 group-data-[state=collapsed]:justify-center group-data-[state=collapsed]:px-0">
-                        <SidebarMenuButton
-                            tooltip="Back to Cases"
-                            onClick={() => navigate('/cases')}
-                            className="h-10 flex-1 hover:bg-sidebar-accent p-0 flex items-center justify-center group-data-[state=collapsed]:hidden"
-                        >
-                            <ChevronLeft className="h-5 w-5" />
-                        </SidebarMenuButton>
-                        <SidebarMenuButton
-                            tooltip="Toggle Sidebar"
-                            onClick={toggleSidebar}
-                            className="h-10 flex-1 hover:bg-sidebar-accent p-0 flex items-center justify-center group-data-[state=collapsed]:h-10 group-data-[state=collapsed]:w-10"
-                        >
-                            <PanelLeft className="h-5 w-5" />
-                        </SidebarMenuButton>
-                    </SidebarMenuItem>
-                </SidebarMenu>
-            </SidebarHeader>
-
-            <SidebarContent>
+            <SidebarHeader className="pt-4 px-2 group-data-[state=collapsed]:px-0">
                 <SidebarGroup>
                     <SidebarGroupLabel className="text-[10px] font-medium text-sidebar-foreground/70 uppercase tracking-wider">Case</SidebarGroupLabel>
                     <SidebarGroupContent>
@@ -175,7 +153,6 @@ export function AppSidebar() {
                         </div>
                     </SidebarGroupContent>
                 </SidebarGroup>
-
                 <SidebarGroup>
                     <SidebarGroupLabel className="text-[10px] font-medium text-sidebar-foreground/70 uppercase tracking-wider">Data Analysis</SidebarGroupLabel>
                     <SidebarGroupContent>
@@ -193,20 +170,26 @@ export function AppSidebar() {
                         </SidebarMenu>
                     </SidebarGroupContent>
                 </SidebarGroup>
-            </SidebarContent>
+            </SidebarHeader>
+
+            <SidebarContent />
+
             <SidebarFooter>
                 <SidebarMenu>
-                    <SidebarMenuItem>
+                    <SidebarMenuItem className="flex items-center gap-1 group-data-[state=collapsed]:justify-center group-data-[state=collapsed]:px-0">
                         <SidebarMenuButton
-                            asChild
-                            tooltip="Settings"
-                            isActive={pathname === "/preferences"}
-                            className="h-10 hover:bg-sidebar-accent px-3 gap-3"
+                            tooltip="Back to Cases"
+                            onClick={() => navigate('/cases')}
+                            className="h-10 flex-1 hover:bg-sidebar-accent p-0 flex items-center justify-center group-data-[state=collapsed]:hidden"
                         >
-                            <Link to="/preferences">
-                                <Settings className="h-5 w-5" />
-                                <span className="text-[11px] uppercase tracking-wider font-medium group-data-[state=collapsed]:hidden">Settings</span>
-                            </Link>
+                            <ChevronLeft className="h-5 w-5" />
+                        </SidebarMenuButton>
+                        <SidebarMenuButton
+                            tooltip="Toggle Sidebar"
+                            onClick={toggleSidebar}
+                            className="h-10 flex-1 hover:bg-sidebar-accent p-0 flex items-center justify-center group-data-[state=collapsed]:h-10 group-data-[state=collapsed]:w-10"
+                        >
+                            <PanelLeft className="h-5 w-5" />
                         </SidebarMenuButton>
                     </SidebarMenuItem>
                 </SidebarMenu>

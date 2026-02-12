@@ -37,5 +37,12 @@ package-lock.json
 backend/data/
 frontend/dist/
 
+# Forensic Tools (vendored) - keep tools, ignore their cache
+backend/forensic-tools/**/__pycache__/
+backend/forensic-tools/**/*.pyc
+backend/forensic-tools/**/.pytest_cache/
+backend/forensic-tools/**/.DS_Store
+backend/forensic-tools/**/._*
+
 # Electron extracted AppImage
 electron/squashfs-root/

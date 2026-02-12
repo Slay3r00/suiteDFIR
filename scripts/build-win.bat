@@ -100,6 +100,10 @@ if exist "%BACKEND_DIR%\bin\windows" (
     echo   [WARNING] No Windows binaries found in backend\bin\windows. Please check your source.
 )
 
+echo   Copying forensic-tools...
+if not exist "%RESOURCES_PATH%\forensic-tools" mkdir "%RESOURCES_PATH%\forensic-tools"
+xcopy /E /I /Y /Q "%BACKEND_DIR%\forensic-tools" "%RESOURCES_PATH%\forensic-tools"
+
 echo   Creating reports directory...
 if not exist "%RESOURCES_PATH%\reports" mkdir "%RESOURCES_PATH%\reports"
 

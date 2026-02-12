@@ -4,7 +4,6 @@ import LogViewer from '../../components/ileapp/LogViewer';
 import FileSelector from '../../components/ileapp/FileSelector';
 import ModuleSelector from '../../components/ileapp/ModuleSelector';
 import ProcessControls from '../../components/ileapp/ProcessControls';
-import ToolNotInstalled from '../../components/ui/ToolNotInstalled';
 import { useLeapp } from '@/context/LeappContext';
 
 import { Button, Input, ConfirmDialog, LibraryCard } from '@/components/ui';
@@ -13,7 +12,6 @@ import { FolderOpen, Calendar, Trash2, Loader2, Download } from 'lucide-react';
 import { LoadingPage } from '../ui/LoadingPage';
 import { useConfirmDialog } from '@/hooks';
 
-import { getToolsStatus } from '@/lib/api/tools';
 import { cn } from '../../lib/utils';
 import { API } from '@/lib/api';
 
@@ -298,38 +296,7 @@ function LeappContent({ tool }: { tool: 'ileapp' | 'aleapp' }) {
     );
 }
 
-function LeappPageWithCheck({ tool }: LeappPageProps) {
-    const [toolInstalled, setToolInstalled] = useState<boolean | null>(null);
-
-    useEffect(() => {
-
-        const checkTool = async () => {
-            try {
-                const status = await getToolsStatus();
-                const toolStatus = status[tool];
-                setToolInstalled(toolStatus?.installed ?? false);
-            } catch (error) {
-                console.error('Failed to check tool status:', error);
-                // Assume installed on error to avoid blocking
-                setToolInstalled(true);
-            }
-        };
-
-        checkTool();
-    }, [tool]);
-
-    // Tool not installed - show blocking screen
-    if (toolInstalled === false) {
-        return <ToolNotInstalled tool={tool} />;
-    }
-
-    // Tool installed - show normal content
-    return (
-        <LeappContent tool={tool} />
-    );
-}
-
 export default function LeappPage({ tool, toolName }: LeappPageProps) {
-    return <LeappPageWithCheck tool={tool} toolName={toolName} />;
+    return <LeappContent tool={tool} />;
 }
 
