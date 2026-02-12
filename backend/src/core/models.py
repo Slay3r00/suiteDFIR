@@ -224,14 +224,6 @@ class ToolsStatusResponse(BaseModel):
     ileapp: ToolStatus
     aleapp: ToolStatus
 
-
-class ToolInstallResult(BaseModel):
-    """Tool installation result."""
-    success: bool
-    tool: str
-    message: Optional[str] = None
-    error: Optional[str] = None
-
 # PROFILE RESPONSE MODELS
 
 class ProfileLoadResult(BaseModel):

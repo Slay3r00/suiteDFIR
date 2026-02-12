@@ -13,10 +13,11 @@ block_cipher = None
 backend_dir = SPECPATH
 src_dir = os.path.join(backend_dir, 'src')
 
-# Data files to include (minimal - user data will be created/downloaded at runtime)
+# Data files to include
 datas = [
     ('bin', 'bin'),
     ('src', 'src'),  # Include the src directory
+    # Note: forensic-tools are copied by build scripts to Resources/, not bundled by PyInstaller
     # Only include the database schema if it exists
     # (os.path.join(backend_dir, 'app.db'), '.'),
 ]
