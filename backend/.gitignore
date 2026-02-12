@@ -62,8 +62,14 @@ htmlcov/
 # pyenv
 .python-version
 
-# LEAPP
-forensic-tools/
+# LEAPP - Forensic Tools (vendored in git)
+# Keep tools, ignore their cache
+forensic-tools/**/__pycache__/
+forensic-tools/**/*.pyc
+forensic-tools/**/.pytest_cache/
+forensic-tools/**/.DS_Store
+forensic-tools/**/._*
+# User data
 reports/
 backups/
 data/
