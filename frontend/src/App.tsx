@@ -14,6 +14,7 @@ const AleappPage = lazy(() => import('./pages/AleappPage'))
 const BackupPage = lazy(() => import('./pages/BackupPage'))
 const SpatialPage = lazy(() => import('./pages/SpatialPage'))
 const TimelinePage = lazy(() => import('./pages/TimelinePage'))
+const SettingsPage = lazy(() => import('./pages/SettingsPage'))
 
 function App() {
     return (
@@ -26,6 +27,9 @@ function App() {
 
                         {/* Cases page (no sidebar) */}
                         <Route path="/cases" element={<CasesPage />} />
+
+                        {/* Settings page (no sidebar) */}
+                        <Route path="/settings" element={<SettingsPage />} />
 
                         {/* Main layout routes (with sidebar) */}
                         <Route element={<MainLayout />}>

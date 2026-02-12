@@ -10,6 +10,7 @@ import {
     Calendar,
     Trash2,
     Edit2,
+    Settings,
 } from "lucide-react"
 import { Button } from "@/components/ui/Button"
 import { Input } from "@/components/ui/Input"
@@ -158,14 +159,25 @@ export default function CasesPage() {
             <div className="px-8 py-6 bg-[#151515] flex justify-between items-center shrink-0">
                 <div />
 
-                <Button
-                    size="sm"
-                    onClick={handleOpenCreate}
-                    className="bg-white text-black hover:bg-gray-200 gap-1.5 text-[11px] font-bold uppercase tracking-wider h-8 px-3"
-                >
-                    <Plus size={14} />
-                    New Case
-                </Button>
+                <div className="flex items-center gap-2">
+                    <Button
+                        size="sm"
+                        onClick={handleOpenCreate}
+                        className="bg-white text-black hover:bg-gray-200 gap-1.5 text-[11px] font-bold uppercase tracking-wider h-8 px-3"
+                    >
+                        <Plus size={14} />
+                        New Case
+                    </Button>
+                    <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => navigate('/settings')}
+                        className="text-gray-400 hover:text-white h-8 w-8 p-0"
+                        title="Settings"
+                    >
+                        <Settings size={16} />
+                    </Button>
+                </div>
             </div>
 
             {/* Toolbar */}
