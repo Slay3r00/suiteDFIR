@@ -1,19 +1,20 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react'
+import type { GeoJsonObject } from 'geojson'
 
 interface SpatialContextType {
     center: [number, number];
     zoom: number;
     layer: 'normal' | 'satellite' | 'hybrid';
     selectedKmlsPaths: string[];
-    geoJsonData: any;
+    geoJsonData: GeoJsonObject | null;
     searchQuery: string;
 
     setCenter: (center: [number, number]) => void;
     setZoom: (zoom: number) => void;
     setLayer: (layer: 'normal' | 'satellite' | 'hybrid') => void;
     setSelectedKmlsPaths: (paths: string[]) => void;
-    setGeoJsonData: (data: any) => void;
+    setGeoJsonData: (data: GeoJsonObject | null) => void;
     setSearchQuery: (query: string) => void;
 
     // Tracking for auto-fitting
@@ -61,7 +62,7 @@ export function SpatialProvider({ children }: { children: React.ReactNode }) {
     const setSelectedKmlsPaths = (val: string[]) => setState(prev => ({ ...prev, selectedKmlsPaths: val }));
     const setSearchQuery = (val: string) => setState(prev => ({ ...prev, searchQuery: val }));
 
-    const [geoJsonData, setGeoJsonData] = useState<any>(null);
+    const [geoJsonData, setGeoJsonData] = useState<GeoJsonObject | null>(null);
     const [fittedPaths, setFittedPaths] = useState<Set<string>>(new Set());
 
     const markPathFitted = (path: string) => {
@@ -69,9 +70,21 @@ export function SpatialProvider({ children }: { children: React.ReactNode }) {
     };
 
     // Auto-sync fittedPaths with selectedKmlsPaths when state is loaded
+    // Only remove paths from fittedPaths if they are no longer selected
+    // Do NOT auto-add them; let SpatialMap handle that after flying to bounds
     useEffect(() => {
         if (isStateLoaded) {
-            setFittedPaths(new Set(selectedKmlsPaths));
+            setFittedPaths(prev => {
+                const next = new Set(prev);
+                let changed = false;
+                for (const path of next) {
+                    if (!selectedKmlsPaths.includes(path)) {
+                        next.delete(path);
+                        changed = true;
+                    }
+                }
+                return changed ? next : prev;
+            });
         }
     }, [isStateLoaded, selectedKmlsPaths]);
 

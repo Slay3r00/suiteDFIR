@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/Input"
 import { Button } from "@/components/ui/Button"
 import { cn } from "@/lib/utils"
 import { API } from "@/lib/api"
-import * as toGeoJSON from "@mapbox/togeojson"
+import { parseKmlText } from "@/lib/kmlUtils"
 import JSZip from "jszip"
 
 interface KmlFile {
@@ -19,14 +19,13 @@ interface MapControlsProps {
     onLayerChange: (layer: 'normal' | 'satellite' | 'hybrid') => void
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     onDataUpload: (data: any) => void
-    onKmlSelect: (kmlUrl: string, selected: boolean) => void
     currentLayer: 'normal' | 'satellite' | 'hybrid'
     selectedCaseId: string | null
 }
 
 import { useSpatial } from "@/context/SpatialContext"
 
-export default function MapControls({ onSearch, onLayerChange, onDataUpload, onKmlSelect, currentLayer, selectedCaseId }: MapControlsProps) {
+export default function MapControls({ onSearch, onLayerChange, onDataUpload, currentLayer, selectedCaseId }: MapControlsProps) {
     const { selectedKmlsPaths, setSelectedKmlsPaths, searchQuery, setSearchQuery } = useSpatial()
     const [isSearching, setIsSearching] = useState(false)
     const [isUploading, setIsUploading] = useState(false)
@@ -81,8 +80,6 @@ export default function MapControls({ onSearch, onLayerChange, onDataUpload, onK
         } else {
             setSelectedKmlsPaths([...selectedKmlsPaths, file.url])
         }
-
-        onKmlSelect(file.url, !isSelected)
     }
 
     const handleSearch = async (e: React.FormEvent) => {
@@ -114,19 +111,13 @@ export default function MapControls({ onSearch, onLayerChange, onDataUpload, onK
         try {
             if (file.name.endsWith('.kml')) {
                 const text = await file.text()
-                const parser = new DOMParser()
-                const kml = parser.parseFromString(text, 'text/xml')
-                const geojson = toGeoJSON.kml(kml)
-                onDataUpload(geojson)
+                onDataUpload(parseKmlText(text))
             } else if (file.name.endsWith('.kmz')) {
                 const zip = await JSZip.loadAsync(file)
                 const kmlFile = Object.values(zip.files).find(f => f.name.endsWith('.kml'))
                 if (kmlFile) {
                     const text = await kmlFile.async('string')
-                    const parser = new DOMParser()
-                    const kml = parser.parseFromString(text, 'text/xml')
-                    const geojson = toGeoJSON.kml(kml)
-                    onDataUpload(geojson)
+                    onDataUpload(parseKmlText(text))
                 }
             }
         } catch (error) {
@@ -264,29 +255,32 @@ export default function MapControls({ onSearch, onLayerChange, onDataUpload, onK
                                                 })()}
                                             </div>
                                             <div className="divide-y divide-[#262626]/30">
-                                                {files.map((file) => (
-                                                    <div
-                                                        key={file.path}
-                                                        className={cn(
-                                                            "flex items-center gap-3 px-3 py-2 cursor-pointer transition-colors hover:bg-[#2a2a2a]",
-                                                            selectedKmlsPaths.includes(file.url) && "bg-[#262626]"
-                                                        )}
-                                                        onClick={() => toggleKmlSelection(file)}
-                                                    >
-                                                        <div className={cn(
-                                                            "w-3.5 h-3.5 border flex items-center justify-center transition-colors rounded",
-                                                            selectedKmlsPaths.includes(file.url) ? "bg-white border-white" : "border-gray-500 hover:border-gray-400"
-                                                        )}
-                                                            style={{ borderWidth: '0.5px' }}
+                                                {files.map((file) => {
+                                                    const isSelected = selectedKmlsPaths.includes(file.url)
+                                                    return (
+                                                        <div
+                                                            key={file.path}
+                                                            className={cn(
+                                                                "flex items-center gap-3 px-3 py-2 cursor-pointer transition-colors hover:bg-[#2a2a2a]",
+                                                                isSelected && "bg-[#262626]"
+                                                            )}
+                                                            onClick={() => toggleKmlSelection(file)}
                                                         >
-                                                            {selectedKmlsPaths.includes(file.url) && <Check className="h-2.5 w-2.5 text-black" strokeWidth={4} />}
+                                                            <div className={cn(
+                                                                "w-3.5 h-3.5 border flex items-center justify-center transition-colors rounded",
+                                                                isSelected ? "bg-white border-white" : "border-gray-500 hover:border-gray-400"
+                                                            )}
+                                                                style={{ borderWidth: '0.5px' }}
+                                                            >
+                                                                {isSelected && <Check className="h-2.5 w-2.5 text-black" strokeWidth={4} />}
+                                                            </div>
+                                                            <span className={cn(
+                                                                "text-xs truncate flex-1 font-medium",
+                                                                isSelected ? "text-white" : "text-gray-300 hover:text-white"
+                                                            )} title={file.name}>{file.name}</span>
                                                         </div>
-                                                        <span className={cn(
-                                                            "text-xs truncate flex-1 font-medium",
-                                                            selectedKmlsPaths.includes(file.url) ? "text-white" : "text-gray-300 hover:text-white"
-                                                        )} title={file.name}>{file.name}</span>
-                                                    </div>
-                                                ))}
+                                                    )
+                                                })}
                                             </div>
                                         </div>
                                     ))
