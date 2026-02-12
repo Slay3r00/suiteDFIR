@@ -10,7 +10,6 @@ export * from './LoadingPage';
 export * from './DataTable';
 export * from './table';
 export * from './Select';
-export * from './ToolNotInstalled';
 export * from './separator';
 export * from './sheet';
 export * from './sidebar';

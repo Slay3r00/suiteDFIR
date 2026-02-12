@@ -14,7 +14,6 @@ const AleappPage = lazy(() => import('./pages/AleappPage'))
 const BackupPage = lazy(() => import('./pages/BackupPage'))
 const SpatialPage = lazy(() => import('./pages/SpatialPage'))
 const TimelinePage = lazy(() => import('./pages/TimelinePage'))
-const PreferencesPage = lazy(() => import('./pages/PreferencesPage'))
 
 function App() {
     return (
@@ -37,7 +36,6 @@ function App() {
                             <Route path="/backup" element={<BackupPage />} />
                             <Route path="/spatial" element={<SpatialPage />} />
                             <Route path="/timeline" element={<TimelinePage />} />
-                            <Route path="/preferences" element={<PreferencesPage />} />
                         </Route>
                     </Routes>
                 </Suspense>
