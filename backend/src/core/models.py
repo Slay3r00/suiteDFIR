@@ -321,3 +321,17 @@ class ActivityItem(BaseModel):
 class RecentActivityResponse(BaseModel):
     """Recent activity response."""
     activities: List[ActivityItem]
+
+# SETTINGS MODELS
+
+class SettingValue(BaseModel):
+    """Request body for updating a setting."""
+    value: str
+
+class TileSessionRequest(BaseModel):
+    """Request body for creating a Google Maps tile session."""
+    mapType: str = "roadmap"
+    language: str = "en-US"
+    region: str = "US"
+    layerTypes: Optional[List[str]] = None
+    overlay: Optional[bool] = None

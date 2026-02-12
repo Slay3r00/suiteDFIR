@@ -25,7 +25,7 @@ from core.database import init_database
 from core.config import BASE_DIR
 
 from services.plugin_manager import load_plugins
-from api import cases, reports, profiles, dashboard, processing, backups, system, timeline, tools
+from api import cases, reports, profiles, dashboard, processing, backups, system, timeline, tools, settings, tiles
 from utils.device_watcher import start_device_watcher, stop_device_watcher
 from services.case_manager import case_manager
 
@@ -99,6 +99,8 @@ app.include_router(processing.router)
 app.include_router(backups.router)
 app.include_router(timeline.router)
 app.include_router(tools.router)
+app.include_router(settings.router)
+app.include_router(tiles.router)
 
 from core.config import TOOLS_CONFIG, REPORTS_DIR, BACKUPS_DIR, TOOLS_DIR
 
