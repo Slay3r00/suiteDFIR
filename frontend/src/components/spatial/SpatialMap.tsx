@@ -1,5 +1,5 @@
 
-import { useEffect, useState, useRef } from "react"
+import { useEffect, useState, useRef, useCallback } from "react"
 import { MapContainer, TileLayer, useMap, GeoJSON } from "react-leaflet"
 import "leaflet/dist/leaflet.css"
 import L from "leaflet"
@@ -160,40 +160,59 @@ export default function SpatialMap() {
         }
     }
 
-    const getTileLayer = () => {
-        switch (layer) {
+    const [tileSession, setTileSession] = useState<{
+        session: string; key: string; mapType: string
+    } | null>(null)
+
+    // Map app layer names to Google Maps Tile API session params
+    const getSessionParams = useCallback((appLayer: string) => {
+        switch (appLayer) {
             case 'satellite':
-                return (
-                    <TileLayer
-                        key="satellite"
-                        attribution='&copy; Google Maps'
-                        url="https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}"
-                        subdomains={['mt0', 'mt1', 'mt2', 'mt3']}
-                        maxZoom={22}
-                    />
-                )
+                return { mapType: 'satellite' }
             case 'hybrid':
-                return (
-                    <TileLayer
-                        key="hybrid"
-                        attribution='&copy; Google Maps'
-                        url="https://{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}&scale=2"
-                        subdomains={['mt0', 'mt1', 'mt2', 'mt3']}
-                        maxZoom={22}
-                    />
-                )
+                return { mapType: 'satellite', layerTypes: ['layerRoadmap'], overlay: false }
             case 'normal':
             default:
-                return (
-                    <TileLayer
-                        key="normal"
-                        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
-                        url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
-                        subdomains='abcd'
-                        maxZoom={22}
-                    />
-                )
+                return { mapType: 'roadmap' }
         }
+    }, [])
+
+    // Fetch a tile session whenever the layer changes
+    useEffect(() => {
+        let cancelled = false
+        const fetchSession = async () => {
+            try {
+                const params = getSessionParams(layer)
+                const res = await fetch(API.path('/spatial/tile-session'), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(params),
+                })
+                if (res.ok && !cancelled) {
+                    const data = await res.json()
+                    setTileSession({ session: data.session, key: data.key, mapType: params.mapType })
+                }
+            } catch (err) {
+                console.error('Failed to fetch tile session:', err)
+            }
+        }
+        fetchSession()
+        return () => { cancelled = true }
+    }, [layer, getSessionParams])
+
+    const getTileLayer = () => {
+        if (!tileSession) return null
+
+        const tileUrl = `https://tile.googleapis.com/v1/2dtiles/{z}/{x}/{y}?session=${tileSession.session}&key=${tileSession.key}`
+
+        return (
+            <TileLayer
+                key={`google-${layer}-${tileSession.session}`}
+                attribution='&copy; Google Maps'
+                url={tileUrl}
+                maxZoom={22}
+            />
+        )
     }
 
     function onEachFeature(feature: Feature, layer: L.Layer) {
@@ -206,12 +225,12 @@ export default function SpatialMap() {
             // 1. Parse Description (Table or String)
             if (description) {
                 const isTable = description.includes('<table') || description.includes('<tr')
-                
+
                 if (isTable) {
                     const parser = new DOMParser()
                     const doc = parser.parseFromString(description, 'text/html')
                     const rows = doc.querySelectorAll('tr')
-                    
+
                     rows.forEach(row => {
                         const cells = row.querySelectorAll('td, th')
                         if (cells.length >= 2) {
@@ -262,7 +281,7 @@ export default function SpatialMap() {
             // 3. Post-process Metadata (Dates and Redundancy)
             Object.keys(metadata).forEach(key => {
                 let value = metadata[key]
-                
+
                 // Format dates for readability
                 if (key.toLowerCase().includes('time') || key.toLowerCase().includes('date')) {
                     try {
@@ -295,15 +314,15 @@ export default function SpatialMap() {
                         ${name && name !== artifactName ? `<div class="text-sm text-gray-500 mt-1">${name}</div>` : ''}
                     </div>
                     <div class="space-y-3 max-h-[300px] overflow-y-auto custom-scrollbar">
-                        ${Object.entries(metadata).length > 0 ? 
-                            Object.entries(metadata).map(([key, value]) => `
+                        ${Object.entries(metadata).length > 0 ?
+                    Object.entries(metadata).map(([key, value]) => `
                                 <div class="flex flex-col gap-1">
                                     <span class="font-semibold text-xs text-gray-500 uppercase tracking-wide">${key}</span>
                                     <span class="text-sm text-gray-800 break-words whitespace-pre-wrap">${value}</span>
                                 </div>
                             `).join('') :
-                            `<div class="text-sm text-gray-400 italic">No additional metadata available</div>`
-                        }
+                    `<div class="text-sm text-gray-400 italic">No additional metadata available</div>`
+                }
                     </div>
                 </div>
             `

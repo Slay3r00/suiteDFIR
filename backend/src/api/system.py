@@ -91,33 +91,46 @@ async def get_kml_data(path: str):
 
 @router.get("/spatial/search")
 async def search_location(q: str):
-    """Proxy Nominatim search to avoid CORS issues in bundled environment."""
+    """Proxy Google Geocoding API search."""
+    from services.settings_manager import settings_manager
+
+    api_key = await settings_manager.get_setting("google_maps_api_key")
+    if not api_key:
+        raise HTTPException(status_code=400, detail="Google Maps API key not configured. Set it in Settings.")
+
     try:
         import httpx
     except ImportError:
         logger.error("httpx is not installed")
         raise HTTPException(status_code=500, detail="Search dependency missing")
 
-    url = "https://nominatim.openstreetmap.org/search"
+    url = "https://maps.googleapis.com/maps/api/geocode/json"
     params = {
-        "format": "json",
-        "q": q,
-        "addressdetails": 1,
-        "limit": 5
+        "address": q,
+        "key": api_key,
     }
-    # Use headers that Nominatim accepts (avoid blocked generic/example strings)
-    headers = {
-        "User-Agent": "VDF-Tools-Forensics/1.0",
-        "Referer": "https://vdf-tools.com"
-    }
-    
+
     async with httpx.AsyncClient() as client:
         try:
-            response = await client.get(url, params=params, headers=headers, timeout=10.0, follow_redirects=True)
+            response = await client.get(url, params=params, timeout=10.0)
             response.raise_for_status()
-            return response.json()
+            data = response.json()
+
+            if data.get("status") != "OK" or not data.get("results"):
+                return []
+
+            # Transform to match existing frontend contract: [{ lat, lon, display_name }]
+            results = []
+            for result in data["results"][:5]:
+                loc = result["geometry"]["location"]
+                results.append({
+                    "lat": str(loc["lat"]),
+                    "lon": str(loc["lng"]),
+                    "display_name": result.get("formatted_address", ""),
+                })
+            return results
         except httpx.HTTPStatusError as e:
-            logger.error(f"Nominatim API error: {e.response.status_code} - {e.response.text}")
+            logger.error(f"Google Geocoding API error: {e.response.status_code} - {e.response.text}")
             raise HTTPException(status_code=502, detail="Location search service error")
         except Exception as e:
             logger.error(f"Search proxy failed: {e}")
