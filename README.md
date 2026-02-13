@@ -1,4 +1,4 @@
-# Veritas Lab
+# suiteDFIR
 
 
 
@@ -7,7 +7,7 @@
 > **Beta (v0.1.0)**:
 >This project is current in **Beta**, While it leverages industry-standard forensic tools (iLEAPP, aLEAPP, libimobiledevice), it remains a forensic best practice to always independently verify significant findings against raw data and secondary tools.
 
-Veritas Lab is a forensic extraction and analysis suite built for speed, ease-of-use, and privacy.
+suiteDFIR is a forensic extraction and analysis suite built for speed, ease-of-use, and privacy.
 
 **Co-developed with**: [Slay3r00](https://github.com/Slay3r00)
 
@@ -40,7 +40,7 @@ Veritas Lab is a forensic extraction and analysis suite built for speed, ease-of
 
 ## Privacy & Data Locality
 
-Veritas Lab is designed to prioritize your privacy and the security of forensic data. Understanding where data stays local and where external connections are made is critical for forensic integrity.
+suiteDFIR is designed to prioritize your privacy and the security of forensic data. Understanding where data stays local and where external connections are made is critical for forensic integrity.
 
 ### What Stays Local
 - **Forensic Extraction**: All device imaging and backup extractions are performed locally via USB.
@@ -55,7 +55,7 @@ While processing is local, certain UI and utility features require an internet c
 - **Tool Management**: Checking for updates and downloading the latest forensic tool versions requires access to GitHub and PyPI.
 
 ## Quick Start
-1. **Launch**: Open Veritas Lab on your workstation.
+1. **Launch**: Open suiteDFIR on your workstation.
 2. **Create Case**: Create a new case and add relevant investigation details.
 3. **Connect**: Navigate to the **Backups** page and connect the target device via USB.
 4. **Extract**: Start the local extraction to image the device.
@@ -71,7 +71,7 @@ While processing is local, certain UI and utility features require an internet c
 
 ## Powered By
 
-Veritas Lab stands on the shoulders of giants. See [THIRD-PARTY-NOTICES.md](file:///Users/jacobcontreras/vdf-tools-dev/THIRD-PARTY-NOTICES.md) for full attributions and license texts.
+suiteDFIR stands on the shoulders of giants. See [THIRD-PARTY-NOTICES.md](file:///Users/jacobcontreras/vdf-tools-dev/THIRD-PARTY-NOTICES.md) for full attributions and license texts.
 
 - [iLEAPP](https://github.com/abrignoni/iLEAPP) & [aLEAPP](https://github.com/abrignoni/aLEAPP)
 - [libimobiledevice](https://libimobiledevice.org/) (Licensed under LGPL 2.1+)
@@ -106,7 +106,7 @@ yarn dev:electron
 ```
 
 ### Build Procedures
-Veritas Lab uses a multi-stage build process to bundle the Python environment, Vite frontend, and Electron shell.
+suiteDFIR uses a multi-stage build process to bundle the Python environment, Vite frontend, and Electron shell.
 
 #### Desktop Application
 Build the full production bundle for your current platform:
