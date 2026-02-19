@@ -121,7 +121,7 @@ function ReportsContent() {
         if (urlId) {
             const targetId = parseInt(urlId);
             const targetReport = reports.find(r => r.id === targetId);
-            if (targetReport) {
+            if (targetReport && targetReport.id !== selectedReportId) {
                 setSelectedReportId(targetReport.id);
                 return;
             }
@@ -132,7 +132,7 @@ function ReportsContent() {
             const normalizedUrlPath = urlPath.replace(/\/$/, '').toLowerCase();
             const targetReport = reports.find(r => r.path.replace(/\/$/, '').toLowerCase() === normalizedUrlPath);
 
-            if (targetReport) {
+            if (targetReport && targetReport.id !== selectedReportId) {
                 setSelectedReportId(targetReport.id);
                 // Scroll to the selected report card
                 setTimeout(() => {
@@ -153,8 +153,8 @@ function ReportsContent() {
             }
         }
 
-        // 4. Last Fallback: First report
-        if (reports.length > 0) {
+        // 4. Last Fallback: First report (only if different from current selection)
+        if (reports.length > 0 && reports[0].id !== selectedReportId) {
             setSelectedReportId(reports[0].id);
         }
     }, [reports, searchParams, isLoading, selectedReportId, setSelectedReportId, isStateLoaded]);

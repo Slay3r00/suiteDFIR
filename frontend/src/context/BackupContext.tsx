@@ -87,6 +87,8 @@ export function BackupProvider({ children }: { children: ReactNode }) {
     const [backups, setBackups] = useState<Backup[]>([]);
     const [isLoadingDevices, setIsLoadingDevices] = useState(false);
 
+    const { selectedCaseId } = useCase(); // Get selected case ID
+
     const api = React.useMemo(() => createLeappApi('ios'), []);
     const logStreamRef = useRef<EventSource | null>(null);
     const selectedDeviceRef = useRef(config.selectedDevice);
@@ -119,13 +121,16 @@ export function BackupProvider({ children }: { children: ReactNode }) {
     }, [api, updateConfig]);
 
     const fetchBackups = useCallback(async (caseId?: string) => {
+        // Use provided caseId or fall back to selectedCaseId from context
+        const targetCaseId = caseId || selectedCaseId;
+        
         try {
-            const data = await api.backup.getBackups(caseId ? parseInt(caseId) : undefined);
+            const data = await api.backup.getBackups(targetCaseId ? parseInt(targetCaseId) : undefined);
             setBackups(data);
         } catch (error) {
             console.error('Failed to fetch backups:', error);
         }
-    }, [api]);
+    }, [api, selectedCaseId]);
 
     // unified stream for background updates
     useEffect(() => {
