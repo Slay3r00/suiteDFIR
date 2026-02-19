@@ -102,15 +102,17 @@ app.include_router(tools.router)
 app.include_router(settings.router)
 app.include_router(tiles.router)
 
-from core.config import TOOLS_CONFIG, REPORTS_DIR, BACKUPS_DIR, TOOLS_DIR
+from core.config import TOOLS_CONFIG, REPORTS_DIR, BACKUPS_DIR, TOOLS_DIR, DATA_DIR
 
 # Ensure required directories exist
-for d in [REPORTS_DIR, BACKUPS_DIR, TOOLS_DIR]:
+IMPORTS_DIR = os.path.join(DATA_DIR, "imports")
+for d in [REPORTS_DIR, BACKUPS_DIR, TOOLS_DIR, IMPORTS_DIR]:
     if not os.path.exists(d):
         os.makedirs(d, exist_ok=True)
 
-# Mount the root reports directory to serve report files
+# Mount static directories
 app.mount("/reports", StaticFiles(directory=REPORTS_DIR), name="reports")
+app.mount("/imports", StaticFiles(directory=IMPORTS_DIR), name="imports")
 
 if __name__ == "__main__":
     import sys

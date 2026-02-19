@@ -1,11 +1,19 @@
 import logging
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, File, UploadFile
 from fastapi.responses import Response
 
-from core.config import TOOLS_CONFIG
-from core.models import FilePathResponse, HealthResponse, MessageResponse, RootResponse, StorageUsage, SystemHealthMetrics
+from core.models import (
+    FilePathResponse,
+    HealthResponse,
+    KmlFilesResponse,
+    KmlImportResponse,
+    MessageResponse,
+    RootResponse,
+    StorageUsage,
+    SystemHealthMetrics,
+)
 from core.state import event_clients
 from services.spatial_manager import spatial_manager
 from services.system_manager import system_manager
@@ -70,10 +78,11 @@ async def stream_events():
 
 # Spatial / KML
 
-@router.get("/spatial/kml-files")
+@router.get("/spatial/kml-files", response_model=KmlFilesResponse)
 async def get_kml_files(case_id: Optional[int] = None):
     """Scan reports directory for KML files, optionally filtered by case_id."""
-    return await spatial_manager.get_kml_files(case_id)
+    files = await spatial_manager.get_kml_files(case_id)
+    return KmlFilesResponse(files=files)
 
 
 @router.get("/spatial/kml-data")
@@ -89,52 +98,36 @@ async def get_kml_data(path: str):
         raise HTTPException(status_code=404, detail="KML file not found")
 
 
-@router.get("/spatial/search")
-async def search_location(q: str):
-    """Proxy Google Geocoding API search."""
-    from services.settings_manager import settings_manager
-
-    api_key = await settings_manager.get_setting("google_maps_api_key")
-    if not api_key:
-        raise HTTPException(status_code=400, detail="Google Maps API key not configured. Set it in Settings.")
+@router.post("/spatial/import", response_model=KmlImportResponse)
+async def import_kml_file(
+    file: UploadFile = File(...),
+):
+    """Upload and save a KML/KMZ file to the imports directory."""
+    if not file.filename.lower().endswith(('.kml', '.kmz')):
+        raise HTTPException(status_code=400, detail="Only .kml and .kmz files are allowed")
 
     try:
-        import httpx
-    except ImportError:
-        logger.error("httpx is not installed")
-        raise HTTPException(status_code=500, detail="Search dependency missing")
+        content = await file.read()
+        saved_name = await spatial_manager.save_imported_file(content, file.filename)
+        return KmlImportResponse(message="File imported successfully", filename=saved_name)
+    except Exception as e:
+        logger.error(f"Import failed: {e}")
+        raise HTTPException(status_code=500, detail="Failed to save file")
 
-    url = "https://maps.googleapis.com/maps/api/geocode/json"
-    params = {
-        "address": q,
-        "key": api_key,
-    }
 
-    async with httpx.AsyncClient() as client:
-        try:
-            response = await client.get(url, params=params, timeout=10.0)
-            response.raise_for_status()
-            data = response.json()
-
-            if data.get("status") != "OK" or not data.get("results"):
-                return []
-
-            # Transform to match existing frontend contract: [{ lat, lon, display_name }]
-            results = []
-            for result in data["results"][:5]:
-                loc = result["geometry"]["location"]
-                results.append({
-                    "lat": str(loc["lat"]),
-                    "lon": str(loc["lng"]),
-                    "display_name": result.get("formatted_address", ""),
-                })
-            return results
-        except httpx.HTTPStatusError as e:
-            logger.error(f"Google Geocoding API error: {e.response.status_code} - {e.response.text}")
-            raise HTTPException(status_code=502, detail="Location search service error")
-        except Exception as e:
-            logger.error(f"Search proxy failed: {e}")
-            raise HTTPException(status_code=500, detail="Location search failed")
+@router.delete("/spatial/import/{filename}", response_model=MessageResponse)
+async def delete_imported_file(filename: str):
+    """Delete a file from the imports directory."""
+    try:
+        deleted = await spatial_manager.delete_imported_file(filename)
+        if not deleted:
+            raise HTTPException(status_code=404, detail="File not found")
+        return MessageResponse(message="File deleted successfully")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Delete failed: {e}")
+        raise HTTPException(status_code=500, detail="Failed to delete file")
 
 
 # Shutdown

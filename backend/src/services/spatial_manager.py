@@ -7,10 +7,13 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Optional, Dict, Any, List
 
-from core.config import REPORTS_DIR
+from core.config import REPORTS_DIR, DATA_DIR
 from core.database import db_fetch_all
 
 logger = logging.getLogger(__name__)
+
+IMPORTS_DIR = os.path.join(DATA_DIR, "imports")
+os.makedirs(IMPORTS_DIR, exist_ok=True)
 
 
 class SpatialManager:
@@ -39,6 +42,7 @@ class SpatialManager:
         def _scan_kml_files():
             kml_files = {}
             
+            # 1. Scan Reports
             try:
                 for root, dirs, files in os.walk(REPORTS_DIR):
                     if "_KML Exports" not in root:
@@ -72,13 +76,34 @@ class SpatialManager:
                                 kml_files[group_name].append({
                                     "name": file,
                                     "url": f"/reports/{relative_path}",
-                                    "path": os.path.join(root, file)
+                                    "path": os.path.join(root, file),
+                                    "is_deletable": False
                                 })
                     except ValueError:
                         continue
                         
             except Exception as e:
-                logger.error(f"Error scanning KML files: {e}")
+                logger.error(f"Error scanning report KML files: {e}")
+
+            # 2. Scan Imports (if no specific case filter or if we want global imports always)
+            # For now, show imports globally
+            try:
+                if os.path.exists(IMPORTS_DIR):
+                    imported_files = []
+                    for file in os.listdir(IMPORTS_DIR):
+                        if file.lower().endswith(('.kml', '.kmz')):
+                            imported_files.append({
+                                "name": file,
+                                "url": f"/imports/{file}",
+                                "path": os.path.join(IMPORTS_DIR, file),
+                                "is_deletable": True
+                            })
+                    
+                    if imported_files:
+                        kml_files["Imported Files"] = sorted(imported_files, key=lambda x: x['name'])
+            
+            except Exception as e:
+                logger.error(f"Error scanning imported KML files: {e}")
             
             return kml_files
         
@@ -92,12 +117,16 @@ class SpatialManager:
         loop = asyncio.get_running_loop()
         
         def _process_kml():
-            # Clean up path (remove leading /reports/)
-            clean_path = path.replace("/reports/", "", 1)
-            kml_abs_path = os.path.join(REPORTS_DIR, clean_path)
+            if path.startswith("/imports/"):
+                clean_path = path.replace("/imports/", "", 1)
+                kml_abs_path = os.path.join(IMPORTS_DIR, clean_path)
+            else:
+                # Clean up path (remove leading /reports/)
+                clean_path = path.replace("/reports/", "", 1)
+                kml_abs_path = os.path.join(REPORTS_DIR, clean_path)
             
             if not os.path.exists(kml_abs_path):
-                raise FileNotFoundError("KML file not found")
+                raise FileNotFoundError(f"KML file not found: {path}")
 
             # Determine TSV path
             tsv_dir = os.path.dirname(kml_abs_path).replace("_KML Exports", "_TSV Exports")
@@ -190,8 +219,45 @@ class SpatialManager:
 
     def get_kml_abs_path(self, path: str) -> str:
         """Convert relative KML path to absolute path for FileResponse fallback."""
+        if path.startswith("/imports/"):
+            clean_path = path.replace("/imports/", "", 1)
+            return os.path.join(IMPORTS_DIR, clean_path)
+        
         clean_path = path.replace("/reports/", "", 1)
         return os.path.join(REPORTS_DIR, clean_path)
+
+    async def save_imported_file(self, file_content: bytes, filename: str) -> str:
+        """Save uploaded KML/KMZ to imports directory."""
+        loop = asyncio.get_running_loop()
+        
+        def _save():
+            # Sanitize filename
+            safe_filename = os.path.basename(filename)
+            file_path = os.path.join(IMPORTS_DIR, safe_filename)
+            
+            # Overwrite if exists (per plan)
+            with open(file_path, "wb") as f:
+                f.write(file_content)
+            
+            return safe_filename
+            
+        return await loop.run_in_executor(None, _save)
+
+    async def delete_imported_file(self, filename: str) -> bool:
+        """Delete file from imports directory."""
+        loop = asyncio.get_running_loop()
+        
+        def _delete():
+            # Sanitize filename (prevent directory traversal)
+            safe_filename = os.path.basename(filename)
+            file_path = os.path.join(IMPORTS_DIR, safe_filename)
+            
+            if os.path.exists(file_path):
+                os.remove(file_path)
+                return True
+            return False
+            
+        return await loop.run_in_executor(None, _delete)
 
 
 # Global instance
