@@ -8,14 +8,15 @@ interface SpatialContextType {
     layer: 'normal' | 'satellite' | 'hybrid';
     selectedKmlsPaths: string[];
     geoJsonData: GeoJsonObject | null;
+    geoJsonDataKey: number;
     searchQuery: string;
 
-    setCenter: (center: [number, number]) => void;
-    setZoom: (zoom: number) => void;
+    setCenter: (center: [number, number] | ((prev: [number, number]) => [number, number])) => void;
+    setZoom: (zoom: number | ((prev: number) => number)) => void;
     setLayer: (layer: 'normal' | 'satellite' | 'hybrid') => void;
-    setSelectedKmlsPaths: (paths: string[]) => void;
+    setSelectedKmlsPaths: (paths: string[] | ((prev: string[]) => string[])) => void;
     setGeoJsonData: (data: GeoJsonObject | null) => void;
-    setSearchQuery: (query: string) => void;
+    setSearchQuery: (query: string | ((prev: string) => string)) => void;
 
     // Tracking for auto-fitting
     fittedPaths: Set<string>;
@@ -56,14 +57,25 @@ export function SpatialProvider({ children }: { children: React.ReactNode }) {
 
     const { center, zoom, layer, selectedKmlsPaths, searchQuery } = state;
 
-    const setCenter = (val: [number, number]) => setState(prev => ({ ...prev, center: val }));
-    const setZoom = (val: number) => setState(prev => ({ ...prev, zoom: val }));
+    const setCenter = (val: [number, number] | ((prev: [number, number]) => [number, number])) =>
+        setState(prev => ({ ...prev, center: typeof val === 'function' ? val(prev.center) : val }));
+    const setZoom = (val: number | ((prev: number) => number)) =>
+        setState(prev => ({ ...prev, zoom: typeof val === 'function' ? val(prev.zoom) : val }));
     const setLayer = (val: 'normal' | 'satellite' | 'hybrid') => setState(prev => ({ ...prev, layer: val }));
-    const setSelectedKmlsPaths = (val: string[]) => setState(prev => ({ ...prev, selectedKmlsPaths: val }));
-    const setSearchQuery = (val: string) => setState(prev => ({ ...prev, searchQuery: val }));
+    const setSelectedKmlsPaths = (val: string[] | ((prev: string[]) => string[])) =>
+        setState(prev => ({ ...prev, selectedKmlsPaths: typeof val === 'function' ? val(prev.selectedKmlsPaths) : val }));
+    const setSearchQuery = (val: string | ((prev: string) => string)) =>
+        setState(prev => ({ ...prev, searchQuery: typeof val === 'function' ? val(prev.searchQuery) : val }));
 
-    const [geoJsonData, setGeoJsonData] = useState<GeoJsonObject | null>(null);
+    const [geoJsonData, setGeoJsonDataState] = useState<GeoJsonObject | null>(null);
+    const [geoJsonDataKey, setGeoJsonDataKey] = useState(0);
     const [fittedPaths, setFittedPaths] = useState<Set<string>>(new Set());
+
+    // Wrapper that increments key when data changes (for react-leaflet GeoJSON re-render)
+    const setGeoJsonData = (data: GeoJsonObject | null) => {
+        setGeoJsonDataState(data);
+        setGeoJsonDataKey(prev => prev + 1);
+    };
 
     const markPathFitted = (path: string) => {
         setFittedPaths(prev => new Set(prev).add(path));
@@ -95,6 +107,7 @@ export function SpatialProvider({ children }: { children: React.ReactNode }) {
             layer,
             selectedKmlsPaths,
             geoJsonData,
+            geoJsonDataKey,
             searchQuery,
             setCenter,
             setZoom,

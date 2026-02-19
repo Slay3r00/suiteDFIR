@@ -65,6 +65,31 @@ function ViewStateTracker({ onUpdate }: { onUpdate: (center: [number, number], z
     return null
 }
 
+// Component to handle container resize (e.g., when sidebar collapses)
+function ResizeHandler() {
+    const map = useMap()
+
+    useEffect(() => {
+        const resizeObserver = new ResizeObserver(() => {
+            // Delay to allow CSS transitions to complete
+            setTimeout(() => {
+                map.invalidateSize()
+            }, 150)
+        })
+
+        const container = map.getContainer()
+        if (container) {
+            resizeObserver.observe(container)
+        }
+
+        return () => {
+            resizeObserver.disconnect()
+        }
+    }, [map])
+
+    return null
+}
+
 // Component to fit bounds to GeoJSON data
 function AutoFitBounds({ data, path }: { data: GeoJsonObject | null, path?: string }) {
     const map = useMap()
@@ -98,7 +123,7 @@ export default function SpatialMap() {
         zoom, setZoom,
         layer, setLayer,
         selectedKmlsPaths, setSelectedKmlsPaths,
-        geoJsonData, setGeoJsonData,
+        geoJsonData, geoJsonDataKey, setGeoJsonData,
         isStateLoaded
     } = useSpatial()
 
@@ -111,11 +136,30 @@ export default function SpatialMap() {
         browsedKmlsRef.current = browsedKmls;
     }, [browsedKmls]);
 
-    // Fetch GeoJSON for selected KML paths
+    // Callback to add KML data by URL (used by MapControls for temporary files)
+    const addBrowsedKml = useCallback((url: string, data: GeoJsonObject) => {
+        setBrowsedKmls(prev => ({
+            ...prev,
+            [url]: data
+        }));
+    }, []);
+
+    // Callback to remove KML data by URL
+    const removeBrowsedKml = useCallback((url: string) => {
+        setBrowsedKmls(prev => {
+            const next = { ...prev };
+            delete next[url];
+            return next;
+        });
+    }, []);
+
+    // Fetch GeoJSON for selected KML paths (skip temp:// URLs - handled client-side)
     useEffect(() => {
         if (!isStateLoaded) return;
 
         const loadKmlData = async (path: string) => {
+            // Skip temporary files - they're already parsed client-side in MapControls
+            if (path.startsWith('temp://')) return;
             if (browsedKmlsRef.current[path]) return; // Already loaded
 
             try {
@@ -157,24 +201,30 @@ export default function SpatialMap() {
     }
 
     const [tileSession, setTileSession] = useState<{
-        session: string; key: string; mapType: string
+        session: string; key: string; mapType: string; expiry: number
     } | null>(null)
+    const [lastFetchedLayer, setLastFetchedLayer] = useState<string | null>(null)
 
     // Map app layer names to Google Maps Tile API session params
     const getSessionParams = useCallback((appLayer: string) => {
         switch (appLayer) {
             case 'satellite':
-                return { mapType: 'satellite' }
+                return { mapType: 'satellite', language: 'en', region: 'US' }
             case 'hybrid':
-                return { mapType: 'satellite', layerTypes: ['layerRoadmap'], overlay: false }
+                return { mapType: 'satellite', layerTypes: ['layerRoadmap'], overlay: false, language: 'en', region: 'US' }
             case 'normal':
             default:
-                return { mapType: 'roadmap' }
+                return { mapType: 'roadmap', language: 'en', region: 'US' }
         }
     }, [])
 
-    // Fetch a tile session whenever the layer changes
+    // Fetch a tile session only when layer changes (backend handles caching)
     useEffect(() => {
+        // Skip if layer hasn't actually changed
+        if (lastFetchedLayer === layer && tileSession) {
+            return
+        }
+
         let cancelled = false
         const fetchSession = async () => {
             try {
@@ -186,7 +236,13 @@ export default function SpatialMap() {
                 })
                 if (res.ok && !cancelled) {
                     const data = await res.json()
-                    setTileSession({ session: data.session, key: data.key, mapType: params.mapType })
+                    setTileSession({
+                        session: data.session,
+                        key: data.key,
+                        mapType: params.mapType,
+                        expiry: data.expiry
+                    })
+                    setLastFetchedLayer(layer)
                 }
             } catch (err) {
                 console.error('Failed to fetch tile session:', err)
@@ -194,19 +250,47 @@ export default function SpatialMap() {
         }
         fetchSession()
         return () => { cancelled = true }
+    }, [layer, getSessionParams, lastFetchedLayer, tileSession])
+
+    // Invalidate session on tile errors (for error recovery)
+    const invalidateTileSession = useCallback(async () => {
+        try {
+            const params = getSessionParams(layer)
+            await fetch(API.path('/spatial/tile-session'), {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(params),
+            })
+            // Force refetch on next render
+            setLastFetchedLayer(null)
+        } catch (err) {
+            console.error('Failed to invalidate tile session:', err)
+        }
     }, [layer, getSessionParams])
 
-    const getTileLayer = () => {
+    const getTileLayers = () => {
         if (!tileSession) return null
 
         const tileUrl = `https://tile.googleapis.com/v1/2dtiles/{z}/{x}/{y}?session=${tileSession.session}&key=${tileSession.key}`
 
         return (
             <TileLayer
-                key={`google-${layer}-${tileSession.session}`}
+                key={tileSession.session}
                 attribution='&copy; Google Maps'
                 url={tileUrl}
                 maxZoom={22}
+                eventHandlers={{
+                    tileerror: (error) => {
+                        // Check for session-related errors (400/403 typically indicate expired/invalid session)
+                        if (error.tile && 'status' in error.tile) {
+                            const status = (error.tile as { status?: number }).status
+                            if (status === 400 || status === 403) {
+                                console.warn('Tile session may be expired, invalidating cache')
+                                invalidateTileSession()
+                            }
+                        }
+                    }
+                }}
             />
         )
     }
@@ -219,6 +303,8 @@ export default function SpatialMap() {
                 onSearch={handleSearch}
                 onLayerChange={setLayer}
                 onDataUpload={setGeoJsonData}
+                onAddKmlData={addBrowsedKml}
+                onRemoveKmlData={removeBrowsedKml}
                 currentLayer={layer}
                 selectedCaseId={selectedCaseId}
             />
@@ -230,6 +316,7 @@ export default function SpatialMap() {
                 zoomControl={false}
                 maxZoom={22}
             >
+                <ResizeHandler />
                 <ViewStateTracker onUpdate={(c, z) => {
                     setCenter(c)
                     setZoom(z)
@@ -241,11 +328,12 @@ export default function SpatialMap() {
                     <AutoFitBounds key={url} data={data} path={url} />
                 ))}
 
-                {getTileLayer()}
+                {getTileLayers()}
 
                 {/* Uploaded Data */}
                 {geoJsonData && (
                     <GeoJSON
+                        key={geoJsonDataKey}
                         data={geoJsonData}
                         onEachFeature={onEachFeature}
                         style={() => ({
