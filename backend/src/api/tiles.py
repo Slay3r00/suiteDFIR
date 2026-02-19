@@ -1,9 +1,18 @@
+import atexit
 import logging
+from typing import List
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 
-from core.models import TileSessionRequest
-from services.settings_manager import settings_manager
+from core.models import (
+    GeocodeResult,
+    InvalidateSessionResponse,
+    PlaceSuggestion,
+    TileSessionRequest,
+    TileSessionResponse,
+    TileSessionStatusResponse,
+)
+from services.tile_manager import tile_manager
 
 logger = logging.getLogger(__name__)
 
@@ -13,46 +22,45 @@ router = APIRouter(
 )
 
 
-@router.post("/tile-session")
+def _sync_close_on_exit():
+    """Synchronous wrapper for atexit. Best-effort cleanup on process exit."""
+    tile_manager.sync_close_on_exit()
+
+
+atexit.register(_sync_close_on_exit)
+
+
+@router.post("/tile-session", response_model=TileSessionResponse)
 async def create_tile_session(body: TileSessionRequest):
-    """Proxy Google Maps Tile API session creation. Keeps API key server-side."""
-    api_key = await settings_manager.get_setting("google_maps_api_key")
-    if not api_key:
-        raise HTTPException(status_code=400, detail="Google Maps API key not configured")
+    """Proxy Google Maps Tile API session creation. Keeps API key server-side.
 
-    try:
-        import httpx
-    except ImportError:
-        raise HTTPException(status_code=500, detail="httpx dependency missing")
+    Uses in-memory LRU caching with server-provided expiry for efficiency.
+    """
+    return await tile_manager.create_tile_session(body)
 
-    url = f"https://tile.googleapis.com/v1/createSession?key={api_key}"
 
-    payload = {
-        "mapType": body.mapType,
-        "language": body.language,
-        "region": body.region,
-    }
-    if body.layerTypes:
-        payload["layerTypes"] = body.layerTypes
-    if body.overlay is not None:
-        payload["overlay"] = body.overlay
+@router.delete("/tile-session", response_model=InvalidateSessionResponse)
+async def invalidate_tile_session(body: TileSessionRequest):
+    """Invalidate cached session. Call when tile requests fail with session errors."""
+    return await tile_manager.invalidate_tile_session(body)
 
-    async with httpx.AsyncClient() as client:
-        try:
-            response = await client.post(url, json=payload, timeout=10.0)
-            response.raise_for_status()
-            data = response.json()
-            # Return session token, expiry, and the API key (needed in tile URLs)
-            return {
-                "session": data["session"],
-                "expiry": data["expiry"],
-                "key": api_key,
-                "tileWidth": data.get("tileWidth", 256),
-                "tileHeight": data.get("tileHeight", 256),
-            }
-        except httpx.HTTPStatusError as e:
-            logger.error(f"Google Tile API error: {e.response.status_code} - {e.response.text}")
-            raise HTTPException(status_code=502, detail="Google Maps Tile API error")
-        except Exception as e:
-            logger.error(f"Tile session creation failed: {e}")
-            raise HTTPException(status_code=500, detail="Failed to create tile session")
+
+@router.get("/tile-session/status", response_model=TileSessionStatusResponse)
+async def get_tile_session_status():
+    """Get status of cached tile sessions (for debugging/monitoring)."""
+    return await tile_manager.get_tile_session_status()
+
+
+# PLACE AUTOCOMPLETE & SEARCH
+
+
+@router.get("/autocomplete", response_model=List[PlaceSuggestion])
+async def autocomplete_places(q: str):
+    """Proxy Google Places Autocomplete (New) API for suggestions."""
+    return await tile_manager.autocomplete_places(q)
+
+
+@router.get("/search", response_model=List[GeocodeResult])
+async def search_location(q: str):
+    """Proxy Google Geocoding API search."""
+    return await tile_manager.search_location(q)
