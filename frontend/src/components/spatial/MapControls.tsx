@@ -29,6 +29,7 @@ interface PlaceSuggestion {
 interface LayerOption {
     id: 'normal' | 'satellite' | 'hybrid'
     label: string
+    image?: string
 }
 
 const LAYER_OPTIONS: LayerOption[] = [
@@ -91,6 +92,9 @@ export default function MapControls({ onSearch, onLayerChange, onDataUpload, onA
 
     useEffect(() => {
         function handleClickOutside(event: MouseEvent) {
+            // Do not close menus if a confirmation dialog is open
+            if (confirmConfig.isOpen) return;
+
             if (layerMenuRef.current && !layerMenuRef.current.contains(event.target as Node)) {
                 setShowLayerMenu(false)
             }
@@ -106,7 +110,7 @@ export default function MapControls({ onSearch, onLayerChange, onDataUpload, onA
         }
         document.addEventListener("mousedown", handleClickOutside)
         return () => document.removeEventListener("mousedown", handleClickOutside)
-    }, [])
+    }, [confirmConfig.isOpen])
 
     // Debounced autocomplete fetch
     const fetchSuggestions = useCallback(async (query: string) => {
@@ -150,10 +154,12 @@ export default function MapControls({ onSearch, onLayerChange, onDataUpload, onA
             if (res.ok) {
                 const data = await res.json()
                 setKmlFiles(data.files)
+                return data.files;
             }
         } catch (error) {
             console.error("Failed to fetch KML files:", error)
         }
+        return null;
     }, [selectedCaseId])
 
     useEffect(() => {
@@ -243,6 +249,8 @@ export default function MapControls({ onSearch, onLayerChange, onDataUpload, onA
         setIsProcessingImport(true)
 
         try {
+            const uploadedFileNames = importFiles.map(f => f.name)
+
             for (const file of importFiles) {
                 const formData = new FormData()
                 formData.append("file", file)
@@ -253,7 +261,30 @@ export default function MapControls({ onSearch, onLayerChange, onDataUpload, onA
             }
             resetImport()
             setShowKmlMenu(true)
-            fetchKmlFiles()
+
+            const updatedFilesData = await fetchKmlFiles()
+
+            if (updatedFilesData) {
+                // Auto-check ONLY the newly imported persistent files in the "Imported Files" group
+                const urlsToSelect: string[] = []
+                const importedGroup = (updatedFilesData as Record<string, KmlFile[]>)["Imported Files"] || []
+
+                importedGroup.forEach((f: KmlFile) => {
+                    if (uploadedFileNames.includes(f.name)) {
+                        urlsToSelect.push(f.url)
+                    }
+                })
+
+                if (urlsToSelect.length > 0) {
+                    setSelectedKmlsPaths(prev => {
+                        const next = [...prev]
+                        urlsToSelect.forEach(url => {
+                            if (!next.includes(url)) next.push(url)
+                        })
+                        return next
+                    })
+                }
+            }
         } catch (error) {
             console.error("Failed to save files:", error)
         } finally {
