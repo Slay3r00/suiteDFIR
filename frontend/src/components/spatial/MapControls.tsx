@@ -232,8 +232,6 @@ export default function MapControls({ onSearch, onLayerChange, onDataUpload, onA
                     data: geojson
                 }
                 setTemporaryKmls(prev => [...prev, tempFile])
-                setSelectedKmlsPaths(prev => [...prev, tempFile.url])
-                onAddKmlData(tempFile.url, geojson)
             }
             resetImport()
             setShowKmlMenu(true)
@@ -262,29 +260,7 @@ export default function MapControls({ onSearch, onLayerChange, onDataUpload, onA
             resetImport()
             setShowKmlMenu(true)
 
-            const updatedFilesData = await fetchKmlFiles()
-
-            if (updatedFilesData) {
-                // Auto-check ONLY the newly imported persistent files in the "Imported Files" group
-                const urlsToSelect: string[] = []
-                const importedGroup = (updatedFilesData as Record<string, KmlFile[]>)["Imported Files"] || []
-
-                importedGroup.forEach((f: KmlFile) => {
-                    if (uploadedFileNames.includes(f.name)) {
-                        urlsToSelect.push(f.url)
-                    }
-                })
-
-                if (urlsToSelect.length > 0) {
-                    setSelectedKmlsPaths(prev => {
-                        const next = [...prev]
-                        urlsToSelect.forEach(url => {
-                            if (!next.includes(url)) next.push(url)
-                        })
-                        return next
-                    })
-                }
-            }
+            await fetchKmlFiles()
         } catch (error) {
             console.error("Failed to save files:", error)
         } finally {
