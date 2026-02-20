@@ -321,3 +321,81 @@ class ActivityItem(BaseModel):
 class RecentActivityResponse(BaseModel):
     """Recent activity response."""
     activities: List[ActivityItem]
+
+# SETTINGS MODELS
+
+class SettingValue(BaseModel):
+    """Request body for updating a setting."""
+    value: str
+
+class TileSessionRequest(BaseModel):
+    """Request body for creating a Google Maps tile session."""
+    mapType: str = "roadmap"
+    language: str = "en-US"
+    region: str = "US"
+    layerTypes: Optional[List[str]] = None
+    overlay: Optional[bool] = None
+
+# SPATIAL RESPONSE MODELS
+
+class KmlFileItem(BaseModel):
+    """Single KML file metadata."""
+    name: str
+    url: str
+    path: str
+    is_deletable: bool
+
+
+class KmlFilesResponse(BaseModel):
+    """Response for KML files grouped by source."""
+    files: Dict[str, List[KmlFileItem]]
+
+
+class KmlImportResponse(BaseModel):
+    """Response for successful KML import."""
+    message: str
+    filename: str
+
+
+# SPATIAL SEARCH MODELS
+
+class PlaceSuggestion(BaseModel):
+    """Single place suggestion from autocomplete."""
+    placeId: str
+    mainText: str
+    secondaryText: str
+
+
+class GeocodeResult(BaseModel):
+    """Single geocoding result with coordinates."""
+    lat: str
+    lon: str
+    display_name: str
+
+# SPATIAL TILE RESPONSE MODELS
+
+class TileSessionResponse(BaseModel):
+    """Response containing Google Maps tile session details."""
+    session: str
+    expiry: int
+    key: str
+    tileWidth: int
+    tileHeight: int
+
+class InvalidateSessionResponse(BaseModel):
+    """Response indicating session cache invalidation result."""
+    message: str
+    cacheKey: str
+
+class TileSessionStatus(BaseModel):
+    """Status details for a single cached tile session."""
+    mapType: str
+    expiry: int
+    remainingSeconds: int
+    isValid: bool
+
+class TileSessionStatusResponse(BaseModel):
+    """Active backend cache status for tile sessions."""
+    cachedSessions: int
+    maxSessions: int
+    sessions: Dict[str, TileSessionStatus]

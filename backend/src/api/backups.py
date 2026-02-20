@@ -64,7 +64,7 @@ async def stream_backup_logs(backup_id: int):
         task_id=backup_id,
         task_dict=backup_tasks,
         terminal_statuses=["completed", "failed", "cancelled"],
-        cleanup=True
+        cleanup=False
     )
 
 @router.post("/{backup_id}/stop", response_model=MessageResponse)

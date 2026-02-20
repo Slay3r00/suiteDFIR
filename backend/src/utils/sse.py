@@ -32,12 +32,20 @@ async def create_task_sse_generator(
     if task_id not in task_dict:
         yield f"event: error\ndata: Task not found or expired\n\n"
         return
-        
+
+    # Assign a generation ID so zombie consumers self-terminate
+    gen = task_dict[task_id].get("_sse_gen", 0) + 1
+    task_dict[task_id]["_sse_gen"] = gen
+
     queue = task_dict[task_id]["queue"]
     
     while True:
         if task_id not in task_dict:
             break
+
+        # Exit if a newer SSE consumer has taken over
+        if task_dict[task_id].get("_sse_gen") != gen:
+            return
             
         current_status = task_dict[task_id].get("status")
 
@@ -57,8 +65,21 @@ async def create_task_sse_generator(
             yield f"data: Error reading log: {str(e)}\n\n"
             break
     
-    # Cleanup if requested (no delay needed for localhost)
-    if cleanup and task_id in task_dict:
+    # Cleanup
+    if task_id in task_dict:
+        if cleanup:
+            del task_dict[task_id]
+        else:
+            # TTL cleanup: schedule deletion after delay to allow reconnection
+            current_status = task_dict[task_id].get("status")
+            if current_status in terminal_statuses:
+                asyncio.create_task(_ttl_cleanup(task_id, task_dict, delay=60))
+
+
+async def _ttl_cleanup(task_id: Any, task_dict: dict, delay: int = 60):
+    """Delete a task from the dict after a delay, unless a new client reconnected."""
+    await asyncio.sleep(delay)
+    if task_id in task_dict:
         del task_dict[task_id]
 
 

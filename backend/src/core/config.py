@@ -67,6 +67,7 @@ TOOLS_DIR = get_tools_dir()
 
 
 # Database Configuration
+DATA_DIR = str(BASE_DIR / "data")
 DB_PATH = str(BASE_DIR / "data" / "app.db")
 
 

@@ -85,7 +85,10 @@ export function BackupProvider({ children }: { children: ReactNode }) {
 
     const [devices, setDevices] = useState<Device[]>([]);
     const [backups, setBackups] = useState<Backup[]>([]);
+    const [hasFetchedBackups, setHasFetchedBackups] = useState(false);
     const [isLoadingDevices, setIsLoadingDevices] = useState(false);
+
+    const { selectedCaseId } = useCase(); // Get selected case ID
 
     const api = React.useMemo(() => createLeappApi('ios'), []);
     const logStreamRef = useRef<EventSource | null>(null);
@@ -119,13 +122,18 @@ export function BackupProvider({ children }: { children: ReactNode }) {
     }, [api, updateConfig]);
 
     const fetchBackups = useCallback(async (caseId?: string) => {
+        // Use provided caseId or fall back to selectedCaseId from context
+        const targetCaseId = caseId || selectedCaseId;
+
         try {
-            const data = await api.backup.getBackups(caseId ? parseInt(caseId) : undefined);
+            const data = await api.backup.getBackups(targetCaseId ? parseInt(targetCaseId) : undefined);
             setBackups(data);
         } catch (error) {
             console.error('Failed to fetch backups:', error);
+        } finally {
+            setHasFetchedBackups(true);
         }
-    }, [api]);
+    }, [api, selectedCaseId]);
 
     // unified stream for background updates
     useEffect(() => {
@@ -219,6 +227,12 @@ export function BackupProvider({ children }: { children: ReactNode }) {
     const stopBackup = async (backupId: number) => {
         try {
             await fetch(API.path(`/backups/${backupId}/stop`), { method: 'POST' });
+            setIsBackingUp(false);
+            setActiveBackupId(null);
+            if (logStreamRef.current) {
+                logStreamRef.current.close();
+                logStreamRef.current = null;
+            }
             fetchBackups();
         } catch (error) {
             console.error('Failed to stop backup:', error);
@@ -230,13 +244,25 @@ export function BackupProvider({ children }: { children: ReactNode }) {
 
     // Auto-reconnect to log stream if backup is in progress
     useEffect(() => {
+        // We only want to evaluate this when backups list updates and is somewhat reliable
+        if (!hasFetchedBackups) return;
+
         const activeBackup = backups.find(b => b.status === 'in_progress');
-        if (activeBackup && !logStreamRef.current && !isBackingUp) {
+
+        if (activeBackup && !logStreamRef.current) {
             setIsBackingUp(true);
             setActiveBackupId(activeBackup.id);
             connectToLogStream(activeBackup.id, true);
+        } else if (!activeBackup && isBackingUp) {
+            // Fallback: If we think we are backing up, but the API says no backups are active, reset
+            setIsBackingUp(false);
+            setActiveBackupId(null);
+            if (logStreamRef.current) {
+                logStreamRef.current.close();
+                logStreamRef.current = null;
+            }
         }
-    }, [backups, isBackingUp, connectToLogStream]);
+    }, [backups, isBackingUp, hasFetchedBackups, connectToLogStream, setIsBackingUp, setActiveBackupId]);
 
     return (
         <BackupContext.Provider value={{
