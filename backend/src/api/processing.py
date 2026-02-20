@@ -44,5 +44,5 @@ async def stream_processing_logs(task_id: str):
         task_id=task_id,
         task_dict=processing_tasks,
         terminal_statuses=["success", "error", "cancelled"],
-        cleanup=True
+        cleanup=False
     )

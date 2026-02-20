@@ -82,8 +82,8 @@ class BackupManager:
 
     async def stop_backup(self, backup_id: int) -> Dict[str, Any]:
         """Stop an active backup process."""
-        # Update status immediately to give feedback
-        await db_execute("UPDATE backups SET status = 'cancelled' WHERE id = ?", (backup_id,))
+        # Delete row immediately to give feedback and clean up database
+        await db_execute("DELETE FROM backups WHERE id = ?", (backup_id,))
 
         if backup_id in active_backups and active_backups[backup_id] is not None:
             process = active_backups[backup_id]
@@ -227,9 +227,9 @@ class BackupManager:
         """Update DB and perform cleanup based on the process exit code."""
         # Determine final status - check if user cancelled first
         row = await db_fetch_one("SELECT status FROM backups WHERE id = ?", (backup_id,))
-        current_status = row['status'] if row else None
-
-        if current_status == "cancelled":
+        
+        # If the row was deleted by stop_backup, treat it as cancelled
+        if row is None or row['status'] == "cancelled":
             status = 'cancelled'
         elif return_code == 0:
             status = 'completed'

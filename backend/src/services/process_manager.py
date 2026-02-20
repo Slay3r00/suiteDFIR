@@ -193,7 +193,15 @@ class ProcessManager:
                     })
 
                     if task_id in processing_tasks:
-                        await processing_tasks[task_id]["queue"].put(log_message)
+                        queue = processing_tasks[task_id]["queue"]
+                        try:
+                            queue.put_nowait(log_message)
+                        except asyncio.QueueFull:
+                            try:
+                                queue.get_nowait()  # drop oldest
+                            except asyncio.QueueEmpty:
+                                pass
+                            queue.put_nowait(log_message)
 
                 except asyncio.TimeoutError:
                     if process.returncode is not None:
