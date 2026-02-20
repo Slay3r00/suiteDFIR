@@ -271,10 +271,8 @@ export function LeappProvider({ children }: { children: ReactNode }) {
                 setPersistedStates(prev => {
                     const toolKey = tool as keyof LeappPersistedState;
                     const toolState = prev[toolKey];
-                    const currentLogs = toolState.processing.logs;
-                    const nextLogs = currentLogs.length >= MAX_LOGS
-                        ? [...currentLogs.slice(-(MAX_LOGS - 1)), message]
-                        : [...currentLogs, message];
+                    let logToAdd = message;
+
                     let nextProgress = toolState.processing.progress;
                     let nextEnc = toolState.processing.encryptionDetected;
 
@@ -282,13 +280,27 @@ export function LeappProvider({ children }: { children: ReactNode }) {
                         nextEnc = true;
                     }
 
-                    const match = message.match(/\[(\d+)\/(\d+)\]/);
-                    if (match) {
+                    // iLEAPP emits [X/Y] progress natively
+                    const nativeMatch = message.match(/\[(\d+)\/(\d+)\]/);
+                    if (nativeMatch) {
                         nextProgress = {
-                            current: parseInt(match[1], 10),
-                            total: parseInt(match[2], 10)
+                            current: parseInt(nativeMatch[1], 10),
+                            total: parseInt(nativeMatch[2], 10)
                         };
+                    } else if (message.includes('artifact started') && nextProgress.total > 0) {
+                        // aLEAPP fallback: Inject [X/Y] into the log message for UI consistency
+                        const newCurrent = Math.min(nextProgress.current + 1, nextProgress.total);
+                        nextProgress = {
+                            current: newCurrent,
+                            total: nextProgress.total
+                        };
+                        logToAdd = `[${newCurrent}/${nextProgress.total}] ${message}`;
                     }
+
+                    const currentLogs = toolState.processing.logs;
+                    const nextLogs = currentLogs.length >= MAX_LOGS
+                        ? [...currentLogs.slice(-(MAX_LOGS - 1)), logToAdd]
+                        : [...currentLogs, logToAdd];
 
                     return {
                         ...prev,
@@ -367,10 +379,11 @@ export function LeappProvider({ children }: { children: ReactNode }) {
         const api = createLeappApi(tool);
         const currentTaskId = persistedStates[toolKey].processing.taskId;
 
-        // Reset state
+        // Reset state - set total from selected modules count so aLEAPP can track progress
+        const moduleCount = selectedModules ? selectedModules.length : 0;
         updateProcessing(tool, {
             logs: [],
-            progress: { current: 0, total: 0 },
+            progress: { current: 0, total: moduleCount },
             encryptionDetected: false,
             passwordProvided: !!password,
             isProcessing: true,
