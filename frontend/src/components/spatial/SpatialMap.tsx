@@ -1,6 +1,6 @@
 
 import { useEffect, useState, useRef, useCallback } from "react"
-import { MapContainer, TileLayer, useMap, GeoJSON, useMapEvents } from "react-leaflet"
+import { MapContainer, TileLayer, useMap, GeoJSON, useMapEvents, Marker } from "react-leaflet"
 import "leaflet/dist/leaflet.css"
 import L from "leaflet"
 import MapControls from "./MapControls"
@@ -124,6 +124,7 @@ export default function SpatialMap() {
         layer, setLayer,
         selectedKmlsPaths, setSelectedKmlsPaths,
         geoJsonData, geoJsonDataKey, setGeoJsonData,
+        searchPin, setSearchPin,
         isStateLoaded
     } = useSpatial()
 
@@ -198,6 +199,7 @@ export default function SpatialMap() {
     const handleSearch = (lat: number, lon: number) => {
         setCenter([lat, lon])
         setZoom(16)
+        setSearchPin([lat, lon])
     }
 
     const [tileSession, setTileSession] = useState<{
@@ -323,6 +325,9 @@ export default function SpatialMap() {
                 }} />
                 <MapUpdater center={center} zoom={zoom} />
                 <AutoFitBounds data={geoJsonData} />
+
+                {searchPin && <Marker position={searchPin} />}
+
                 {/* Auto-fit for browsed KMLs */}
                 {Object.entries(browsedKmls).map(([url, data]) => (
                     <AutoFitBounds key={url} data={data} path={url} />

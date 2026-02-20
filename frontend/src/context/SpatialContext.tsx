@@ -10,6 +10,7 @@ interface SpatialContextType {
     geoJsonData: GeoJsonObject | null;
     geoJsonDataKey: number;
     searchQuery: string;
+    searchPin: [number, number] | null;
 
     setCenter: (center: [number, number] | ((prev: [number, number]) => [number, number])) => void;
     setZoom: (zoom: number | ((prev: number) => number)) => void;
@@ -17,6 +18,7 @@ interface SpatialContextType {
     setSelectedKmlsPaths: (paths: string[] | ((prev: string[]) => string[])) => void;
     setGeoJsonData: (data: GeoJsonObject | null) => void;
     setSearchQuery: (query: string | ((prev: string) => string)) => void;
+    setSearchPin: (pin: [number, number] | null | ((prev: [number, number] | null) => [number, number] | null)) => void;
 
     // Tracking for auto-fitting
     fittedPaths: Set<string>;
@@ -39,6 +41,7 @@ interface StoredState {
     layer: 'normal' | 'satellite' | 'hybrid';
     selectedKmlsPaths: string[];
     searchQuery: string;
+    searchPin: [number, number] | null;
 }
 
 const INITIAL_STATE: StoredState = {
@@ -46,7 +49,8 @@ const INITIAL_STATE: StoredState = {
     zoom: 13,
     layer: 'normal',
     selectedKmlsPaths: [],
-    searchQuery: ""
+    searchQuery: "",
+    searchPin: null
 };
 
 export function SpatialProvider({ children }: { children: React.ReactNode }) {
@@ -55,7 +59,7 @@ export function SpatialProvider({ children }: { children: React.ReactNode }) {
         INITIAL_STATE
     );
 
-    const { center, zoom, layer, selectedKmlsPaths, searchQuery } = state;
+    const { center, zoom, layer, selectedKmlsPaths, searchQuery, searchPin } = state;
 
     const setCenter = (val: [number, number] | ((prev: [number, number]) => [number, number])) =>
         setState(prev => ({ ...prev, center: typeof val === 'function' ? val(prev.center) : val }));
@@ -66,6 +70,8 @@ export function SpatialProvider({ children }: { children: React.ReactNode }) {
         setState(prev => ({ ...prev, selectedKmlsPaths: typeof val === 'function' ? val(prev.selectedKmlsPaths) : val }));
     const setSearchQuery = (val: string | ((prev: string) => string)) =>
         setState(prev => ({ ...prev, searchQuery: typeof val === 'function' ? val(prev.searchQuery) : val }));
+    const setSearchPin = (val: [number, number] | null | ((prev: [number, number] | null) => [number, number] | null)) =>
+        setState(prev => ({ ...prev, searchPin: typeof val === 'function' ? val(prev.searchPin) : val }));
 
     const [geoJsonData, setGeoJsonDataState] = useState<GeoJsonObject | null>(null);
     const [geoJsonDataKey, setGeoJsonDataKey] = useState(0);
@@ -109,12 +115,14 @@ export function SpatialProvider({ children }: { children: React.ReactNode }) {
             geoJsonData,
             geoJsonDataKey,
             searchQuery,
+            searchPin,
             setCenter,
             setZoom,
             setLayer,
             setSelectedKmlsPaths,
             setGeoJsonData,
             setSearchQuery,
+            setSearchPin,
             fittedPaths,
             markPathFitted,
             isStateLoaded

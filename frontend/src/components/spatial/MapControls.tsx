@@ -67,7 +67,7 @@ interface MapControlsProps {
 }
 
 export default function MapControls({ onSearch, onLayerChange, onDataUpload, onAddKmlData, onRemoveKmlData, currentLayer, selectedCaseId }: MapControlsProps) {
-    const { selectedKmlsPaths, setSelectedKmlsPaths, searchQuery, setSearchQuery } = useSpatial()
+    const { selectedKmlsPaths, setSelectedKmlsPaths, searchQuery, setSearchQuery, setSearchPin } = useSpatial()
     const [isSearching, setIsSearching] = useState(false)
     const [showLayerMenu, setShowLayerMenu] = useState(false)
     const [showKmlMenu, setShowKmlMenu] = useState(false)
@@ -426,7 +426,13 @@ export default function MapControls({ onSearch, onLayerChange, onDataUpload, onA
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
                         <Input
                             value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
+                            onChange={(e) => {
+                                const newQuery = e.target.value;
+                                setSearchQuery(newQuery);
+                                if (!newQuery.trim()) {
+                                    setSearchPin(null);
+                                }
+                            }}
                             onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
                             placeholder="Search location..."
                             className="pl-9 h-8 !bg-[#1f1f1f] hover:!bg-[#262626] focus:!bg-[#262626] !border-[#414141] text-white placeholder:text-muted-foreground placeholder:text-[11px] text-xs focus-visible:ring-0 focus-visible:ring-offset-0 transition-colors shadow-md"
