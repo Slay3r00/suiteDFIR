@@ -12,7 +12,7 @@ set "ELECTRON_DIR=%~dp0..\electron"
 set "BUILD_DIR=%ELECTRON_DIR%\out"
 
 REM Check for Python
-python --version >nul 2>&1
+where python >nul 2>&1
 if %errorlevel% neq 0 (
     echo [ERROR] Python not found. Please install Python.
     exit /b 1
