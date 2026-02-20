@@ -15,7 +15,8 @@ suiteDFIR is a forensic extraction and analysis suite built for speed, ease-of-u
 - **Device Extraction**: Extract iOS backups via USB using libimobiledevice. Supports encrypted and unencrypted backups with progress tracking.
 - **LEAPP Analysis**: Integrated iLEAPP (iOS) and aLEAPP (Android) forensic parsers for artifact extraction.
 - **Timeline Events**: Reconstruct data from multiple sources into a searchable chronological view.
-- **Geospatial Viewer**: Map GPS, cell tower, and Wi-Fi locations. Automatically extracts KML files from LEAPP reports.
+- **Geospatial Viewer**: Automatically extracts KML files from LEAPP reports. Features layer switching (Satellite, Hybrid, Default), custom KML imports, and location search pinning.
+- **Settings Management**: Set and store Google Maps API key here in order to access the Geospatial page
 - **Private & Local**: All data processing is done on your local machine. Forensic data is never sent to external servers.
 
 ## Showcase
@@ -51,7 +52,7 @@ suiteDFIR is designed to prioritize your privacy and the security of forensic da
 ### Non-Local Dependencies
 While processing is local, certain UI and utility features require an internet connection:
 - **Map Page**: Rendering map tiles and layers requires connecting to providers (Google, Carto, OpenStreetMap).
-- **Location Search**: Geocoding and searching for addresses (via Nominatim) is performed via external API calls.
+- **Location Search**: Geocoding and searching for addresses is performed via external API calls (e.g., Google Maps API).
 - **Tool Management**: Checking for updates and downloading the latest forensic tool versions requires access to GitHub and PyPI.
 
 ## Quick Start
