@@ -53,7 +53,6 @@ suiteDFIR is designed to prioritize your privacy and the security of forensic da
 While processing is local, certain UI and utility features require an internet connection:
 - **Map Page**: Rendering map tiles and layers requires connecting to providers (Google, Carto, OpenStreetMap).
 - **Location Search**: Geocoding and searching for addresses is performed via external API calls (e.g., Google Maps API).
-- **Tool Management**: Checking for updates and downloading the latest forensic tool versions requires access to GitHub and PyPI.
 
 ## Quick Start
 1. **Launch**: Open suiteDFIR on your workstation.
