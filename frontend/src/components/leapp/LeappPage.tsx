@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import LogViewer from '../../components/ileapp/LogViewer';
 import FileSelector from '../../components/ileapp/FileSelector';
 import ModuleSelector from '../../components/ileapp/ModuleSelector';
@@ -41,6 +41,20 @@ function LeappContent({ tool }: { tool: 'ileapp' | 'aleapp' }) {
     const [reports, setReports] = useState<Report[]>([]);
     const { selectedCaseId } = useCase();
     const { config: confirmConfig, show: showConfirm, hide: hideConfirm, handleConfirm } = useConfirmDialog();
+    const [showVerboseLogs, setShowVerboseLogs] = useState(false);
+
+    // Filter logs to concise view (artifact start/complete, progress, status)
+    const displayedLogs = useMemo(() => {
+        if (showVerboseLogs) return logs;
+        return logs.filter(line =>
+            line.includes('artifact started') ||
+            line.includes('artifact completed') ||
+            /^\[\d+\/\d+\]/.test(line) ||
+            /^Processing (success|error|cancelled|time|stopped)/i.test(line) ||
+            line.startsWith('Report location') ||
+            line.startsWith('Report generation')
+        );
+    }, [logs, showVerboseLogs]);
 
 
 
@@ -191,16 +205,25 @@ function LeappContent({ tool }: { tool: 'ileapp' | 'aleapp' }) {
                     <div className="flex-[2] bg-[#171717] border border-[#333333] rounded-lg overflow-hidden flex flex-col min-h-0">
                         <div className="px-4 py-2 border-b border-[#333333] bg-[#1A1A1A] flex justify-between items-center">
                             <h3 className="text-xs font-medium text-gray-400 uppercase tracking-wider">Processing Log</h3>
-                            <Button
-                                onClick={() => clearLogs(tool)}
-                                variant="secondary"
-                                className="px-3 py-1 h-auto text-xs"
-                            >
-                                Clear Logs
-                            </Button>
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    onClick={() => setShowVerboseLogs(v => !v)}
+                                    variant={showVerboseLogs ? 'default' : 'secondary'}
+                                    className="px-3 py-1 h-auto text-xs"
+                                >
+                                    Verbose
+                                </Button>
+                                <Button
+                                    onClick={() => clearLogs(tool)}
+                                    variant="secondary"
+                                    className="px-3 py-1 h-auto text-xs"
+                                >
+                                    Clear
+                                </Button>
+                            </div>
                         </div>
                         <div className="flex-1 overflow-hidden">
-                            <LogViewer logs={logs} enabled={true} />
+                            <LogViewer logs={displayedLogs} enabled={true} />
                         </div>
                     </div>
 

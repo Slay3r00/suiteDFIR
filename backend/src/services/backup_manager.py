@@ -162,7 +162,8 @@ class BackupManager:
             await broadcast_event("backup_update", {"id": backup_id, "status": "failed"})
             
             if backup_id in backup_tasks:
-                await backup_tasks[backup_id]["queue"].put(error_msg)
+                import json
+                await backup_tasks[backup_id]["queue"].put(json.dumps({"type": "log", "message": error_msg}))
                 backup_tasks[backup_id]["status"] = "failed"
 
             # Clean up files
@@ -173,45 +174,28 @@ class BackupManager:
 
     async def _stream_output(self, backup_id: int, process: asyncio.subprocess.Process):
         """Read and log subprocess output."""
+        import json
+        buffer = bytearray()
         while True:
             try:
-                line = await asyncio.wait_for(process.stdout.readline(), timeout=60.0)
-                if not line:
+                # Read in chunks to avoid high asyncio overhead but still handle \r and \n manually
+                chunk = await asyncio.wait_for(process.stdout.read(4096), timeout=60.0)
+                logger.debug(f"Backup {backup_id} read chunk of size {len(chunk)}")
+                
+                if not chunk:
+                    logger.debug(f"Backup {backup_id} stdout EOF")
+                    if buffer:
+                        await self._process_log_line(backup_id, buffer.decode('utf-8', errors='replace').strip())
                     break
 
-                line_text = line.decode('utf-8', errors='replace').strip()
-                if line_text:
-                    # Skip common noisy lines
-                    if "*** Waiting for passcode to be entered on the device ***" in line_text:
-                        continue
-                    # Stream to queue
-                    if backup_id in backup_tasks:
-                        await backup_tasks[backup_id]["queue"].put(line_text)
-                    
-                    # Parse progress
-                    if '%' in line_text:
-                        try:
-                            parts = line_text.split('%')[0].split()
-                            if parts:
-                                percentage = None
-                                for part in parts:
-                                    if part.endswith('%'):
-                                        try:
-                                            percentage = int(part[:-1])
-                                            break
-                                        except ValueError:
-                                            continue
-                                            
-                                if percentage is not None:
-                                    # Throttle DB updates - only update every 5% or if 100%
-                                    if percentage % 5 == 0 or percentage == 100:
-                                        await db_execute(
-                                            "UPDATE backups SET progress = ? WHERE id = ?",
-                                            (percentage, backup_id)
-                                        )
-                        except Exception as e:
-                            logger.error(f"Error parsing progress: {e}")
-                    logger.info(f"Backup {backup_id}: {line_text}")
+                for byte in chunk:
+                    if byte == 13 or byte == 10:  # \r or \n
+                        if buffer:
+                            line_text = buffer.decode('utf-8', errors='replace').strip()
+                            buffer.clear()
+                            await self._process_log_line(backup_id, line_text)
+                    else:
+                        buffer.append(byte)
 
             except asyncio.TimeoutError:
                 if process.returncode is not None:
@@ -220,26 +204,99 @@ class BackupManager:
             except Exception as e:
                 logger.error(f"Error reading backup output for {backup_id}: {e}")
                 if backup_id in backup_tasks:
-                    await backup_tasks[backup_id]["queue"].put(f"Error reading log: {str(e)}")
+                    await backup_tasks[backup_id]["queue"].put(json.dumps({"type": "log", "message": f"Error reading log: {str(e)}"}))
                 break
+
+    async def _process_log_line(self, backup_id: int, line_text: str):
+        """Process a single complete line or progress update from the backup process."""
+        import json
+        logger.debug(f"Backup {backup_id} processing line: {repr(line_text)}")
+        if not line_text:
+            return
+            
+        # Skip common noisy lines
+        if "*** Waiting for passcode to be entered on the device ***" in line_text:
+            return
+            
+        # Check if this is a progress bar update
+        is_progress = False
+        progress_type = "overall"
+        
+        if line_text.startswith('[') and '%' in line_text:
+            if 'Exiting...' in line_text:
+                is_progress = False
+            else:
+                is_progress = True
+                # Try to determine progress type based on typical idevicebackup2 output
+                if 'Finished' in line_text:
+                    progress_type = "overall"
+                else:
+                    progress_type = "file"
+                
+        # Format the message
+        if is_progress:
+            payload = json.dumps({
+                "type": "progress",
+                "progress_type": progress_type,
+                "message": line_text
+            })
+        else:
+            payload = json.dumps({
+                "type": "log",
+                "message": line_text
+            })
+
+        logger.debug(f"Backup {backup_id} queueing payload: {payload}")
+        # Stream to queue
+        if backup_id in backup_tasks:
+            await backup_tasks[backup_id]["queue"].put(payload)
+            logger.debug(f"Backup {backup_id} successfully queued payload")
+        else:
+            logger.warning(f"Backup {backup_id} not in backup_tasks!")
+        
+        # Parse progress for database update
+        if '%' in line_text:
+            try:
+                parts = line_text.split('%')[0].split()
+                if parts:
+                    percentage = None
+                    for part in parts:
+                        if part.endswith('%'):
+                            try:
+                                percentage = int(part[:-1])
+                                break
+                            except ValueError:
+                                continue
+                                
+                    if percentage is not None:
+                        # Throttle DB updates - only update every 5% or if 100%
+                        if percentage % 5 == 0 or percentage == 100:
+                            await db_execute(
+                                "UPDATE backups SET progress = ? WHERE id = ?",
+                                (percentage, backup_id)
+                            )
+            except Exception as e:
+                logger.error(f"Error parsing progress: {e}")
+                
+        logger.info(f"Backup {backup_id}: {line_text}")
 
     async def _finalize_backup(self, backup_id: int, return_code: int, backup_path: str):
         """Update DB and perform cleanup based on the process exit code."""
         # Determine final status - check if user cancelled first
         row = await db_fetch_one("SELECT status FROM backups WHERE id = ?", (backup_id,))
         
-        # If the row was deleted by stop_backup, treat it as cancelled
+        import json
         if row is None or row['status'] == "cancelled":
             status = 'cancelled'
         elif return_code == 0:
             status = 'completed'
             if backup_id in backup_tasks:
-                await backup_tasks[backup_id]["queue"].put("Backup completed successfully")
+                await backup_tasks[backup_id]["queue"].put(json.dumps({"type": "log", "message": "Backup completed successfully"}))
             await broadcast_event("backup_update", {"id": backup_id, "status": "completed"})
         else:
             status = 'failed'
             if backup_id in backup_tasks:
-                 await backup_tasks[backup_id]["queue"].put(f"Backup failed with exit code {return_code}")
+                 await backup_tasks[backup_id]["queue"].put(json.dumps({"type": "log", "message": f"Backup failed with exit code {return_code}"}))
 
         if status == 'completed':
             try:
@@ -272,7 +329,8 @@ class BackupManager:
                 await self.cleanup_backup_files(backup_path)
                 
             if backup_id in backup_tasks:
-                await backup_tasks[backup_id]["queue"].put(f"Backup error: {str(error)}")
+                import json
+                await backup_tasks[backup_id]["queue"].put(json.dumps({"type": "log", "message": f"Backup error: {str(error)}"}))
                 backup_tasks[backup_id]["status"] = "failed"
         except Exception as db_e:
             logger.error(f"Failed to update status on error for {backup_id}: {db_e}")

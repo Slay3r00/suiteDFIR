@@ -21,6 +21,7 @@ interface BackupState {
     isBackingUp: boolean;
     isLoadingDevices: boolean;
     activeBackupId: number | null;
+    progressLogs: Record<string, string>;
 }
 
 interface BackupContextType extends BackupState {
@@ -43,6 +44,7 @@ interface BackupPersistedState {
     logs: string[];
     isBackingUp: boolean;
     activeBackupId: number | null;
+    progressLogs: Record<string, string>;
 }
 
 const INITIAL_CONFIG: BackupConfig = {
@@ -56,7 +58,8 @@ const INITIAL_STATE: BackupPersistedState = {
     config: INITIAL_CONFIG,
     logs: [],
     isBackingUp: false,
-    activeBackupId: null
+    activeBackupId: null,
+    progressLogs: {}
 };
 
 export function BackupProvider({ children }: { children: ReactNode }) {
@@ -65,7 +68,7 @@ export function BackupProvider({ children }: { children: ReactNode }) {
         INITIAL_STATE
     );
 
-    const { config, logs, isBackingUp, activeBackupId } = state;
+    const { config, logs, isBackingUp, activeBackupId, progressLogs } = state;
 
     const setConfig = useCallback((updates: Partial<BackupConfig>) => {
         setState(prev => ({ ...prev, config: { ...prev.config, ...updates } }));
@@ -73,6 +76,10 @@ export function BackupProvider({ children }: { children: ReactNode }) {
 
     const setLogs = useCallback((val: string[] | ((prev: string[]) => string[])) => {
         setState(prev => ({ ...prev, logs: typeof val === 'function' ? val(prev.logs) : val }));
+    }, [setState]);
+
+    const setProgressLogs = useCallback((val: Record<string, string> | ((prev: Record<string, string>) => Record<string, string>)) => {
+        setState(prev => ({ ...prev, progressLogs: typeof val === 'function' ? val(prev.progressLogs) : val }));
     }, [setState]);
 
     const setIsBackingUp = useCallback((val: boolean) => {
@@ -178,7 +185,22 @@ export function BackupProvider({ children }: { children: ReactNode }) {
         logStreamRef.current = eventSource;
 
         eventSource.onmessage = (event) => {
-            setLogs(prev => [...prev, event.data]);
+            try {
+                const data = JSON.parse(event.data);
+                if (data.type === 'log') {
+                    setLogs(prev => [...prev, data.message]);
+                } else if (data.type === 'progress') {
+                    setProgressLogs(prev => ({
+                        ...prev,
+                        [data.progress_type]: data.message
+                    }));
+                }
+            } catch (error) {
+                // Fallback for older non-JSON logs
+                if (typeof event.data === 'string' && event.data.trim()) {
+                    setLogs(prev => [...prev, event.data]);
+                }
+            }
         };
 
         eventSource.addEventListener('close', () => {
@@ -207,6 +229,7 @@ export function BackupProvider({ children }: { children: ReactNode }) {
             "Please wait while we prepare the device...",
             "NOTE: You may see a prompt on your device to enter your passcode to trust this computer."
         ]);
+        setProgressLogs({});
         try {
             const password = config.isEncrypted ? config.backupPassword : undefined;
             const response = await api.backup.startBackup(udid, name, caseId, password);
@@ -240,7 +263,10 @@ export function BackupProvider({ children }: { children: ReactNode }) {
         }
     };
 
-    const clearLogs = () => setLogs([]);
+    const clearLogs = () => {
+        setLogs([]);
+        setProgressLogs({});
+    };
 
     // Auto-reconnect to log stream if backup is in progress
     useEffect(() => {
@@ -270,6 +296,7 @@ export function BackupProvider({ children }: { children: ReactNode }) {
             devices,
             backups,
             logs,
+            progressLogs,
             isBackingUp,
             isLoadingDevices,
             activeBackupId,

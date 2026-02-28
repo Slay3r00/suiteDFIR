@@ -25,6 +25,7 @@ export default function BackupPage() {
         devices,
         backups,
         logs,
+        progressLogs,
         isBackingUp,
         isLoadingDevices,
         updateConfig,
@@ -285,12 +286,29 @@ export default function BackupPage() {
                                                     <Button
                                                         variant="secondary"
                                                         onClick={() => activeBackup && handleStopBackup(activeBackup.id)}
-                                                        className="w-full relative overflow-hidden bg-[#e5e5e5] text-black hover:bg-[#d4d4d4]"
+                                                        className="w-full relative overflow-hidden bg-[#e5e5e5] text-black hover:bg-[#d4d4d4] border-none"
                                                     >
-                                                        <div className="relative z-10 flex items-center justify-center gap-2">
-                                                            <div className="h-2 w-2 bg-red-500 rounded-full animate-pulse" />
-                                                            <span>Stop Backup</span>
-                                                        </div>
+                                                        {(() => {
+                                                            let progressVal = 0;
+                                                            if (progressLogs && progressLogs['overall']) {
+                                                                const match = progressLogs['overall'].match(/(\d+)%/);
+                                                                if (match && match[1]) {
+                                                                    progressVal = parseInt(match[1], 10);
+                                                                }
+                                                            }
+                                                            return (
+                                                                <>
+                                                                    <div
+                                                                        className="absolute inset-0 bg-black/5 transition-all duration-500"
+                                                                        style={{ width: `${progressVal}%` }}
+                                                                    />
+                                                                    <div className="relative z-10 flex items-center justify-center gap-2">
+                                                                        <div className="h-2 w-2 bg-red-500 rounded-full animate-pulse" />
+                                                                        <span>Stop Backup ({progressVal}%)</span>
+                                                                    </div>
+                                                                </>
+                                                            );
+                                                        })()}
                                                     </Button>
                                                 );
                                             })()}
@@ -330,7 +348,7 @@ export default function BackupPage() {
                             </Button>
                         </div>
                         <div className="flex-1 overflow-hidden">
-                            <LogViewer logs={logs} />
+                            <LogViewer logs={logs} progressLogs={progressLogs} />
                         </div>
                     </div>
 
