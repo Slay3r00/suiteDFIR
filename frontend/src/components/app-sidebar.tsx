@@ -47,8 +47,8 @@ const data = {
             icon: Smartphone,
         },
         {
-            title: "Backup (libimobile)",
-            url: "/backup",
+            title: "Extraction (libimobile)",
+            url: "/ios-backup",
             icon: Archive,
         },
     ],
@@ -57,6 +57,11 @@ const data = {
             title: "Analysis (aLEAPP)",
             url: "/aleapp",
             icon: Smartphone,
+        },
+        {
+            title: "Extraction (ADB)",
+            url: "/android-backup",
+            icon: Archive,
         },
     ],
 

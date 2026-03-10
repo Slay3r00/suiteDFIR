@@ -11,7 +11,8 @@ const DashboardPage = lazy(() => import('./pages/DashboardPage'))
 const ReportsPage = lazy(() => import('./pages/ReportsPage'))
 const IleappPage = lazy(() => import('./pages/IleappPage'))
 const AleappPage = lazy(() => import('./pages/AleappPage'))
-const BackupPage = lazy(() => import('./pages/BackupPage'))
+const IosBackupPage = lazy(() => import('./pages/IosBackupPage'))
+const AndroidBackupPage = lazy(() => import('./pages/AndroidBackupPage'))
 const SpatialPage = lazy(() => import('./pages/SpatialPage'))
 const TimelinePage = lazy(() => import('./pages/TimelinePage'))
 const SettingsPage = lazy(() => import('./pages/SettingsPage'))
@@ -37,7 +38,8 @@ function App() {
                             <Route path="/reports" element={<ReportsPage />} />
                             <Route path="/ileapp" element={<IleappPage />} />
                             <Route path="/aleapp" element={<AleappPage />} />
-                            <Route path="/backup" element={<BackupPage />} />
+                            <Route path="/ios-backup" element={<IosBackupPage />} />
+                            <Route path="/android-backup" element={<AndroidBackupPage />} />
                             <Route path="/spatial" element={<SpatialPage />} />
                             <Route path="/timeline" element={<TimelinePage />} />
                         </Route>

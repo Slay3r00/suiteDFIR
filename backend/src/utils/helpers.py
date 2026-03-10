@@ -193,10 +193,12 @@ async def get_device_details(udid: str):
         "udid": udid,
         "name": "iOS Device",
         "type": "ios",
+        "device_type": "ios",
         "status": "online",
         "connection": "usb",
         "battery": 100,
-        "is_encrypted": False
+        "is_encrypted": False,
+        "is_rooted": False
     }
 
     def run_ideviceinfo(args):
@@ -212,7 +214,7 @@ async def get_device_details(udid: str):
         # Get Product Type
         res = await asyncio.to_thread(run_ideviceinfo, ["-u", udid, "-k", "ProductType"])
         if res.returncode == 0:
-            device_info["type"] = res.stdout.strip()
+            device_info["device_type"] = res.stdout.strip()
 
         # Check Encryption
         res = await asyncio.to_thread(run_ideviceinfo, ["-u", udid, "-q", "com.apple.mobile.backup"])
@@ -248,6 +250,62 @@ async def get_connected_devices():
                     
     except Exception as e:
         logger.error(f"Error checking for devices: {e}", exc_info=True)
+        
+    return devices
+
+async def get_connected_android_devices():
+    """Helper to get list of connected Android devices via ADB."""
+    devices = []
+    
+    def list_adb_devices():
+        cmd = [get_binary_path("adb"), "devices", "-l"]
+        return subprocess.run(cmd, capture_output=True, encoding='utf-8', errors='replace', startupinfo=get_subprocess_startupinfo())
+
+    try:
+        res = await asyncio.to_thread(list_adb_devices)
+        
+        if res.returncode == 0:
+            lines = res.stdout.strip().splitlines()
+            # Skip the first line ("List of devices attached")
+            for line in lines[1:]:
+                if not line.strip():
+                    continue
+                    
+                parts = line.split()
+                if len(parts) >= 2 and parts[1] == "device":
+                    udid = parts[0]
+                    
+                    # Try to extract the model from the extended list
+                    model = "Android Device"
+                    for part in parts[2:]:
+                        if part.startswith("model:"):
+                            model = part[6:].replace("_", " ")
+                            break
+                            
+                    # Check for root access
+                    is_rooted = False
+                    root_cmd = [get_binary_path("adb"), "-s", udid, "shell", "su", "-c", "id"]
+                    root_res = subprocess.run(root_cmd, capture_output=True, encoding='utf-8', errors='ignore', startupinfo=get_subprocess_startupinfo())
+                    if root_res.returncode == 0 and "uid=0(root)" in root_res.stdout:
+                        is_rooted = True
+                        
+                    devices.append({
+                        "id": udid,
+                        "udid": udid,
+                        "name": model,
+                        "type": "android",
+                        "status": "online",
+                        "connection": "usb",
+                        "battery": 100, # Mock battery for now
+                        "is_encrypted": False, # ADB logical pulls aren't "encrypted" backups
+                        "is_rooted": is_rooted
+                    })
+        else:
+            logger.error(f"adb devices failed with return code {res.returncode}: {res.stderr}")
+                    
+    except Exception as e:
+        # Ignore errors if ADB isn't installed/present yet
+        logger.debug(f"Error checking for android devices (adb might be missing): {e}")
         
     return devices
 

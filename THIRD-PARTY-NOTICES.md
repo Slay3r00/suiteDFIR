@@ -8,6 +8,7 @@ Veritas Lab incorporates several open-source components. This document provides 
 | :--- | :--- | :--- |
 | **iLEAPP** | MIT | [GitHub](https://github.com/abrignoni/iLEAPP) |
 | **aLEAPP** | MIT | [GitHub](https://github.com/abrignoni/ALEAPP) |
+| **Android Platform Tools (ADB)** | Apache 2.0 | [Android Developers](https://developer.android.com/tools/releases/platform-tools) |
 | **libimobiledevice** | LGPL-2.1+ | [GitHub](https://github.com/libimobiledevice/libimobiledevice) |
 | **FastAPI / Pydantic** | MIT | [GitHub](https://github.com/tiangolo/fastapi) |
 | **Electron** | MIT | [GitHub](https://github.com/electron/electron) |
