@@ -1,7 +1,7 @@
 """
-iOS Device Watcher - Cross-platform device change detection.
+Device Watcher - Cross-platform device change detection.
 
-This module periodically checks for connected iOS devices and broadcasts
+This module periodically checks for connected iOS and Android devices and broadcasts
 SSE updates only when the device list changes. Works on Linux, macOS, and Windows.
 """
 
@@ -9,7 +9,7 @@ import asyncio
 import logging
 from typing import Optional, Set
 
-from utils.helpers import get_connected_devices, broadcast_event
+from utils.helpers import get_connected_devices, get_connected_android_devices, broadcast_event
 
 logger = logging.getLogger(__name__)
 
@@ -21,9 +21,16 @@ _watcher_task: Optional[asyncio.Task] = None
 _previous_udids: Set[str] = set()
 
 
+async def _get_all_devices():
+    """Fetch both iOS and Android devices."""
+    ios_devices = await get_connected_devices()
+    android_devices = await get_connected_android_devices()
+    return ios_devices + android_devices
+
+
 async def _run_device_watcher():
     """
-    Background coroutine that monitors for iOS device state changes.
+    Background coroutine that monitors for device state changes.
     Only broadcasts SSE events when devices are added or removed.
     """
     global _previous_udids
@@ -32,7 +39,7 @@ async def _run_device_watcher():
     
     # Initial device fetch
     try:
-        initial_devices = await get_connected_devices()
+        initial_devices = await _get_all_devices()
         _previous_udids = {d.get('udid', '') for d in initial_devices if d.get('udid')}
         logger.info(f"Initial device state: {len(_previous_udids)} device(s)")
     except Exception as e:
@@ -43,8 +50,8 @@ async def _run_device_watcher():
         try:
             await asyncio.sleep(POLL_INTERVAL_SECONDS)
             
-            # Get current devices
-            current_devices = await get_connected_devices()
+            # Get current devices (iOS + Android)
+            current_devices = await _get_all_devices()
             current_udids = {d.get('udid', '') for d in current_devices if d.get('udid')}
             
             # Check for changes

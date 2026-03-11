@@ -25,7 +25,8 @@ export default function MainLayout() {
             <DashboardProvider>
                 <SpatialProvider>
                     <LeappProvider>
-                        <BackupProvider>
+                        <BackupProvider type="ios">
+                        <BackupProvider type="android">
                             <TimelineProvider>
                                 <SidebarProvider defaultOpen={defaultOpen} className="h-full w-full min-h-0 overflow-hidden">
                                     <AppSidebar />
@@ -36,6 +37,7 @@ export default function MainLayout() {
                                     </SidebarInset>
                                 </SidebarProvider>
                             </TimelineProvider>
+                        </BackupProvider>
                         </BackupProvider>
                     </LeappProvider>
                 </SpatialProvider>
