@@ -28,16 +28,16 @@ interface BackupContextType extends BackupState {
     updateConfig: (updates: Partial<BackupConfig>) => void;
     fetchDevices: () => Promise<void>;
     fetchBackups: (caseId?: string) => Promise<void>;
-    startBackup: (udid: string, name: string, caseId?: number) => Promise<void>;
+    startBackup: (udid: string, name: string, caseId?: number) => void;
     stopBackup: (backupId: number) => Promise<void>;
     clearLogs: () => void;
 }
 
-const BackupContext = createContext<BackupContextType | undefined>(undefined);
+// Two separate contexts — one per platform
+const IosBackupContext = createContext<BackupContextType | undefined>(undefined);
+const AndroidBackupContext = createContext<BackupContextType | undefined>(undefined);
 
 import { useCasePersistedState } from '@/hooks/useCasePersistedState';
-
-const STORAGE_KEY_PREFIX = 'vdf_backup_config_';
 
 interface BackupPersistedState {
     config: BackupConfig;
@@ -62,7 +62,15 @@ const INITIAL_STATE: BackupPersistedState = {
     progressLogs: {}
 };
 
-export function BackupProvider({ children }: { children: ReactNode }) {
+interface BackupProviderProps {
+    type: 'ios' | 'android';
+    children: ReactNode;
+}
+
+export function BackupProvider({ type, children }: BackupProviderProps) {
+    // Scope persisted state by platform type
+    const STORAGE_KEY_PREFIX = `vdf_backup_config_${type}_`;
+
     const [state, setState, isLoaded] = useCasePersistedState<BackupPersistedState>(
         STORAGE_KEY_PREFIX,
         INITIAL_STATE
@@ -99,12 +107,6 @@ export function BackupProvider({ children }: { children: ReactNode }) {
 
     const api = React.useMemo(() => createLeappApi('ios'), []);
     const logStreamRef = useRef<EventSource | null>(null);
-    const selectedDeviceRef = useRef(config.selectedDevice);
-
-    // Sync ref for SSE auto-selection
-    useEffect(() => {
-        selectedDeviceRef.current = config.selectedDevice;
-    }, [config.selectedDevice]);
 
     const updateConfig = setConfig;
 
@@ -113,20 +115,12 @@ export function BackupProvider({ children }: { children: ReactNode }) {
         try {
             const data = await api.backup.getDevices();
             setDevices(data);
-            if (data.length > 0) {
-                const currentStillConnected = data.find((d: Device) => d.udid === selectedDeviceRef.current);
-                if (!selectedDeviceRef.current || !currentStillConnected) {
-                    updateConfig({ selectedDevice: data[0].udid });
-                }
-            } else {
-                updateConfig({ selectedDevice: '' });
-            }
         } catch (error) {
             console.error('Failed to fetch devices:', error);
         } finally {
             setIsLoadingDevices(false);
         }
-    }, [api, updateConfig]);
+    }, [api]);
 
     const fetchBackups = useCallback(async (caseId?: string) => {
         // Use provided caseId or fall back to selectedCaseId from context
@@ -153,16 +147,7 @@ export function BackupProvider({ children }: { children: ReactNode }) {
             try {
                 const message = JSON.parse(event.data);
                 if (message.type === 'device_update') {
-                    const data = message.data;
-                    setDevices(data);
-                    if (data.length > 0) {
-                        const currentStillConnected = data.find((d: Device) => d.udid === selectedDeviceRef.current);
-                        if (!selectedDeviceRef.current || !currentStillConnected) {
-                            updateConfig({ selectedDevice: data[0].udid });
-                        }
-                    } else {
-                        updateConfig({ selectedDevice: '' });
-                    }
+                    setDevices(message.data);
                 } else if (message.type === 'backup_update') {
                     fetchBackups();
                 }
@@ -172,7 +157,7 @@ export function BackupProvider({ children }: { children: ReactNode }) {
         };
 
         return () => eventSource.close();
-    }, [fetchDevices, fetchBackups, updateConfig]);
+    }, [fetchDevices, fetchBackups]);
 
     const connectToLogStream = useCallback((backupId: number, keepExisting = false) => {
         if (logStreamRef.current) {
@@ -269,11 +254,12 @@ export function BackupProvider({ children }: { children: ReactNode }) {
     };
 
     // Auto-reconnect to log stream if backup is in progress
+    // Filter to only backups matching THIS provider's platform type
     useEffect(() => {
-        // We only want to evaluate this when backups list updates and is somewhat reliable
         if (!hasFetchedBackups) return;
 
-        const activeBackup = backups.find(b => b.status === 'in_progress');
+        const platformBackups = backups.filter(b => b.type === type);
+        const activeBackup = platformBackups.find(b => b.status === 'in_progress');
 
         if (activeBackup && !logStreamRef.current) {
             setIsBackingUp(true);
@@ -288,34 +274,39 @@ export function BackupProvider({ children }: { children: ReactNode }) {
                 logStreamRef.current = null;
             }
         }
-    }, [backups, isBackingUp, hasFetchedBackups, connectToLogStream, setIsBackingUp, setActiveBackupId]);
+    }, [backups, isBackingUp, hasFetchedBackups, connectToLogStream, setIsBackingUp, setActiveBackupId, type]);
+
+    const value = {
+        config,
+        devices,
+        backups,
+        logs,
+        progressLogs,
+        isBackingUp,
+        isLoadingDevices,
+        activeBackupId,
+        updateConfig,
+        fetchDevices,
+        fetchBackups,
+        startBackup,
+        stopBackup,
+        clearLogs
+    };
+
+    // Provide to the correct context based on type
+    const Context = type === 'ios' ? IosBackupContext : AndroidBackupContext;
 
     return (
-        <BackupContext.Provider value={{
-            config,
-            devices,
-            backups,
-            logs,
-            progressLogs,
-            isBackingUp,
-            isLoadingDevices,
-            activeBackupId,
-            updateConfig,
-            fetchDevices,
-            fetchBackups,
-            startBackup,
-            stopBackup,
-            clearLogs
-        }}>
+        <Context.Provider value={value}>
             {children}
-        </BackupContext.Provider>
+        </Context.Provider>
     );
 }
 
-export function useBackup() {
-    const context = useContext(BackupContext);
+export function useBackup(type: 'ios' | 'android') {
+    const context = useContext(type === 'ios' ? IosBackupContext : AndroidBackupContext);
     if (context === undefined) {
-        throw new Error('useBackup must be used within a BackupProvider');
+        throw new Error(`useBackup('${type}') must be used within a <BackupProvider type="${type}">`);
     }
     return context;
 }

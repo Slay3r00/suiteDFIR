@@ -3,6 +3,7 @@ export interface Device {
     name: string
     type: string
     is_encrypted?: boolean
+    is_rooted?: boolean
 }
 
 export interface Backup {
@@ -15,4 +16,5 @@ export interface Backup {
     status: 'completed' | 'failed' | 'in_progress' | 'cancelled'
     size?: string
     progress?: number
+    type: string
 }

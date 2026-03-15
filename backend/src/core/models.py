@@ -164,11 +164,13 @@ class MessageResponse(BaseModel):
 # BACKUP RESPONSE MODELS
 
 class DeviceInfo(BaseModel):
-    """Connected iOS device information."""
+    """Connected iOS or Android device information."""
     udid: str
     name: str
+    type: str # 'ios' or 'android'
     device_type: Optional[str] = None
     is_encrypted: Optional[bool] = None
+    is_rooted: Optional[bool] = None
 
 
 class BackupValidation(BaseModel):
