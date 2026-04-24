@@ -1,11 +1,9 @@
-# suiteDFIR
-
-
-
 ![macOS](https://img.shields.io/badge/macOS-000000?style=flat-square&logo=apple&logoColor=white) ![Windows](https://img.shields.io/badge/Windows-0078D6?style=flat-square&logo=windows&logoColor=white) ![Linux](https://img.shields.io/badge/Linux-FCC624?style=flat-square&logo=linux&logoColor=black)
 
 > **Beta (v0.1.0)**:
 >This project is current in **Beta**, While it leverages industry-standard forensic tools (iLEAPP, aLEAPP, libimobiledevice), it remains a forensic best practice to always independently verify significant findings against raw data and secondary tools.
+
+![suiteDFIR banner](frontend/public/readme-banner.webp)
 
 suiteDFIR is a forensic extraction and analysis suite built for speed, ease-of-use, and privacy.
 
@@ -71,14 +69,14 @@ While processing is local, certain UI and utility features require an internet c
 
 ## Powered By
 
-suiteDFIR stands on the shoulders of giants. See [THIRD-PARTY-NOTICES.md](file:///Users/jacobcontreras/vdf-tools-dev/THIRD-PARTY-NOTICES.md) for full attributions and license texts.
+suiteDFIR stands on the shoulders of giants. See [THIRD-PARTY-NOTICES.md](./THIRD-PARTY-NOTICES.md) for full attributions and license texts.
 
 - [iLEAPP](https://github.com/abrignoni/iLEAPP) & [aLEAPP](https://github.com/abrignoni/aLEAPP)
 - [libimobiledevice](https://libimobiledevice.org/) (Licensed under LGPL 2.1+)
 
 ## License
 
-This project is licensed under the **Apache License 2.0**. See the [LICENSE](file:///Users/jacobcontreras/vdf-tools-dev/LICENSE) and [NOTICE](file:///Users/jacobcontreras/vdf-tools-dev/NOTICE) files for details.
+This project is licensed under the **Apache License 2.0**. See the [LICENSE](./LICENSE) and [NOTICE](./NOTICE) files for details.
 
 ## Development
 
@@ -120,6 +118,6 @@ Build the full production bundle for your current platform:
 
 ## License
 
-This project is licensed under the **Apache License 2.0**. See the [LICENSE](file:///Users/jacobcontreras/vdf-tools-dev/LICENSE) and [NOTICE](file:///Users/jacobcontreras/vdf-tools-dev/NOTICE) files for details.
+This project is licensed under the **Apache License 2.0**. See the [LICENSE](./LICENSE) and [NOTICE](./NOTICE) files for details.
 
-Third-party components are subject to their own licenses. See [THIRD-PARTY-NOTICES.md](file:///Users/jacobcontreras/vdf-tools-dev/THIRD-PARTY-NOTICES.md) for full attributions.
+Third-party components are subject to their own licenses. See [THIRD-PARTY-NOTICES.md](./THIRD-PARTY-NOTICES.md) for full attributions.
